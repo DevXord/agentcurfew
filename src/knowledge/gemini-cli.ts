@@ -39,10 +39,10 @@ export const geminiCli: AgentKnowledge = {
       files: SETTINGS_FILES,
       serversKey: 'mcpServers',
       local: { command: 'command', args: 'args', env: 'env' },
-      remote: { url: 'url', headers: 'headers' },
+      remote: { url: 'url', headers: 'headers', otherUrls: ['httpUrl'] },
     },
     MCP,
-    'A remote server may use httpUrl (streamable HTTP) in place of url (SSE), so scanners must read both. settingsSchema.ts also has type (stdio, sse, http) and tcp (websocket), which this page does not document. Other fields that matter: cwd, trust (true skips all tool confirmations), includeTools, excludeTools; the global mcp.serverCommand can also start a server, and mcp.allowed and mcp.excluded filter servers. Extensions can also contribute configuration.',
+    'A remote server may use httpUrl (streamable HTTP) in place of url (SSE), so scanners must read both. In packages/core/src/tools/mcp-client.ts (createUrlTransport, main at 3fd7d26) httpUrl is deprecated and wins when both are set, and url with no type tries streamable HTTP, then SSE. settingsSchema.ts also has type (stdio, sse, http) and tcp (websocket), which this page does not document. Other fields that matter: cwd, trust (true skips all tool confirmations), includeTools, excludeTools; the global mcp.serverCommand can also start a server, and mcp.allowed and mcp.excluded filter servers. Extensions can also contribute configuration.',
   ),
   hooks: verified(
     {
@@ -86,14 +86,15 @@ export const geminiCli: AgentKnowledge = {
         { path: '/Library/Application Support/GeminiCli/policies', scope: 'managed', format: 'toml', platforms: ['darwin'] },
         { path: 'C:/ProgramData/gemini-cli/policies', scope: 'managed', format: 'toml', platforms: ['win32'] },
       ],
-      keys: ['general.defaultApprovalMode', 'tools.allowed', 'tools.confirmationRequired', 'tools.core', 'tools.exclude', 'mcp.allowed', 'mcp.excluded', 'mcpServers.*.trust', 'policyPaths', 'adminPolicyPaths', 'security.disableYoloMode', 'security.disableAlwaysAllow', 'security.enablePermanentToolApproval', 'security.folderTrust.enabled', 'admin.secureModeEnabled'],
+      keys: ['general.defaultApprovalMode', 'tools.allowed', 'tools.confirmationRequired', 'tools.core', 'tools.exclude', 'mcp.allowed', 'mcp.excluded', 'mcpServers.*.trust', 'policyPaths', 'adminPolicyPaths', 'security.disableYoloMode', 'security.disableAlwaysAllow', 'security.enablePermanentToolApproval', 'security.folderTrust.enabled', 'admin.secureModeEnabled', 'rule'],
       bypass: [
         { key: 'mcpServers.*.trust', value: true },
         { key: 'general.defaultApprovalMode', value: 'auto_edit' },
       ],
+      allowAllShell: [{ key: 'tools.allowed', value: 'run_shell_command' }],
     },
     CONFIGURATION,
-    'YOLO cannot be set in a file: only --yolo or --approval-mode=yolo enable it. auto_edit approves edit tools only, and tools.allowed skips prompts per tool. Policy rules are [[rule]] tables with toolName, decision, priority, commandPrefix, commandRegex and modes (docs/reference/policy-engine.md). .gemini/policies in a workspace has no effect, per the same page, so it is left out. tools.exclude is deprecated in favor of deny rules.',
+    'YOLO cannot be set in a file: only --yolo or --approval-mode=yolo enable it. auto_edit approves edit tools only, and tools.allowed skips prompts per tool. Policy rules are [[rule]] tables, read through the key rule with toolName, decision, priority, commandPrefix, commandRegex and modes (docs/reference/policy-engine.md). .gemini/policies in a workspace has no effect, per the same page, so it is left out. tools.exclude is deprecated in favor of deny rules. allowAllShell is inferred: docs/tools/shell.md says a bare run_shell_command in tools.core is a wildcard for any command not blocked, and this page says tools.core mirrors the matching of tools.allowed, which skips the confirmation.',
   ),
   autoRun: uncertain(
     { files: SETTINGS_FILES, triggerKey: 'hooks.SessionStart', triggerValue: 'startup', commandField: 'command' },

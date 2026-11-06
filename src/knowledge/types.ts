@@ -50,7 +50,10 @@ export interface AgentPath {
 }
 
 export interface McpFile extends AgentPath {
-  /** The table of servers in this file, when it differs from McpKnowledge.serversKey. */
+  /**
+   * The table of servers in this file, when it differs from McpKnowledge.serversKey. A segment <project> stands for the
+   * key that names the scanned project by its absolute path.
+   */
   serversKey?: string;
 }
 
@@ -61,7 +64,7 @@ export interface McpKnowledge {
   /** Field names of a server started locally; null when the agent has no local servers. */
   local: { command: string; args: string; env: string } | null;
   /** Field names of a remote server; null when the agent has no remote servers. */
-  remote: { url: string; headers: string | null } | null;
+  remote: { url: string; headers: string | null; /** Further fields that hold the address in other transports. */ otherUrls?: readonly string[] } | null;
 }
 
 export interface HookFile extends AgentPath {
@@ -78,12 +81,16 @@ export interface HooksKnowledge {
   handlerTypes: readonly string[];
   /** The field that holds the shell command of a command handler. */
   commandField: string | null;
+  /** Events that fire with no action by the user or the agent, such as opening a workspace; their hooks are also auto-run. */
+  autoStartEvents?: readonly string[];
 }
 
 export interface SkillsKnowledge {
   directories: readonly AgentPath[];
   /** The file that defines a skill inside its folder, e.g. SKILL.md. */
   entryFile: string;
+  /** The frontmatter field that grants tools without a prompt, read with the agent's allowAllShell entries. */
+  grantsField?: string;
 }
 
 export interface ContextFile extends AgentPath {
@@ -91,12 +98,25 @@ export interface ContextFile extends AgentPath {
   loading: 'always' | 'conditional';
 }
 
+export interface BypassSetting {
+  key: string;
+  /** Matches the value itself, or an item of a list. */
+  value: string | boolean;
+  /**
+   * What the agent does with it in a project file: ignored (only user or managed files count), needs-trust (only once
+   * the folder is trusted). Absent when the source says nothing more.
+   */
+  fromProject?: 'ignored' | 'needs-trust';
+}
+
 export interface PermissionsKnowledge {
   files: readonly AgentPath[];
   /** Keys in those files that grant or deny, dotted. */
   keys: readonly string[];
   /** Settings that turn prompts off, as written in those files; empty when they cannot be set from a file. */
-  bypass: readonly { key: string; value: string | boolean }[];
+  bypass: readonly BypassSetting[];
+  /** Entries of a list under `key` that allow every shell command at once, e.g. Bash in permissions.allow. */
+  allowAllShell?: readonly { key: string; value: string }[];
 }
 
 /**

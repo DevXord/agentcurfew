@@ -60,7 +60,7 @@ function mcpWith(legacy: readonly AgentPath[]): McpKnowledge {
     files: [...mcpFiles, ...legacy],
     serversKey: 'mcpServers',
     local: { command: 'command', args: 'args', env: 'env' },
-    remote: { url: 'url', headers: 'headers' },
+    remote: { url: 'url', headers: 'headers', otherUrls: ['serverUrl'] },
   };
 }
 
@@ -93,7 +93,7 @@ export const windsurf: AgentKnowledge = {
     `Organization settings from the admin dashboard and session approvals rank above these files and have no file. In .devin/config.json only permissions, read_config_from and hooks are available. The older IDE settings live in VS Code-derived per-user directories and in the binary ~/.codeium/user_settings.pb (${FAQ}), which is not listed here.`,
   ),
   mcp: disputed(
-    `A project file exists now (${MCP}); which file wins for one server is not documented. Sources disagree on the legacy user file. read_config_from.windsurf defaults to true, and read_config_from also imports .mcp.json, .cursor/mcp.json and other tools' files; those belong to their own agents. The docs name url for remote servers and do not mention serverUrl; the field in legacy files could not be read from an official page.`,
+    `A project file exists now (${MCP}); which file wins for one server is not documented. Sources disagree on the legacy user file. read_config_from.windsurf defaults to true, and read_config_from also imports .mcp.json, .cursor/mcp.json and other tools' files; those belong to their own agents. The docs read in phase 1 name url for remote servers and do not mention serverUrl, while a search summary of https://docs.windsurf.com/windsurf/cascade/mcp on 2026-11-06 (the page itself could not be fetched) says a remote server needs serverUrl or url; both are read. The field in legacy files could not be read from an official page.`,
     evidence(mcpWith(CHANNELS.map((channel) => ({ path: `~/.codeium/${channel}/mcp_config.json`, scope: 'user', format: 'json' }))), READ_CONFIG_FROM),
     evidence(mcpWith([{ path: '~/.codeium/mcp_config.json', scope: 'user', format: 'json' }]), FAQ),
   ),
@@ -159,8 +159,8 @@ export const windsurf: AgentKnowledge = {
       files: configFiles,
       keys: ['permissions.allow', 'permissions.deny', 'permissions.ask', 'permission_mode', 'local_tools_bypass_permissions', 'read_config_from'],
       bypass: [
-        { key: 'permission_mode', value: 'dangerous' },
-        { key: 'local_tools_bypass_permissions', value: true },
+        { key: 'permission_mode', value: 'dangerous', fromProject: 'ignored' },
+        { key: 'local_tools_bypass_permissions', value: true, fromProject: 'ignored' },
       ],
     },
     CONFIG_FILE,

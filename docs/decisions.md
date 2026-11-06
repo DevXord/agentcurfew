@@ -58,7 +58,25 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Decision:** A component is one entry per kind, file and name, with a list of the agents that read it, because one file such as `AGENTS.md` steers several agents and the plan's "agent" field would otherwise repeat it. Every variant of a disputed fact and every uncertain fact is scanned, so a doubt about an agent widens the inventory and never hides something.
 - **Output:** `raw` stays in memory for the rules. `--json` prints `bytes` in its place, and problems name a file and a code but no parser message, because either could carry a secret. Control and invisible characters in names are written as `\u` escapes.
 - **Hooks that start on their own** appear twice, as `hook` and as `auto-run`, so that the phase 3 rules can read each kind alone.
-- **Known gaps, for phase 3:** hooks in skill and subagent frontmatter are not split out, since that needs YAML (their whole text is inventoried). Gemini policy TOML files yield no component, because their keys are not in `permissions.keys`. Cursor's `workspaceOpen` is listed as a hook only. Local-scope servers in `~/.claude.json` under `projects` are not read. A parse failure lists nothing from that file; it is a problem in the output, with exit code 0 until rules exist.
+- **Known gaps, closed in phase 3:** hooks in skill and subagent frontmatter are now listed one by one (D-012). Gemini policy TOML files yield a `rule` permission. Cursor's `workspaceOpen` is also an auto-run, through `autoStartEvents`. Local-scope servers in `~/.claude.json` are read for the scanned project only, through `projects.<project>.mcpServers`. A parse failure still lists nothing from that file and is a problem in the output; it does not change the exit code.
+- **Skill files:** since phase 3 each file of a skill folder also carries a type from its first bytes (text, executable, media, binary) and, for text, its content, for the rules. Neither is printed.
+
+## D-012: YAML parser is `yaml`
+- **Date:** 2026-11-06
+- **Decision:** `yaml` 2.9.1, approved by the maintainer (Q-008), as an exact pin. It is used only for the frontmatter of Markdown files: hooks of skills and subagents, `allowed-tools`, and Cline cron specs.
+- **Why:** No dependencies and no install scripts, released 2026-09-11 (past the 7-day cooldown), registry signatures, ISC licence, and it is the YAML parser most of the ecosystem uses. A reader of our own would miss YAML the agents accept.
+- **Settings:** core schema (no custom or `!!js` tags: they are read as plain values), merge keys off, at most 50 aliases, unique keys, strict, and `logLevel: 'error'`, because `'silent'` also stops `parse` from throwing, so duplicate keys passed in a first try. Results go through the same 64-level depth check as JSON.
+- **Tested on hostile input (Node 22.23.4, Linux):** `__proto__` and `constructor` keys stay data and pollute nothing. An alias bomb throws (ReferenceError). Nesting of 1000 levels throws `RESOURCE_EXHAUSTION` instead of overflowing the stack. But the cost grows faster than the size: 200,000 keys took over 30 s, aliases in 256 KB took 9.5 s, and a 12 MB input of deep block nesting ran V8 out of memory. Hence a limit of 32 KB per frontmatter block, where the worst case found took about 0.17 s; a larger block is reported as `too-large` and not parsed.
+
+## D-013: Rules and findings
+- **Date:** 2026-11-06
+- **Model:** a rule has an id, a level, OWASP references, a description, a fix, an example, the component kinds it reads, and, when it matches patterns, a note on false alarms. `check` returns hits whose message must already be safe to print; the engine also bounds and cleans every message. A hit may raise or lower the level, for example a setting the agent ignores in a project file is `low`.
+- **Engine:** pure and deterministic (sorted by file, line, column, rule), at most 20 hits per rule and component plus one summary finding, a rule that throws becomes an `info` finding, and a hook that is also an auto-run component is reported once per rule.
+- **Facts stay in the knowledge base:** which settings bypass prompts and whether a project file may set them (`fromProject`), which allow-list entries mean every shell command (`allowAllShell`), the skill field that grants tools (`grantsField`), events that start hooks on their own (`autoStartEvents`) and further remote URL fields (`otherUrls`) are new knowledge fields. Formats of credentials are facts about their issuers, not agents, and live in `src/rules/secrets.ts`; their sources are still to be added (Q-010).
+- **Exit code:** `acf scan` exits with 1 when a finding is at `--fail-on` or above, `high` by default, as the maintainer chose; `none` turns it off. Inventory problems do not change the exit code. `--fail-on` with `--inventory` is a usage error.
+- **JSON:** `scan --json` is schema version 2: the inventory's fields plus `failOn` and `findings`. `scan --inventory --json` stays at version 1.
+- **Fixtures:** each rule has `tests/fixtures/rules/<id>/positive` and `negative`. Hidden characters and secret-shaped values are written `{U+XXXX}` and `{{secret:name}}` and expanded only in a temporary copy, so that the repository holds no invisible text and nothing a secret scanner would take for a live token.
+- **Not in phase 3:** drift (phase 4, lockfile) and out-of-policy (phase 5, policy) are listed as planned in docs/rules.md.
 
 ## Q-001: Does `acf` collide with a common tool in PATH?
 - **Status:** no collision found on 2026-11-06, not proven. No `bin/acf` in Debian stable or Ubuntu noble, and nothing in Homebrew, Arch, Repology or Chocolatey. Alpine's `acf-core` keeps it off PATH. npm `acf` has no `bin`. Not checked: PyPI `acf` entry points, and npm by binary name, which cannot be searched. The alias stays; decide at phase 9.
@@ -76,10 +94,17 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Status:** answered by D-010. Codex keeps MCP servers, permissions, hooks and custom agents in TOML with inline tables and quoted keys, so a parser is needed.
 
 ## Q-007: Does the Windsurf entry keep its name?
-- **Status:** open, maintainer's choice. Windsurf is now Devin Desktop: `docs.windsurf.com` redirects to `docs.devin.ai` (checked on 2026-11-06), `.devin/` is primary and `.windsurf/` is legacy. The id stays `windsurf` for now, with the name "Windsurf (Devin Desktop)", and the module lists both folders. The plan's agent list predates this.
+- **Status:** answered on 2026-11-06: the id stays `windsurf`, by the maintainer's choice, since it now appears in findings and JSON output.
+- **Background:** Windsurf is now Devin Desktop: `docs.windsurf.com` redirects to `docs.devin.ai` (checked on 2026-11-06), `.devin/` is primary and `.windsurf/` is legacy. The id stays `windsurf` for now, with the name "Windsurf (Devin Desktop)", and the module lists both folders. The plan's agent list predates this.
 
 ## Q-008: `yaml` in phase 2?
-- **Status:** open until phase 2 shows whether skill frontmatter needs a full parser. D-004 keeps it out until code imports it.
+- **Status:** answered by D-012: the maintainer approved `yaml` in phase 3.
+
+## Q-009: npm in cloud sessions ignores the cooldown
+- **Status:** open. The cloud container has npm 10.9.9, while `packageManager` pins 11.21.1. npm 10 does not know `min-release-age` or `allowScripts`, so `.npmrc` protections are silently off there, and it rewrites `package-lock.json` (it drops the `libc` fields). `dcf doctor` passed, since it reads the pinned version from `package.json`. Phase 3 installed `yaml` with `npx npm@11.21.1`. CI (phase 9) must run the pinned npm, for example through Corepack.
+
+## Q-010: Credential formats in `secret-in-config`
+- **Status:** open. The token prefixes in `src/rules/secrets.ts` (GitHub, GitLab, Anthropic, OpenAI, AWS, Google, Slack, Stripe, npm, Hugging Face, private keys, JWT) were written from what is publicly known about them, not checked against each issuer's documentation in this session. Verify each and add the source next to it.
 
 ## Q-005: TypeScript 7?
 - **Status:** open, maintainer's choice. `tsdown` 0.23.5 declares `^7.0.0` as a supported peer; whether 0.23.2 and the d.ts build work with it was not tested.

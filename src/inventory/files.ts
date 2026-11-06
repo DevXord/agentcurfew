@@ -165,12 +165,16 @@ export class ScanFiles {
   }
 
   read(found: Found): string | undefined {
+    return this.readBytes(found)?.toString('utf8');
+  }
+
+  readBytes(found: Found): Buffer | undefined {
     try {
       if (statSync(found.path).size > this.#limits.maxFileBytes) {
         this.report('too-large', found.file);
         return undefined;
       }
-      return readFileSync(found.path, 'utf8');
+      return readFileSync(found.path);
     } catch {
       this.report('unreadable', found.file);
       return undefined;

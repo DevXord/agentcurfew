@@ -110,9 +110,9 @@ export const codex: AgentKnowledge = {
       ],
       keys: ['approval_policy', 'sandbox_mode', 'default_permissions', 'permissions', 'sandbox_workspace_write.network_access', 'sandbox_workspace_write.writable_roots', 'mcp_servers.<id>.default_tools_approval_mode', 'mcp_servers.<id>.tools.<tool>.approval_mode'],
       bypass: [
-        { key: 'approval_policy', value: 'never' },
-        { key: 'sandbox_mode', value: 'danger-full-access' },
-        { key: 'default_permissions', value: ':danger-full-access' },
+        { key: 'approval_policy', value: 'never', fromProject: 'needs-trust' },
+        { key: 'sandbox_mode', value: 'danger-full-access', fromProject: 'needs-trust' },
+        { key: 'default_permissions', value: ':danger-full-access', fromProject: 'needs-trust' },
       ],
     },
     APPROVALS,

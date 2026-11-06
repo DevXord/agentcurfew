@@ -1,6 +1,6 @@
 import { parse as parseToml } from 'smol-toml';
 
-const MAX_DEPTH = 64;
+export const MAX_DEPTH = 64;
 
 /** JSON with comments and trailing commas, which VS Code accepts in its files, as plain JSON. */
 export function stripJsonc(text: string): string {
@@ -32,7 +32,7 @@ export function stripJsonc(text: string): string {
   return output;
 }
 
-function deeperThan(root: unknown, limit: number): boolean {
+export function deeperThan(root: unknown, limit: number): boolean {
   const stack: { value: unknown; depth: number }[] = [{ value: root, depth: 0 }];
   while (stack.length > 0) {
     const { value, depth } = stack.pop() as { value: unknown; depth: number };
@@ -45,7 +45,7 @@ function deeperThan(root: unknown, limit: number): boolean {
 
 /** The parsed file, or undefined when it cannot be read as its format. */
 export function parseConfig(text: string, format: 'json' | 'toml'): unknown {
-  const source = text.replace(/^﻿/, '');
+  const source = text.replace(/^\uFEFF/, '');
   try {
     if (format === 'toml') return parseToml(source, { maxDepth: MAX_DEPTH, unsafeKeyBehaviour: 'keep', integersAsBigInt: 'asNeeded' });
     const value: unknown = JSON.parse(stripJsonc(source));

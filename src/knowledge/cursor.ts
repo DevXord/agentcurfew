@@ -90,6 +90,7 @@ export const cursor: AgentKnowledge = {
       ],
       handlerTypes: ['command', 'prompt'],
       commandField: 'command',
+      autoStartEvents: ['workspaceOpen'],
     },
     HOOKS,
     `Files are in priority order (${THIRD_PARTY_HOOKS}). The .claude files use Claude Code event names and load only while Include Third-Party Plugins, Skills, and Other Configs is on, which is the default. workspaceOpen fires when Cursor opens a workspace, so a hook on it starts with no prompt to the agent. Project hooks need a trusted workspace, but workspace trust is off by default (${AGENT_SECURITY}) and off means all workspaces are automatically trusted (${WORKSPACE_TRUST}); reading these together, a committed .cursor/hooks.json runs without a trust prompt by default. That conclusion is an inference and was not tested.`,

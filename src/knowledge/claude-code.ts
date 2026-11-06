@@ -84,17 +84,21 @@ function permissions(disableAutoMode: string): PermissionsKnowledge {
       disableAutoMode,
     ],
     bypass: [
-      { key: 'permissions.defaultMode', value: 'bypassPermissions' },
-      { key: 'permissions.defaultMode', value: 'auto' },
+      { key: 'permissions.defaultMode', value: 'bypassPermissions', fromProject: 'ignored' },
+      { key: 'permissions.defaultMode', value: 'auto', fromProject: 'ignored' },
       { key: 'permissions.defaultMode', value: 'acceptEdits' },
-      { key: 'skipDangerousModePermissionPrompt', value: true },
-      { key: 'enableAllProjectMcpServers', value: true },
+      { key: 'skipDangerousModePermissionPrompt', value: true, fromProject: 'ignored' },
+      { key: 'enableAllProjectMcpServers', value: true, fromProject: 'needs-trust' },
+    ],
+    allowAllShell: [
+      { key: 'permissions.allow', value: 'Bash' },
+      { key: 'permissions.allow', value: 'Bash(*)' },
     ],
   };
 }
 
 const PERMISSIONS_NOTE =
-  'defaultMode bypassPermissions and auto do not take effect from .claude/settings.json or .claude/settings.local.json; before v2.1.257 bypassPermissions took effect from any file. skipDangerousModePermissionPrompt is read from user, local or managed settings only. A committed enableAllProjectMcpServers is ignored in an untrusted folder. permissions.allow and additionalDirectories in .claude/settings.json need workspace trust.';
+  'defaultMode bypassPermissions and auto do not take effect from .claude/settings.json or .claude/settings.local.json; before v2.1.257 bypassPermissions took effect from any file. skipDangerousModePermissionPrompt is read from user, local or managed settings only. A committed enableAllProjectMcpServers is ignored in an untrusted folder. permissions.allow and additionalDirectories in .claude/settings.json need workspace trust. A bare Bash, or Bash(*), in permissions.allow matches every Bash command (https://code.claude.com/docs/en/permissions#match-all-uses-of-a-tool).';
 
 export const claudeCode: AgentKnowledge = {
   id: 'claude-code',
@@ -109,6 +113,7 @@ export const claudeCode: AgentKnowledge = {
       files: [
         { path: '.mcp.json', scope: 'project', format: 'json' },
         { path: '~/.claude.json', scope: 'user', format: 'json' },
+        { path: '~/.claude.json', scope: 'user', format: 'json', serversKey: 'projects.<project>.mcpServers' },
         ...managed('managed-mcp.json', 'json'),
       ],
       serversKey: 'mcpServers',
@@ -131,9 +136,10 @@ export const claudeCode: AgentKnowledge = {
         ...managed('.claude/skills', 'markdown-frontmatter'),
       ],
       entryFile: 'SKILL.md',
+      grantsField: 'allowed-tools',
     },
     SKILLS,
-    'Each skill is a folder <name>/SKILL.md below these directories. Plugins add <plugin>/skills/<name>/SKILL.md. Frontmatter can set hooks, allowed-tools and shell; workspace trust never gates allowed-tools.',
+    'Each skill is a folder <name>/SKILL.md below these directories. Plugins add <plugin>/skills/<name>/SKILL.md. Frontmatter can set hooks, allowed-tools and shell; workspace trust never gates allowed-tools. allowed-tools takes a space- or comma-separated string or a YAML list, and grants those tools without a prompt during the turn that invokes the skill; it does not restrict the other tools.',
   ),
   contextFiles: verified(
     contextFiles,

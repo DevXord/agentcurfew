@@ -2,10 +2,16 @@ import type { AgentId, Scope } from '../knowledge/types.ts';
 
 export type ComponentKind = 'skill' | 'mcp-server' | 'hook' | 'auto-run' | 'context-file' | 'permission' | 'subagent' | 'command';
 
+export type SkillFileType = 'text' | 'executable' | 'media' | 'binary';
+
 export interface SkillFile {
   /** Relative to the skill folder, with / separators. */
   path: string;
   bytes: number;
+  /** What the first bytes show; absent when the file could not be read. Kept out of the output, like raw. */
+  type?: SkillFileType;
+  /** The text of a text file, for the rules. Kept out of the output. */
+  raw?: string;
 }
 
 export interface Component {

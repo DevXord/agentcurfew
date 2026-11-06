@@ -37,7 +37,8 @@
     "fuzz": "vitest run --config vitest.fuzz.config.ts",
     "typecheck": "tsc --noEmit",
     "check:pkg": "tsdown && publint && attw --pack . --profile esm-only",
-    "docs:knowledge": "node scripts/generate-knowledge.ts"
+    "docs:knowledge": "node scripts/generate-knowledge.ts",
+    "docs:rules": "node scripts/generate-rules.ts"
   },
   "keywords": [
     "security",
@@ -72,6 +73,7 @@
     "fsevents": false
   },
   "dependencies": {
-    "smol-toml": "1.9.1"
+    "smol-toml": "1.9.1",
+    "yaml": "2.9.1"
   }
 }

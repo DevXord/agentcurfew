@@ -1,0 +1,46 @@
+{
+  "mcpServers": {
+    "fs": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "."
+      ]
+    },
+    "latest": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "some-server@latest"
+      ]
+    },
+    "git": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-git"
+      ]
+    },
+    "gh": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ]
+    },
+    "range": {
+      "command": "npx -y caret-server@^1.2.0"
+    },
+    "next": {
+      "command": "pnpm",
+      "args": [
+        "dlx",
+        "other-server@next"
+      ]
+    }
+  }
+}

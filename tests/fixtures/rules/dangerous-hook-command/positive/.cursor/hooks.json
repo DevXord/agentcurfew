@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "echo aGVsbG8K | base64 -d | sh"
+      }
+    ]
+  }
+}

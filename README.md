@@ -2,7 +2,15 @@
 
 > One local, account-less security policy for the files that steer your AI coding agents — skills, MCP servers, hooks, context files, permissions.
 
-**Status:** pre-release. Phases 0 to 2 of [docs/PLAN.md](docs/PLAN.md) are done: `acf scan --inventory` lists what steers agents in a project from a sourced [knowledge base](docs/knowledge.md). The rules, the lockfile and the policy are not there yet.
+**Status:** pre-release. Phases 0 to 3 of [docs/PLAN.md](docs/PLAN.md) are done: `acf scan` checks what steers agents in a project against eleven [rules](docs/rules.md), from a sourced [knowledge base](docs/knowledge.md), and `acf scan --inventory` lists it. The lockfile and the policy are not there yet.
+
+```bash
+acf scan                       # exit code 1 on a finding at level high or above
+acf scan --fail-on medium --json
+acf explain hidden-unicode
+```
+
+A clean scan means that none of the rules' patterns was found, not that the configuration is safe: see [what agentcurfew does not find](docs/rules.md#what-agentcurfew-does-not-find).
 
 ## What it does (when finished)
 

@@ -3,6 +3,7 @@ import { getVersion } from '../version.ts';
 import { EXIT_OK, EXIT_USAGE } from './io.ts';
 import type { CliIo } from './io.ts';
 import { printable } from './printable.ts';
+import { runExplain } from './explain.ts';
 import { runScan } from './scan.ts';
 
 const HELP = `agentcurfew: inventory, lock and check what steers your AI coding agents.
@@ -11,15 +12,23 @@ Usage: agentcurfew <command> [options]
        acf <command> [options]
 
 Commands:
-  scan [directory] --inventory  List what steers agents in a project
-    --json                      Print JSON; file contents are left out
+  scan [directory]              Check what steers agents in a project against the rules
+    --fail-on <level>           Exit with 1 at this level or above: critical, high (default), medium, low, none
+    --inventory                 Only list the components, without the rules
+    --json                      Print JSON; file contents and secrets are left out
     --user                      Also read your home directory and machine settings
+  explain <rule>                Say what a rule finds, why it matters and how to fix it
+
+Examples:
+  agentcurfew scan
+  agentcurfew scan --fail-on medium --json
+  agentcurfew explain hidden-unicode
 
 Options:
   -h, --help     Show this help
   -v, --version  Show the version
 
-Planned commands, not available yet: lock, verify, init, doctor, explain, mcp
+Planned commands, not available yet: lock, verify, init, doctor, mcp
 `;
 
 function usageError(io: CliIo, what: string): number {
@@ -47,13 +56,16 @@ export async function run(argv: readonly string[], io: CliIo): Promise<number> {
     if (argv[0] === 'scan' && !argv.includes('--help') && !argv.includes('-h')) {
       return runScan(argv.slice(1), io, (what) => usageError(io, what));
     }
+    if (argv[0] === 'explain' && !argv.includes('--help') && !argv.includes('-h')) {
+      return runExplain(argv.slice(1), io, (what) => usageError(io, what));
+    }
     const parsed = parseGlobal(argv);
     const [command] = parsed.positionals;
     if (parsed.values.version === true && command === undefined) {
       io.stdout(`${getVersion()}\n`);
       return EXIT_OK;
     }
-    if (command === undefined || command === 'help' || command === 'scan') {
+    if (command === undefined || command === 'help' || command === 'scan' || command === 'explain') {
       io.stdout(HELP);
       return EXIT_OK;
     }

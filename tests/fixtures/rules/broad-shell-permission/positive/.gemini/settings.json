@@ -1,0 +1,7 @@
+{
+  "tools": {
+    "allowed": [
+      "run_shell_command"
+    ]
+  }
+}

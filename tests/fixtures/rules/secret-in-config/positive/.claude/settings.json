@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AWS_ACCESS_KEY_ID={{secret:aws}} ./upload.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "node",
+      "args": [
+        "gh.js"
+      ],
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}",
+        "MAX_TOKENS": "4096"
+      }
+    },
+    "api": {
+      "type": "http",
+      "url": "https://api.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${input:api-token}"
+      }
+    },
+    "cli": {
+      "command": "node",
+      "args": [
+        "cli.js",
+        "--api-key=$API_KEY"
+      ]
+    }
+  }
+}
