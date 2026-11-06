@@ -1,0 +1,41 @@
+# agentcurfew
+
+> One local, account-less security policy for the files that steer your AI coding agents — skills, MCP servers, hooks, context files, permissions.
+
+**Status:** pre-release (phase 0 of [docs/PLAN.md](docs/PLAN.md) only — the CLI is a scaffold).
+
+## What it does (when finished)
+
+AI coding agents (Claude Code, Cursor, Codex, Gemini CLI, Copilot, Windsurf, Cline) read files from your repository and your machine that control how they behave: `SKILL.md` with bundled scripts, MCP server configs, hooks, context files (`AGENTS.md`, `CLAUDE.md`, …), permission settings. That is a new supply chain, and attacks on it are already in the wild (ToxicSkills, ClawHub, the tensorlake worm, CVE‑2025‑59536, CVE‑2026‑21852).
+
+`agentcurfew` inventories every such component in a project, locks it with checksums in `agentcurfew.lock`, enforces an `agentcurfew.policy.json` and flags dangerous patterns (hidden Unicode, unpinned `npx` MCP servers, plain‑HTTP MCP endpoints, secrets in configs, persistence rules that rewrite context files, …).
+
+It is a **sibling to [depcurfew](https://github.com/DevXord/depcurfew)**, not a replacement: depcurfew protects the packages your project installs (including those an agent installs for you), agentcurfew protects the files that configure the agent itself.
+
+## Rules of the scanner
+
+1. The scanner **never executes** what it scans. No MCP server is started to read its description, no script or hook runs, no command is spawned.
+2. It makes **no network calls**. Whatever has to be looked up about packages (ages, similar names, known‑malicious versions) is delegated to depcurfew's local OSV data as an optional peer.
+3. One lockfile for every agent and every component type.
+
+## Install (planned)
+
+```bash
+npm i -g agentcurfew
+# or, one-shot
+npx agentcurfew scan
+```
+
+## Development
+
+```bash
+npm install
+npm test
+npm run check:pkg
+```
+
+The full plan lives in [docs/PLAN.md](docs/PLAN.md); decisions and open questions in [docs/decisions.md](docs/decisions.md).
+
+## License
+
+[MIT](LICENSE).

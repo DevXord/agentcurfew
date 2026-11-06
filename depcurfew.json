@@ -1,0 +1,24 @@
+{
+  "$schema": "https://unpkg.com/depcurfew/schema.json",
+  "version": 1,
+  "cooldown": {
+    "minimum": "7d",
+    "exclude": [],
+    "securityUpdates": "bypass"
+  },
+  "installScripts": {
+    "default": "deny",
+    "allow": [],
+    "deny": ["fsevents"]
+  },
+  "sources": {
+    "git": "deny",
+    "remoteTarball": "deny",
+    "file": "deny",
+    "directory": "deny"
+  },
+  "targets": "auto",
+  "doctor": {
+    "failOn": "warning"
+  }
+}
