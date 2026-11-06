@@ -38,6 +38,35 @@ describe('rule helpers', () => {
     expect(knownSecrets(`sk-${'ant'}-${'a1'.repeat(15)}`).map((match) => match.what)).toEqual(['Anthropic API key']);
   });
 
+  // Shapes checked against the issuers' sources (Q-010); built from parts so that the repository holds no token-shaped text.
+  const ghs = `gh${'s'}_123456_eyJ${'hbGciOiJSUzI1NiJ9'}.eyJ${'pc3MiOiIxMjMifQ'}.${'c2lnbmF0dXJl'}`;
+  const glpat = `glpat-${'a1'.repeat(14)}.01.${'0w1234567'}`;
+  const google = `AIz${'a'}${'b'.repeat(34)}-`;
+  const xoxe = `xox${'e'}-1-${'A1'.repeat(20)}`;
+  const xapp = `xap${'p'}-1-A0123456789-1234567890123-${'ab'.repeat(8)}`;
+  const npm = `np${'m'}_${'a1'.repeat(21)}`;
+  const pgp = `-----BEGIN PGP PRIVATE KEY ${'BLOCK'}-----`;
+  const sm2 = `-----BEGIN SM2 PRIVATE ${'KEY'}-----`;
+  const openssh = `-----BEGIN OPENSSH PRIVATE ${'KEY'}-----`;
+  it.each([
+    ['GitHub token', ghs, ghs],
+    ['GitLab token', `${glpat} end`, glpat],
+    ['Google API key', `key=${google} end`, google],
+    ['Slack token', xoxe, xoxe],
+    ['Slack token', xapp, xapp],
+    ['npm token', npm, npm],
+    ['private key', pgp, pgp],
+    ['private key', sm2, sm2],
+    ['private key', openssh, openssh],
+  ])('find a whole %s', (what, text, whole) => {
+    expect(knownSecrets(text).map((match) => [match.what, match.masked])).toEqual([[what, maskSecret(whole)]]);
+  });
+
+  it('do not take a hyphenated word for an sk- key', () => {
+    expect(knownSecrets('see sk-this-is-a-long-hyphenated-identifier here')).toEqual([]);
+    expect(knownSecrets(`sk-or-v1-${'0a'.repeat(16)}`).map((match) => match.what)).toEqual(['sk- API key (OpenAI and others)']);
+  });
+
   it('take agent file names from the knowledge base', () => {
     const names = agentFileNames(knowledgeBase);
     for (const name of ['CLAUDE.md', 'AGENTS.md', 'GEMINI.md', '.mcp.json', '.claude/settings.json', 'SKILL.md', 'tasks.json']) expect(names).toContain(name);
