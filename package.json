@@ -31,7 +31,7 @@
     "CHANGELOG.md"
   ],
   "engines": {
-    "node": ">=18.3.0"
+    "node": ">=18.20.0"
   },
   "packageManager": "npm@11.21.1",
   "scripts": {

@@ -10,6 +10,7 @@ A running log of what each session on agentcurfew did. Not the user-facing chang
 - `action.yml` runs agentcurfew from npm for released versions and builds from source for 0.0.0 (D-024).
 - `depcurfew` is excluded from the cooldown, as the maintainer decided, since all its releases were younger than 7 days; npm 11.21.1 honors the exclusion for install but not for exec.
 - Action SHAs written from memory in a first draft were wrong; all pins are now read with `git ls-remote` and dated.
+- First CI run (2026-11-06): all nine jobs green, including the smoke test on Node 18.20.8, 20, 22, 24 and 26; `engines` is now `>=18.20.0` (Q-004).
 
 ## 2026-11-06: Phase 6, CLI for people, SARIF and GitHub Action
 

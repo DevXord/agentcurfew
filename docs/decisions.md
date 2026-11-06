@@ -165,7 +165,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Status:** open until phase 7, depending on whether the MCP server needs the SDK.
 
 ## Q-004: Is Node 18.3 really the floor?
-- **Status:** open. Taken from depcurfew. The build tool does not support every Node version at build time (`rolldown-plugin-dts` warns on 25.8.1, though it builds), and the output has only been run on 25.8.1. A CI matrix should settle the floor in phase 6 or 9.
+- **Status:** answered in phase 9. CI ran the assembled package (bundle and runtime dependencies) through `scripts/smoke.sh` on Node 18.20.8, 20, 22, 24 and 26 on 2026-11-06, all green; the test suite runs on 22 and 24, since the test tools need a newer Node. `engines` is now `>=18.20.0`, the oldest line tested at its last release, instead of the untested `>=18.3.0`. Node 18 is past its end of life; dropping it is a choice for 1.0.0.
 
 ## Q-006: Which TOML parser for Codex?
 - **Status:** answered by D-010. Codex keeps MCP servers, permissions, hooks and custom agents in TOML with inline tables and quoted keys, so a parser is needed.
