@@ -197,7 +197,9 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - Its hook, active in this repository's sessions, judges `npx <bin>` by the registry's newest version even when the binary is the project's own, pinned dev dependency: `npx vitest` was denied for vitest 5.1.0 (4 days old) while the project pins an older one, `npx tsdown` likewise, and `npx tsc` got a warning. The workaround here is `npm test`, `npm run build` and `npm run typecheck`. A local binary in `node_modules/.bin` could be checked against its installed version instead.
 
 ## Q-001: Does `acf` collide with a common tool in PATH?
-- **Status:** no collision found on 2026-11-06, not proven. No `bin/acf` in Debian stable or Ubuntu noble, and nothing in Homebrew, Arch, Repology or Chocolatey. Alpine's `acf-core` keeps it off PATH. npm `acf` has no `bin`. Not checked: PyPI `acf` entry points, and npm by binary name, which cannot be searched. The alias stays; decide at phase 9.
+- **Status:** open, maintainer's choice before 1.0.0. No `bin/acf` in Debian stable or Ubuntu noble, and nothing in Homebrew, Arch, Repology or Chocolatey; Alpine's `acf-core` keeps it off PATH.
+- **Found on 2026-11-06 (research run, from npm and PyPI listings):** several packages ship a binary named `acf`: `@autocodeflow/cli` and `agentic-control-framework` on npm, and `ai-code-forge` on PyPI. The npm package named `acf` is taken (no `bin`). Whichever is installed last wins the name in PATH, so `acf` may run another tool, and another tool's `acf` may run when a user means agentcurfew.
+- **Recommendation:** drop the `acf` alias for 1.0.0 and keep only `agentcurfew`; adding an alias later is easy, removing one after release breaks scripts. If it stays, the docs should say that `agentcurfew` is the reliable name.
 
 ## Q-002: Is the name `agentcurfew` still free on npm?
 - **Status:** free on 2026-11-06, checked again in phase 9 (`npm view agentcurfew` returns E404). Check once more right before the first publish (docs/RELEASING.md).
@@ -228,7 +230,9 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Not covered:** Stripe organization keys (`sk_org`, shape not documented), Google's newer `AQ.` keys (forum reports only), GitLab personal token prefixes an admin changed, unsigned and encrypted JWTs.
 
 ## Q-011: Deprecated Windsurf paths
-- **Status:** open. `.windsurf/` and `.windsurfrules` are probably legacy since the rename to Devin Desktop (Q-007), but `docs.devin.ai` could not be reached from the cloud session on 2026-11-06, so no source was read and no deprecation was recorded. Read the rules page and add the facts.
+- **Status:** open. `docs.devin.ai` (where `docs.windsurf.com` redirects) still cannot be reached from the cloud session, so no deprecation was recorded in the knowledge base.
+- **Found on 2026-11-06, from search summaries only (unverified):** `.windsurfrules` is called legacy, and `.windsurf/rules` and `.windsurf/workflows` a fallback next to `.devin/`; a search summary also gave a global rules path that differs from the one in the knowledge base. None of it may be recorded until the page is read (CLAUDE.md: no facts from memory or hearsay).
+- **Needed:** someone with access opens the rules and workflows pages of docs.devin.ai, or the session runs where the host is allowed; then `deprecations` entries are added with the source and `doctor`'s `deprecated-format` picks them up.
 
 ## Q-005: TypeScript 7?
 - **Status:** open, maintainer's choice. `tsdown` 0.23.5 declares `^7.0.0` as a supported peer; whether 0.23.2 and the d.ts build work with it was not tested.
