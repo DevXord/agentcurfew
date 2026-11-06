@@ -136,11 +136,30 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Inputs** reach the shell only through environment variables, never through `${{ }}` inside a script. `npm ci --ignore-scripts` builds from the lockfile. Upload to Code Scanning is off by default, since it needs `security-events: write` and Code Scanning enabled.
 - **Test:** `.github/workflows/action-test.yml` (read-only permissions) runs the action from `./` on fixtures: scan with a finding (exit 1, SARIF with the finding), scan of an empty project (exit 0), verify without a lock (exit 1), doctor on a working configuration (exit 0).
 
+## D-022: CI
+- **Date:** 2026-11-06
+- **Decision of the maintainer:** the first release is 1.0.0 with phases 7 and 8 done, so phase 9 builds the release machinery now and publishes nothing; the version stays 0.0.0, which the release workflow refuses.
+- **Workflow `ci.yml`** (push to `main` and `main-wopcok`, pull requests, read-only): tests, fuzz, typecheck and `check:pkg` on Node 22 and 24; a build on Node 24 that assembles what a user gets (bundle, `package.json`, runtime dependencies from the lockfile) and runs `scripts/smoke.sh` on it under Node 18, 20, 22, 24 and 26 (Q-004); and a self-check: `scan`, `verify` and `doctor` of agentcurfew on its own repository, which now has its own `agentcurfew.lock`, and `depcurfew doctor`.
+- **npm 11.21.1 everywhere** installs run, through `npx npm@11.21.1`, since the npm of Node 22 ignores `min-release-age` (Q-009).
+- **depcurfew and the cooldown (decision of the maintainer):** every release of depcurfew was younger than 7 days on 2026-11-06, so `depcurfew.json` excludes `depcurfew` from the cooldown, as a sibling project with the same maintainer, and CI pins 1.5.2. `depcurfew apply` wrote `min-release-age-exclude[]=depcurfew`. npm 11.21.1 honors it for `npm install` but not for `npm exec`/`npx`, which still refused the version, so CI installs depcurfew with `npm install --no-save`. That gap is worth a look in depcurfew, which this session does not change.
+- **Pins:** besides those of D-021, `actions/upload-artifact` v7.0.2 (`cf430e0…`) and `actions/download-artifact` v8.0.2 (`9000827…`), both commits of 2026-10-07. A first draft carried SHAs written from memory; they were wrong and were replaced by SHAs read with `git ls-remote`.
+
+## D-023: Release
+- **Date:** 2026-11-06
+- **Decision of the maintainer:** two gates: the GitHub environment `npm` with a required reviewer, then npm staged publishing approved with 2FA. Trusted publishing (OIDC), no token.
+- **Workflow `release.yml`** (tags `v*`): `build` checks that the tag equals `v` + the version and that the version is not 0.0.0, runs the tests, packs the tarball and records its SHA-256; `publish` (environment `npm`, `id-token: write` only there) checks the SHA-256 and runs `npm stage publish` on that tarball, so what goes out is what was tested. npm 11.21.1 meets the documented minimums (11.5.1 for trusted publishing, 11.15.0 for staged publishing) on Node 24 (minimum 22.14.0).
+- **Not settled:** whether a trusted publisher can be set before the first publish of a new package, whether `npm stage publish` takes a tarball and keeps provenance. `docs/RELEASING.md` lists the manual steps and the fallback, which needs the maintainer's decision.
+
+## D-024: The action after the release
+- **Date:** 2026-11-06
+- **Decision of the maintainer:** a released version of the action runs agentcurfew from npm, pinned to the version in its own `package.json`; the unreleased 0.0.0 builds from source as before.
+- **How:** `npm install agentcurfew@<version> --ignore-scripts` into a folder under `$RUNNER_TEMP`, outside the workspace, so that a `.npmrc` with `min-release-age` (the user's, or this repository's) does not refuse a fresh release; `npm install` rather than `npx`, which gives the path of the CLI and is the command the cooldown exclusion was seen to work with.
+
 ## Q-001: Does `acf` collide with a common tool in PATH?
 - **Status:** no collision found on 2026-11-06, not proven. No `bin/acf` in Debian stable or Ubuntu noble, and nothing in Homebrew, Arch, Repology or Chocolatey. Alpine's `acf-core` keeps it off PATH. npm `acf` has no `bin`. Not checked: PyPI `acf` entry points, and npm by binary name, which cannot be searched. The alias stays; decide at phase 9.
 
 ## Q-002: Is the name `agentcurfew` still free on npm?
-- **Status:** free on 2026-11-06 (`npm view agentcurfew` returns E404). Check again right before the first publish.
+- **Status:** free on 2026-11-06, checked again in phase 9 (`npm view agentcurfew` returns E404). Check once more right before the first publish (docs/RELEASING.md).
 
 ## Q-003: Separate `@agentcurfew/mcp` package?
 - **Status:** open until phase 7, depending on whether the MCP server needs the SDK.
@@ -159,7 +178,8 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Status:** answered by D-012: the maintainer approved `yaml` in phase 3.
 
 ## Q-009: npm in cloud sessions ignores the cooldown
-- **Status:** open. The cloud container has npm 10.9.9, while `packageManager` pins 11.21.1. npm 10 does not know `min-release-age` or `allowScripts`, so `.npmrc` protections are silently off there, and it rewrites `package-lock.json` (it drops the `libc` fields). `dcf doctor` passed, since it reads the pinned version from `package.json`. Phase 3 installed `yaml` with `npx npm@11.21.1`. CI (phase 9) must run the pinned npm, for example through Corepack.
+- **Status:** handled in CI by D-022 (every install through npm 11.21.1); the cloud container itself still has npm 10.9.9, so sessions here keep installing with `npx npm@11.21.1`. Earlier `npx depcurfew@latest doctor` runs in this container passed only because npm 10 ignored the cooldown.
+- **Background:** The cloud container has npm 10.9.9, while `packageManager` pins 11.21.1. npm 10 does not know `min-release-age` or `allowScripts`, so `.npmrc` protections are silently off there, and it rewrites `package-lock.json` (it drops the `libc` fields). `dcf doctor` passed, since it reads the pinned version from `package.json`. Phase 3 installed `yaml` with `npx npm@11.21.1`. CI (phase 9) must run the pinned npm, for example through Corepack.
 
 ## Q-010: Credential formats in `secret-in-config`
 - **Status:** open. The token prefixes in `src/rules/secrets.ts` (GitHub, GitLab, Anthropic, OpenAI, AWS, Google, Slack, Stripe, npm, Hugging Face, private keys, JWT) were written from what is publicly known about them, not checked against each issuer's documentation in this session. Verify each and add the source next to it.

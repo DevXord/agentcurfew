@@ -2,7 +2,7 @@
 
 > One local, account-less security policy for the files that steer your AI coding agents — skills, MCP servers, hooks, context files, permissions.
 
-**Status:** pre-release. Phases 0 to 6 of [docs/PLAN.md](docs/PLAN.md) are done: `acf scan` checks what steers agents in a project against the [rules](docs/rules.md), from a sourced [knowledge base](docs/knowledge.md), `acf scan --inventory` lists it, `acf lock` and `acf verify` pin it with checksums in `agentcurfew.lock`, `agentcurfew.policy.json` sets what is allowed ([policy](docs/policy.md)), and `acf doctor` finds configuration that agents ignore ([checks](docs/doctor.md)).
+**Status:** pre-release, nothing published yet; the first release will be 1.0.0. Phases 0 to 6 and the release machinery of phase 9 are done: `acf scan` checks what steers agents in a project against the [rules](docs/rules.md), from a sourced [knowledge base](docs/knowledge.md), `acf scan --inventory` lists it, `acf lock` and `acf verify` pin it with checksums in `agentcurfew.lock`, `agentcurfew.policy.json` sets what is allowed ([policy](docs/policy.md)), and `acf doctor` finds configuration that agents ignore ([checks](docs/doctor.md)).
 
 ```bash
 acf scan                       # exit code 1 on a finding at level high or above
@@ -34,7 +34,7 @@ steps:
       fail-on: high
 ```
 
-Inputs: `command`, `directory`, `fail-on`, `sarif-file` and `upload-sarif` (needs `security-events: write`). Output: `exit-code`. Until the first npm release the action builds agentcurfew from its own source.
+Inputs: `command`, `directory`, `fail-on`, `sarif-file` and `upload-sarif` (needs `security-events: write`). Output: `exit-code`. A released commit runs the matching version of agentcurfew from npm; until the first release (1.0.0) the action builds agentcurfew from its own source. How releases are made: [docs/RELEASING.md](docs/RELEASING.md).
 
 ## What it does (when finished)
 

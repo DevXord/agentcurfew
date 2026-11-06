@@ -2,6 +2,15 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-06: Phase 9, release machinery without a release
+
+- The maintainer decided that the first release is 1.0.0 with phases 7 and 8, so this phase publishes nothing and the version stays 0.0.0.
+- `ci.yml`: tests on Node 22 and 24, a smoke test of the assembled package (`scripts/smoke.sh`) on Node 18, 20, 22, 24 and 26, and a self-check with `agentcurfew scan`, `verify` and `doctor` on this repository and `depcurfew doctor` (D-022). The repository now has its own `agentcurfew.lock`.
+- `release.yml`: from a `v*` tag, test and pack, then, after approval of the environment `npm`, stage the tested tarball on npm with OIDC; it goes live only after `npm stage approve` with 2FA (D-023). `docs/RELEASING.md` lists the maintainer's steps; `CHANGELOG.md` starts for users.
+- `action.yml` runs agentcurfew from npm for released versions and builds from source for 0.0.0 (D-024).
+- `depcurfew` is excluded from the cooldown, as the maintainer decided, since all its releases were younger than 7 days; npm 11.21.1 honors the exclusion for install but not for exec.
+- Action SHAs written from memory in a first draft were wrong; all pins are now read with `git ls-remote` and dated.
+
 ## 2026-11-06: Phase 6, CLI for people, SARIF and GitHub Action
 
 - One table of commands gives the welcome screen (`acf` with no arguments), `help`, `help <command>` and `<command> --help`, the options of `parseArgs` and the suggestions for mistyped commands, options, rules and help topics (D-019). Every error has what, where and a fix.

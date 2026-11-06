@@ -27,7 +27,8 @@
   "files": [
     "dist",
     "schema.json",
-    "schemas"
+    "schemas",
+    "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=18.3.0"

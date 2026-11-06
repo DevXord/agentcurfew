@@ -41,7 +41,7 @@ export function runVerify(argv: readonly string[], io: CliIo, usageError: (what:
     io.stdout(`${printableJson(output)}\n`);
     return changes.length === 0 ? EXIT_OK : EXIT_FAILURE;
   }
-  const lines = changes.length === 0 ? [`${label(io, 'OK')}: matches ${LOCKFILE} (${lock.lock.components.length} components)`] : [`${label(io, 'Drift')}: ${changes.length} ${changes.length === 1 ? 'change' : 'changes'} since ${LOCKFILE}`, ...changes.flatMap(changeLines)];
+  const lines = changes.length === 0 ? [`${label(io, 'OK')}: matches ${LOCKFILE} (${lock.lock.components.length} ${lock.lock.components.length === 1 ? "component" : "components"})`] : [`${label(io, 'Drift')}: ${changes.length} ${changes.length === 1 ? 'change' : 'changes'} since ${LOCKFILE}`, ...changes.flatMap(changeLines)];
   if (skills.length > 0) {
     lines.push('', 'skills-lock.json (does not change the result):');
     for (const hit of skills) lines.push(`  ${label(io, (hit.level ?? 'medium').toUpperCase())}  ${printable(hit.file)}: ${printable(hit.message)}`);
