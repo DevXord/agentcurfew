@@ -2,6 +2,7 @@ import type { Component, ComponentKind, Inventory } from '../inventory/types.ts'
 import type { AgentKnowledge } from '../knowledge/types.ts';
 import type { SkillsLockRead } from '../lock/skills-lock.ts';
 import type { Lockfile } from '../lock/types.ts';
+import type { Policy } from '../policy/types.ts';
 
 export const LEVELS = ['critical', 'high', 'medium', 'low', 'info'] as const;
 export type Level = (typeof LEVELS)[number];
@@ -31,6 +32,8 @@ export interface RuleHit {
   column?: number;
   /** A file of a skill folder, relative to it, when the hit is there and not in SKILL.md. */
   inFile?: string;
+  /** Which kind of hit of the rule it is, for policy settings that move only some of them (network). */
+  tag?: string;
 }
 
 export interface RuleContext {
@@ -41,6 +44,8 @@ export interface RuleContext {
   skillsLock?: SkillsLockRead;
   /** Whether execute bits can be compared here (not on Windows). */
   compareExecutableBits?: boolean;
+  /** agentcurfew.policy.json, when there is a valid one. */
+  policy?: Policy;
 }
 
 /** A hit of a rule that looks at the whole project, such as drift, which also reports what is no longer there. */
@@ -78,4 +83,7 @@ export interface Finding {
   line?: number;
   column?: number;
   message: string;
+  tag?: string;
+  /** The policy setting that set the level, when one did. */
+  policy?: string;
 }

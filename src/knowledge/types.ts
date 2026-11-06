@@ -140,6 +140,15 @@ export interface ExtensionsKnowledge {
   commands: readonly AgentPath[];
 }
 
+/** A file or setting the agent still reads, or used to, that its source calls legacy or deprecated. */
+export interface Deprecation {
+  /** Files, as AgentPath writes them: the old file itself, or the files that hold the old key. */
+  paths: readonly string[];
+  /** A dotted key inside those files; absent when the file itself is what is old. */
+  key?: string;
+  replacement: string;
+}
+
 export interface AgentKnowledge {
   id: AgentId;
   name: string;
@@ -152,6 +161,8 @@ export interface AgentKnowledge {
   permissions: Fact<PermissionsKnowledge | null>;
   autoRun: Fact<AutoRunKnowledge | null>;
   extensions: Fact<ExtensionsKnowledge | null>;
+  /** One fact per deprecation, each with its own source; absent when none is known. */
+  deprecations?: readonly Fact<Deprecation>[];
 }
 
 /** The Agent Skills format, shared by several agents. */

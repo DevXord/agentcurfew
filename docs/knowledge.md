@@ -113,6 +113,16 @@ Generated from `src/knowledge/` by `npm run docs:knowledge`; do not edit by hand
 | Automatic start | uncertain | `.cline/cron/*.md`<br>`.cline/cron/**/*.cron.md`<br>`.cline/cron/events/*.event.md`<br>`~/.cline/cron/*.md`<br>`~/.cline/cron/**/*.cron.md`<br>`~/.cline/cron/events/*.event.md`<br>`enabled` = `true` | [source](https://github.com/cline/cline/blob/ea16751d6ae3ae1e443681994906bf29cbc45039/sdk/ARCHITECTURE.md) | 2026-11-06 |
 | Subagents and commands | verified | `.cline/agents/*`<br>`~/.cline/agents/*`<br>`.clinerules/workflows/*`<br>`.cline/workflows/*`<br>`~/Documents/Cline/Workflows/*`<br>`~/.cline/workflows/*` | [source](https://github.com/cline/cline/blob/ea16751d6ae3ae1e443681994906bf29cbc45039/sdk/packages/shared/src/storage/paths.ts) | 2026-11-06 |
 
+## Deprecated files and settings
+
+| Agent | What | Replaced by | Status | Source | Verified |
+| --- | --- | --- | --- | --- | --- |
+| Cursor | `.cursorrules` | rules in .cursor/rules/*.mdc | verified | [source](https://cursor.com/help/customization/rules) | 2026-11-06 |
+| OpenAI Codex CLI | `~/.codex/prompts/*.md` | skills | verified | [source](https://learn.chatgpt.com/docs/custom-prompts.md) | 2026-11-06 |
+| OpenAI Codex CLI | `~/.codex/skills` | ~/.agents/skills | uncertain | [source](https://github.com/openai/codex/blob/55897425e839d943a744c658701445ff732568a0/codex-rs/ext/skills/src/host_roots.rs) | 2026-11-06 |
+| Gemini CLI | `tools.exclude` in `.gemini/settings.json`, `~/.gemini/settings.json` | deny rules of the policy engine | verified | [source](https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/reference/configuration.md) | 2026-11-06 |
+| Gemini CLI | `mcpServers.*.httpUrl` in `.gemini/settings.json`, `~/.gemini/settings.json` | url with type http | uncertain | [source](https://github.com/google-gemini/gemini-cli/blob/3fd7d263466b9e5d30b2da1ebf85dae956a0fb86/packages/core/src/tools/mcp-client.ts) | 2026-11-06 |
+
 ## Shared formats
 
 | Fact | Status | Value | Source | Verified |

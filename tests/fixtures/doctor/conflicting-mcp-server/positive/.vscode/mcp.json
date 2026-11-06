@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "docs": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "docs-b@1.0.0"
+      ]
+    }
+  }
+}

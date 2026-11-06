@@ -22,7 +22,7 @@ export function skillFileHash(file: SkillFile): string | undefined {
   return file.type === 'text' ? sha256(normalizeText(file.content.toString('utf8'))) : sha256(file.content);
 }
 
-function isExecutable(file: SkillFile): boolean {
+export function isExecutable(file: SkillFile): boolean {
   return file.type === 'executable' || SCRIPT.test(file.path) || (file.raw !== undefined && file.raw.startsWith('#!'));
 }
 
@@ -51,6 +51,16 @@ function lockServer(component: Component, knowledge: readonly AgentKnowledge[]):
     headers: Object.keys(entry.headers).sort(compare),
     package: started === undefined ? null : (packageRef(started) ?? null),
   };
+}
+
+/** What a server is for allowServers: the package or image a launcher fetches, its addresses, or neither (a local command). */
+export function serverIdentity(component: Component, knowledge: readonly AgentKnowledge[] = knowledgeBase): { names: string[]; local: boolean } {
+  const entry = mcpEntry(component, knowledge);
+  if (entry === undefined) return { names: [], local: false };
+  const started = launch(commandLine(entry));
+  const ref = started === undefined ? undefined : packageRef(started);
+  const names = [...(ref === undefined ? [] : [ref.name]), ...entry.urls];
+  return { names, local: names.length === 0 && entry.command !== undefined };
 }
 
 function componentHash(component: Component): string {

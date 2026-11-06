@@ -6,6 +6,7 @@ import { entryText, lookup, parseConfig, stripJsonc } from '../../src/inventory/
 import { diffLocks } from '../../src/lock/diff.ts';
 import { parseLock } from '../../src/lock/read.ts';
 import { redact } from '../../src/lock/redact.ts';
+import { validatePolicy } from '../../src/policy/validate.ts';
 import { runRules } from '../../src/rules/index.ts';
 
 const text = fc.oneof(fc.string({ unit: 'binary' }), fc.json(), fc.stringMatching(/^[[\]{}",:=/*\\\n a.#'-]{0,60}$/));
@@ -62,6 +63,19 @@ describe('lock', () => {
         const parsed = parseLock(JSON.parse(json));
         if ('lock' in parsed) diffLocks(parsed.lock, parsed.lock);
         redact(word);
+      }),
+      { numRuns: 3000 },
+    );
+  });
+});
+
+describe('policy', () => {
+  it('validates any JSON without throwing, and accepts only objects of version 1', () => {
+    fc.assert(
+      fc.property(fc.oneof(fc.json(), fc.json().map((inner) => `{"version":1,"mcp":${inner}}`)), (json) => {
+        const value: unknown = JSON.parse(json);
+        const result = validatePolicy(value);
+        if (result.issues.length === 0 && (typeof value !== 'object' || value === null || (value as { version?: unknown }).version !== 1)) throw new Error('accepted a policy without version 1');
       }),
       { numRuns: 3000 },
     );

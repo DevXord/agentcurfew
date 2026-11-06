@@ -134,4 +134,8 @@ export const codex: AgentKnowledge = {
     SUBAGENTS,
     `Custom prompts are deprecated in favour of skills and live only in the user folder, top level only (${DOCS}/custom-prompts.md). Custom agents can also be named through agents.<name>.config_file in config.toml.`,
   ),
+  deprecations: [
+    verified({ paths: ['~/.codex/prompts/*.md'], replacement: 'skills' }, `${DOCS}/custom-prompts.md`, 'Custom prompts are deprecated in favour of skills.'),
+    uncertain({ paths: ['~/.codex/skills'], replacement: '~/.agents/skills' }, SKILL_ROOTS, 'Marked deprecated in the code; the documentation names only the .agents/skills roots.'),
+  ],
 };

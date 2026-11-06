@@ -21,7 +21,7 @@ Levels: `critical`, `high`, `medium`, `low`, `info`. `agentcurfew scan` exits wi
 | [`persistence-instruction`](#persistence-instruction) | low | AST01 | skill, subagent, command, context-file |
 | [`drift`](#drift) | high | AST07 |  |
 | [`skills-lock-mismatch`](#skills-lock-mismatch) | medium | AST07 |  |
-| `out-of-policy` (planned, phase 5) | | AST09 | |
+| [`out-of-policy`](#out-of-policy) | high | AST09 |  |
 
 ## hidden-unicode
 
@@ -169,9 +169,19 @@ Fix: Reinstall the skill with the skills installer, or update skills-lock.json, 
 
 False alarms: The installer hashes the source, drops metadata.json, __pycache__ and __pypackages__ and copies links as files, and sorts paths by the machine's locale, so a mismatch is not proof of tampering.
 
-## Planned
+## out-of-policy
 
-- `out-of-policy`: Skill source or MCP server not allowed by the policy (AST09). Needs phase 5 of the plan.
+**Skill source or MCP server not allowed by the policy.** Level high. AST09 No Governance.
+
+Checks the project against the lists of agentcurfew.policy.json: skills whose source in skills-lock.json is not in skills.allowSources (medium when the skill is not in skills-lock.json at all, so its source is unknown), skills that bundle programs or scripts when skills.allowExecutables is false, and MCP servers whose package, image or address is not in mcp.allowServers. Without a policy, or without the list, it checks nothing.
+
+Example: `mcp.allowServers is ["@modelcontextprotocol/*"], and .mcp.json starts npx -y random-server@1.0.0`
+
+Fix: Remove the component, or, if it was reviewed and is wanted, add its source, package or address to the policy. local allows skills that skills-lock.json does not list and servers started from a local command.
+
+## Policy
+
+agentcurfew.policy.json can raise or lower the level of some rules, list allowed skill sources and MCP servers (out-of-policy), leave paths out and accept findings with a reason: see [policy.md](policy.md). A finding whose level a setting changed names that setting.
 
 ## What agentcurfew does not find
 

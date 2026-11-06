@@ -27,7 +27,7 @@ export const dangerousHookCommand: Rule = {
     const hits: RuleHit[] = [];
     const seen = new Set<string>();
     for (const source of sources) {
-      const found: { message: string; level: Level; index: number }[] = [];
+      const found: { message: string; level: Level; index: number; tag?: string }[] = [];
       for (const pattern of DOWNLOAD_EXECUTE) {
         const match = pattern.pattern.exec(source.text);
         if (match !== null) found.push({ message: `the command ${pattern.what}`, level: 'high', index: match.index });
@@ -36,12 +36,12 @@ export const dangerousHookCommand: Rule = {
       if (write !== null) found.push({ message: 'the command writes to a file that configures an agent', level: 'high', index: write.index });
       if (found.length === 0) {
         const network = NETWORK.pattern.exec(source.text);
-        if (network !== null) found.push({ message: `the command ${NETWORK.what}`, level: 'medium', index: network.index });
+        if (network !== null) found.push({ message: `the command ${NETWORK.what}`, level: 'medium', index: network.index, tag: 'network' });
       }
       for (const item of found) {
         if (seen.has(item.message)) continue;
         seen.add(item.message);
-        hits.push({ message: item.message, level: item.level, ...at(source, item.index) });
+        hits.push({ message: item.message, level: item.level, ...at(source, item.index), ...(item.tag === undefined ? {} : { tag: item.tag }) });
       }
     }
     return hits;

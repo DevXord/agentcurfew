@@ -179,4 +179,11 @@ export const cursor: AgentKnowledge = {
     SUBAGENTS,
     `Subagents are verified on this page: project wins over user for one name, and .cursor wins over .claude and .codex. Commands are the uncertain part: the project path comes only from a 2025 changelog (${COMMANDS_CHANGELOG}), and no current documentation page for them was found. Cursor's skills migration text confirms user-level commands exist, but their path was not read on an official page, so ~/.cursor/commands is left out. Commands may have frontmatter; the plugin reference documents that for plugins only.`,
   ),
+  deprecations: [
+    verified(
+      { paths: ['.cursorrules'], replacement: 'rules in .cursor/rules/*.mdc' },
+      RULES_HELP,
+      'The page says .cursorrules "is legacy and will be deprecated"; it is still read.',
+    ),
+  ],
 };

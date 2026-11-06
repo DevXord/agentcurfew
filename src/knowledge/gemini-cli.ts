@@ -115,4 +115,16 @@ export const geminiCli: AgentKnowledge = {
     SUBAGENTS,
     `Commands come from ${COMMANDS}: *.toml files, a project command wins over a user one, and a prompt can run shell commands with !{...} after a confirmation. registry.ts skips project agents in an untrusted folder and registers them only after acknowledgement. experimental.enableAgents turns subagents off.`,
   ),
+  deprecations: [
+    verified(
+      { paths: ['.gemini/settings.json', '~/.gemini/settings.json'], key: 'tools.exclude', replacement: 'deny rules of the policy engine' },
+      CONFIGURATION,
+      'The permissions fact records the same: tools.exclude is deprecated in favor of deny rules.',
+    ),
+    uncertain(
+      { paths: ['.gemini/settings.json', '~/.gemini/settings.json'], key: 'mcpServers.*.httpUrl', replacement: 'url with type http' },
+      'https://github.com/google-gemini/gemini-cli/blob/3fd7d263466b9e5d30b2da1ebf85dae956a0fb86/packages/core/src/tools/mcp-client.ts',
+      'From the code only: createUrlTransport warns "Using deprecated \'httpUrl\'. Please migrate to \'url\' with \'type: "http"\'". The documentation still describes httpUrl.',
+    ),
+  ],
 };

@@ -1,0 +1,13 @@
+{
+  "tools": {
+    "allowed": [
+      "run_shell_command(git)"
+    ]
+  },
+  "mcpServers": {
+    "new": {
+      "url": "https://mcp.example.com/mcp",
+      "type": "http"
+    }
+  }
+}

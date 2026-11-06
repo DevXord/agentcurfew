@@ -71,6 +71,19 @@ function agentSection(agent: AgentKnowledge): string[] {
   return [`## ${agent.name}`, '', '| Fact | Status | Value | Source | Verified |', '| --- | --- | --- | --- | --- |', ...rows, ''];
 }
 
+function deprecationLines(): string[] {
+  const lines: string[] = [];
+  for (const agent of knowledgeBase) {
+    for (const fact of agent.deprecations ?? []) {
+      for (const evidence of evidenceOf(fact)) {
+        const what = evidence.value.key === undefined ? evidence.value.paths.map(code).join(', ') : `${code(evidence.value.key)} in ${evidence.value.paths.map(code).join(', ')}`;
+        lines.push(`| ${agent.name} | ${what} | ${cell(evidence.value.replacement)} | ${fact.status} | ${link(evidence.source)} | ${evidence.verifiedAt} |`);
+      }
+    }
+  }
+  return lines;
+}
+
 function openFacts(): string[] {
   const lines: string[] = [];
   for (const agent of knowledgeBase) {
@@ -100,6 +113,12 @@ export function renderKnowledge(): string {
     ...openFacts(),
     '',
     ...knowledgeBase.flatMap(agentSection),
+    '## Deprecated files and settings',
+    '',
+    '| Agent | What | Replaced by | Status | Source | Verified |',
+    '| --- | --- | --- | --- | --- | --- |',
+    ...deprecationLines(),
+    '',
     '## Shared formats',
     '',
     '| Fact | Status | Value | Source | Verified |',

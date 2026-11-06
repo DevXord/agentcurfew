@@ -7,3 +7,9 @@ export type { Component, ComponentKind, Inventory, InventoryProblem, Limits, Pro
 export { getVersion } from './version.ts';
 export { findRule, LEVELS, OWASP_AST, plannedRules, rules, runRules } from './rules/index.ts';
 export type { Finding, Level, OwaspId, Rule, RuleContext, RuleHit } from './rules/index.ts';
+export { analyzeProject } from './analyze.ts';
+export type { Analysis } from './analyze.ts';
+export { validatePolicy } from './policy/validate.ts';
+export type { Policy, PolicyIssue } from './policy/types.ts';
+export { runDoctor } from './doctor/index.ts';
+export { checks as doctorChecks } from './doctor/checks.ts';

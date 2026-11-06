@@ -38,6 +38,14 @@ const POSITIVE: Readonly<Record<string, readonly string[]>> = {
   'persistence-instruction': ['low | .claude/skills/setup/SKILL.md:5:8 | setup'],
   drift: ['high | .mcp.json | fs', 'high | AGENTS.md | AGENTS.md', 'high | CLAUDE.md | CLAUDE.md', 'high | GEMINI.md | GEMINI.md'],
   'skills-lock-mismatch': ['medium | .claude/skills/lint/SKILL.md | lint', 'low | .claude/skills/py/SKILL.md | py', 'info | skills-lock.json | ghost'],
+  'out-of-policy': [
+    'high | .claude/skills/lint/SKILL.md | lint',
+    'high | .claude/skills/lint/SKILL.md | lint',
+    'medium | .claude/skills/manual/SKILL.md | manual',
+    'high | .mcp.json | local',
+    'high | .mcp.json | random',
+    'high | .mcp.json | remote',
+  ],
 };
 
 describe('rule fixtures', () => {

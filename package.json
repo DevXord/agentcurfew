@@ -25,7 +25,8 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "schema.json"
   ],
   "engines": {
     "node": ">=18.3.0"
@@ -38,7 +39,9 @@
     "typecheck": "tsc --noEmit",
     "check:pkg": "tsdown && publint && attw --pack . --profile esm-only",
     "docs:knowledge": "node scripts/generate-knowledge.ts",
-    "docs:rules": "node scripts/generate-rules.ts"
+    "docs:rules": "node scripts/generate-rules.ts",
+    "docs:policy": "node scripts/generate-policy.ts",
+    "docs:doctor": "node scripts/generate-doctor.ts"
   },
   "keywords": [
     "security",

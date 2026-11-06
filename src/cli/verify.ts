@@ -1,7 +1,6 @@
 import { parseArgs } from 'node:util';
-import { scanInventory } from '../inventory/index.ts';
+import { analyzeProject } from '../analyze.ts';
 import { buildLock } from '../lock/build.ts';
-import { projectContext } from '../lock/context.ts';
 import { diffLocks } from '../lock/diff.ts';
 import type { Change } from '../lock/diff.ts';
 import { LOCKFILE } from '../lock/types.ts';
@@ -9,7 +8,7 @@ import { skillsLockMismatch } from '../rules/rules/skills-lock-mismatch.ts';
 import { EXIT_FAILURE, EXIT_OK } from './io.ts';
 import type { CliIo } from './io.ts';
 import { printable, printableJson } from './printable.ts';
-import { projectRoot } from './project.ts';
+import { policyError, projectRoot } from './project.ts';
 import { problemLines } from './scan.ts';
 
 /** Version of the JSON that verify --json prints. */
@@ -25,13 +24,14 @@ export function runVerify(argv: readonly string[], io: CliIo, usageError: (what:
   const { values, positionals } = parseArgs({ args: [...argv], allowPositionals: true, options: { json: { type: 'boolean' } } });
   const root = projectRoot(positionals, io, usageError, 'verify');
   if (typeof root === 'number') return root;
-  const { context, lock } = projectContext(root);
+  const analysis = analyzeProject(root, { rules: false });
+  if (analysis.policy.status === 'invalid') return policyError(io, analysis.policy.issues);
+  const { context, lock, inventory } = analysis;
   if (lock.status !== 'ok') {
     const what = lock.status === 'missing' ? `no ${LOCKFILE} in this project` : `${LOCKFILE} cannot be used, because ${lock.reason}`;
     io.stderr(`agentcurfew: ${what}\n  in: ${LOCKFILE}\n  fix: run agentcurfew lock, review the file and commit it\n`);
     return EXIT_FAILURE;
   }
-  const inventory = scanInventory({ root });
   const options = context.compareExecutableBits === undefined ? {} : { compareExecutableBits: context.compareExecutableBits };
   const changes = diffLocks(lock.lock, buildLock(inventory, context.knowledge), options);
   const skills = skillsLockMismatch.checkProject?.(inventory, context) ?? [];

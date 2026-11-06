@@ -1,15 +1,14 @@
 import { lstatSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { scanInventory } from '../inventory/index.ts';
+import { analyzeProject } from '../analyze.ts';
 import { buildLock, serializeLock } from '../lock/build.ts';
-import { projectContext } from '../lock/context.ts';
 import { carryExecutableBits } from '../lock/diff.ts';
 import { LOCKFILE } from '../lock/types.ts';
-import { atLeast, runRules } from '../rules/index.ts';
+import { atLeast } from '../rules/index.ts';
 import { EXIT_FAILURE, EXIT_OK } from './io.ts';
 import type { CliIo } from './io.ts';
-import { projectRoot } from './project.ts';
+import { policyError, projectRoot } from './project.ts';
 import { problemLines } from './scan.ts';
 
 export function runLock(argv: readonly string[], io: CliIo, usageError: (what: string) => number): number {
@@ -25,8 +24,9 @@ export function runLock(argv: readonly string[], io: CliIo, usageError: (what: s
   } catch {
     // No lock yet.
   }
-  const inventory = scanInventory({ root });
-  const { context, lock: previous } = projectContext(root);
+  const analysis = analyzeProject(root);
+  if (analysis.policy.status === 'invalid') return policyError(io, analysis.policy.issues);
+  const { inventory, context, lock: previous } = analysis;
   let lock = buildLock(inventory, context.knowledge);
   if (context.compareExecutableBits === false) lock = carryExecutableBits(lock, previous.status === 'ok' ? previous.lock : undefined);
   const text = serializeLock(lock);
@@ -39,7 +39,8 @@ export function runLock(argv: readonly string[], io: CliIo, usageError: (what: s
     lines.push(`${previous.status === 'missing' ? 'Wrote' : 'Updated'} ${LOCKFILE}: ${count}`);
     if (previous.status === 'invalid') lines.push(`  the old file was replaced, because ${previous.reason}`);
   }
-  const serious = runRules(inventory, { context: { knowledge: context.knowledge } }).filter((finding) => atLeast(finding.level, 'high')).length;
+  // Drift is what lock resolves, so it does not count here.
+  const serious = analysis.findings.filter((finding) => finding.rule !== 'drift' && atLeast(finding.level, 'high')).length;
   if (serious > 0) {
     lines.push(`Warning: ${serious} ${serious === 1 ? 'finding' : 'findings'} at level high or above are now locked as they are; run agentcurfew scan to see them.`);
   }

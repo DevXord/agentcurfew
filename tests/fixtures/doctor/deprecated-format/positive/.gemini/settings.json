@@ -1,0 +1,12 @@
+{
+  "tools": {
+    "exclude": [
+      "run_shell_command"
+    ]
+  },
+  "mcpServers": {
+    "old": {
+      "httpUrl": "https://mcp.example.com/mcp"
+    }
+  }
+}

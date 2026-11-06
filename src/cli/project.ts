@@ -20,3 +20,13 @@ export function projectRoot(positionals: readonly string[], io: CliIo, usageErro
   }
   return root;
 }
+
+/** Says why the policy cannot be used; commands that apply it stop with this. */
+export function policyError(io: CliIo, issues: readonly { path: string; message: string }[]): number {
+  const first = issues[0];
+  const more = issues.length > 1 ? ` (and ${issues.length - 1} more)` : '';
+  io.stderr(
+    `agentcurfew: agentcurfew.policy.json cannot be used: ${printable(first?.path ?? 'policy')}: ${printable(first?.message ?? 'invalid')}${more}\n  in: agentcurfew.policy.json\n  fix: correct the file; agentcurfew doctor lists every problem\n`,
+  );
+  return EXIT_FAILURE;
+}

@@ -2,6 +2,18 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-06: Phase 5, policy and doctor
+
+- `agentcurfew.policy.json` with `schema.json` (D-016): settings that raise or lower rules, allowed skill sources and MCP servers, excluded paths and exceptions with a reason and an optional end date. A validator without dependencies reads the schema itself and names the path of each problem. `docs/policy.md` is generated from the schema.
+- The rule `out-of-policy` (AST09): skills from sources not allowed or of unknown source, skills with executables when they are not allowed, MCP servers whose package, image or address is not allowed.
+- `acf init` proposes a policy the project passes and lists what it left loose; `--print`, `--force`, never through a link.
+- `acf doctor` with nine checks (D-017), each finding with an https source, `docs/doctor.md` generated from the checks. Deprecations are a new list of facts in the knowledge base.
+- `scan`, `lock` and `verify` apply the policy through one `analyzeProject`; an invalid policy stops them. `scan --json` is version 3.
+- This repository has its own `agentcurfew.policy.json`, which leaves out the test fixtures: `acf scan .` reports nothing and `acf doctor .` passes.
+- Tests: every field of the schema accepted and refused with its path, keywords of the schema limited to what the validator implements, each setting both ways, exceptions on and after their date, exclusion in scan and lock, init on a project and its idempotence, a positive and a negative fixture for every doctor check, CLI exit codes. `npm run fuzz` validates random policies. 278 tests.
+
+Not verified: deprecated Windsurf paths, because `docs.devin.ai` was not reachable (Q-011).
+
 ## 2026-11-06: Phase 4, lockfile and verification
 
 - `acf lock` writes `agentcurfew.lock` (D-014): every project component with a SHA-256 checksum, MCP servers with command, arguments and addresses with secrets redacted and the package they fetch, skills with a checksum per file and their executables. Text is normalized from CRLF, keys are sorted, nothing machine-specific is written, and an unchanged project leaves the file untouched.

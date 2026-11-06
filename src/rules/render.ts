@@ -48,10 +48,13 @@ export function renderRules(): string {
     lines.push(`## ${rule.id}`, '', `**${md(rule.title)}.** Level ${rule.level}. ${owasp(rule)}.`, '', rule.description, '', `Example: \`${rule.example.replace(/`/g, "'")}\``, '', `Fix: ${rule.fix}`, '');
     if (rule.falsePositives !== undefined) lines.push(`False alarms: ${rule.falsePositives}`, '');
   }
+  if (plannedRules.length > 0) {
+    lines.push('## Planned', '', ...plannedRules.map((rule) => `- \`${rule.id}\`: ${rule.title} (${rule.owasp.join(', ')}). Needs phase ${rule.phase} of the plan.`), '');
+  }
   lines.push(
-    '## Planned',
+    '## Policy',
     '',
-    ...plannedRules.map((rule) => `- \`${rule.id}\`: ${rule.title} (${rule.owasp.join(', ')}). Needs phase ${rule.phase} of the plan.`),
+    'agentcurfew.policy.json can raise or lower the level of some rules, list allowed skill sources and MCP servers (out-of-policy), leave paths out and accept findings with a reason: see [policy.md](policy.md). A finding whose level a setting changed names that setting.',
     '',
     '## What agentcurfew does not find',
     '',

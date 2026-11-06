@@ -1,20 +1,20 @@
 import { parseArgs } from 'node:util';
-import { scanInventory } from '../inventory/index.ts';
+import { analyzeProject } from '../analyze.ts';
 import type { Component, Inventory, InventoryProblem } from '../inventory/index.ts';
-import { projectContext } from '../lock/context.ts';
 import { LOCKFILE } from '../lock/types.ts';
-import { atLeast, LEVELS, runRules } from '../rules/index.ts';
+import type { Suppressed } from '../policy/apply.ts';
+import { atLeast, LEVELS } from '../rules/index.ts';
 import type { Finding, Level } from '../rules/index.ts';
 import { EXIT_FAILURE, EXIT_OK } from './io.ts';
 import type { CliIo } from './io.ts';
 import { printable, printableJson } from './printable.ts';
-import { projectRoot } from './project.ts';
+import { policyError, projectRoot } from './project.ts';
 
 /** Version of the JSON that scan --inventory --json prints. */
 export const INVENTORY_SCHEMA_VERSION = 1;
 
-/** Version of the JSON that scan --json prints: the inventory's fields, plus findings. */
-export const SCAN_SCHEMA_VERSION = 2;
+/** Version of the JSON that scan --json prints: the inventory's fields, findings, and findings the policy accepted. */
+export const SCAN_SCHEMA_VERSION = 3;
 
 const FAIL_ON = [...LEVELS.filter((level) => level !== 'info'), 'none'] as const;
 type FailOn = (typeof FAIL_ON)[number];
@@ -53,16 +53,18 @@ function where(finding: Finding): string {
   return printable(`${finding.file}${place}${name}`);
 }
 
-function renderFindings(inventory: Inventory, findings: readonly Finding[], failOn: FailOn): string {
+function renderFindings(inventory: Inventory, findings: readonly Finding[], suppressed: readonly Suppressed[], failOn: FailOn): string {
   const counts = LEVELS.map((level) => [level, findings.filter((finding) => finding.level === level).length] as const).filter(([, count]) => count > 0);
   const summary = counts.length === 0 ? '' : ` (${counts.map(([level, count]) => `${count} ${level}`).join(', ')})`;
   const lines = [`${plural(inventory.components.length, 'component')} scanned, ${plural(findings.length, 'finding')}${summary}`];
   let rule = '';
   for (const finding of findings) {
-    lines.push('', `${finding.level.toUpperCase()}  ${finding.rule}  ${where(finding)}`, `  ${printable(finding.message)}`);
+    const set = finding.policy === undefined ? '' : ` (level set by policy: ${finding.policy})`;
+    lines.push('', `${finding.level.toUpperCase()}  ${finding.rule}  ${where(finding)}${set}`, `  ${printable(finding.message)}`);
     if (finding.rule !== rule) lines.push(`  more: agentcurfew explain ${finding.rule}`);
     rule = finding.rule;
   }
+  if (suppressed.length > 0) lines.push('', `${plural(suppressed.length, 'finding')} accepted by exceptions in agentcurfew.policy.json (see --json).`);
   lines.push(...problemLines(inventory));
   const failing = failOn === 'none' ? 0 : findings.filter((finding) => atLeast(finding.level, failOn)).length;
   if (failing > 0) lines.push('', `Failed: ${plural(failing, 'finding')} at level ${failOn} or above (change with --fail-on).`);
@@ -90,12 +92,15 @@ export function runScan(argv: readonly string[], io: CliIo, usageError: (what: s
       'fail-on': { type: 'string' },
     },
   });
-  const failOn = (values['fail-on'] ?? 'high') as FailOn;
-  if (!FAIL_ON.includes(failOn)) return usageError(`--fail-on takes one of ${FAIL_ON.join(', ')}, got ${values['fail-on']}`);
-  if (values.inventory === true && values['fail-on'] !== undefined) return usageError('--fail-on applies to the rules, so it cannot be used with --inventory');
+  const flag = values['fail-on'] as FailOn | undefined;
+  if (flag !== undefined && !FAIL_ON.includes(flag)) return usageError(`--fail-on takes one of ${FAIL_ON.join(', ')}, got ${flag}`);
+  if (values.inventory === true && flag !== undefined) return usageError('--fail-on applies to the rules, so it cannot be used with --inventory');
   const root = projectRoot(positionals, io, usageError, 'scan');
   if (typeof root === 'number') return root;
-  const inventory = scanInventory({ root, user: values.user === true });
+  const analysis = analyzeProject(root, { user: values.user === true, rules: values.inventory !== true });
+  if (analysis.policy.status === 'invalid') return policyError(io, analysis.policy.issues);
+  const { inventory, findings, suppressed, lock } = analysis;
+  const failOn: FailOn = flag ?? analysis.context.policy?.failOn ?? 'high';
   if (values.inventory === true) {
     if (values.json === true) {
       const output = { schemaVersion: INVENTORY_SCHEMA_VERSION, components: inventory.components.map(publicComponent), problems: inventory.problems };
@@ -105,14 +110,12 @@ export function runScan(argv: readonly string[], io: CliIo, usageError: (what: s
     }
     return EXIT_OK;
   }
-  const { context, lock } = projectContext(root);
-  const findings = runRules(inventory, { context });
   if (values.json === true) {
-    const output = { schemaVersion: SCAN_SCHEMA_VERSION, failOn, components: inventory.components.map(publicComponent), findings, problems: inventory.problems };
+    const output = { schemaVersion: SCAN_SCHEMA_VERSION, failOn, components: inventory.components.map(publicComponent), findings, suppressed, problems: inventory.problems };
     io.stdout(`${printableJson(output)}\n`);
   } else {
     const note = lock.status === 'invalid' ? `\nNote: ${LOCKFILE} was not compared, because ${lock.reason}.\n` : '';
-    io.stdout(renderFindings(inventory, findings, failOn) + note);
+    io.stdout(renderFindings(inventory, findings, suppressed, failOn) + note);
   }
   const failed = failOn !== 'none' && findings.some((finding) => atLeast(finding.level, failOn as Level));
   return failed ? EXIT_FAILURE : EXIT_OK;

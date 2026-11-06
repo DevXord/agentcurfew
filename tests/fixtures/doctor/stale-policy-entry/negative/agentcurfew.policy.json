@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "mcp": {
+    "allowServers": [
+      "http://mcp.example.com/*"
+    ]
+  },
+  "exceptions": [
+    {
+      "rule": "plain-http-mcp",
+      "path": ".mcp.json",
+      "reason": "an internal test server, reached only on the office network"
+    }
+  ]
+}

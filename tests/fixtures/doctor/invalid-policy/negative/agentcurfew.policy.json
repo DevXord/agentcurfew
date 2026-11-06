@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "mcp": {
+    "allowServers": [
+      "a"
+    ]
+  },
+  "exceptions": [
+    {
+      "rule": "plain-http-mcp",
+      "path": "x",
+      "reason": "because",
+      "until": "2026-02-28"
+    }
+  ]
+}

@@ -175,7 +175,7 @@ describe('help examples', () => {
     const base = mkdtempSync(join(tmpdir(), 'acf-help-'));
     try {
       for (const argv of examples) {
-        const args = ['scan', 'lock', 'verify'].includes(argv[0] ?? '') ? [...argv, base] : argv;
+        const args = ['scan', 'lock', 'verify', 'init', 'doctor'].includes(argv[0] ?? '') ? [...argv, base] : argv;
         const { code } = await cli(...args);
         expect([EXIT_OK, EXIT_FAILURE], argv.join(' ')).toContain(code);
       }

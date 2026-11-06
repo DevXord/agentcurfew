@@ -95,6 +95,22 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **How:** `computedHash` is recomputed over each installed project skill of the same name, following the knowledge base (raw bytes, no normalization, unlike agentcurfew's own hashes); a match in any copy is enough. The test computes the expected hash with an independent implementation in the fixture, with paths whose `localeCompare` order differs from byte order.
 - **Limits:** the hash depends on the locale of the machine that sorts, and is usually taken at the source, so a mismatch is never treated as proof of tampering.
 
+## D-016: Policy
+- **Date:** 2026-11-06
+- **Decisions of the maintainer:** exceptions are `{rule, path, reason, until?}` with a required reason, and a finding comes back the day after `until`; `exclude` is separate, with a reason too; a skill missing from `skills-lock.json` is `out-of-policy` at medium (source unknown), a skill from a source not listed is high, and `local` allows hand-made skills and servers started from a local command; settings may raise a rule to high and lower it to info, and the finding names the setting; `init` does not replace a policy without `--force`; this repository has its own policy, which leaves out `tests/fixtures/**`.
+- **Schema without a dependency:** `schema.json` (draft-07, in the package, `$id` `https://unpkg.com/agentcurfew/schema.json`) is the only description of the fields. The validator reads it, implements exactly the keywords it uses (a test fails on any other), and names the path of each problem (`policy.mcp.allowServers[1]: expected a string, got a number`). `docs/policy.md` is generated from it. The JSON is imported with an import attribute and bundled by tsdown, so the built CLI does not read the file at run time.
+- **Order of work:** inventory, then `exclude` (left out of rules, lock and verify alike), then the rules with the policy in their context, then the levels of the settings, then the exceptions. A policy that breaks the schema stops `scan`, `lock` and `verify` with exit code 1 and a pointer to `doctor`; nothing of it is applied.
+- **Settings and levels:** `mcp.requirePinnedVersions` (unpinned-mcp-server high or info), `mcp.denyPlainHttp` (plain-http-mcp unchanged or info), `hooks.allowNetwork` (only the network hits of dangerous-hook-command, high or info; downloads that are run stay high), `hooks.allowAutoRunOnOpen` (auto-run-on-open high or info), `contextFiles.denyHiddenUnicode` (hidden-unicode unchanged or info). `failOn` is the default of `scan --fail-on`.
+- **init:** proposes a policy the project passes as it is: the sources and servers it has, and the strict value of each setting unless a current finding breaks it, in which case the loose value is written and listed so that it can be tightened.
+- **JSON:** `scan --json` is schema version 3 (`suppressed` with the reason, `policy` and `tag` on findings).
+
+## D-017: doctor
+- **Date:** 2026-11-06
+- **Decision of the maintainer:** exit code 1 from `warning`, moved by `doctor.failOn` or `--fail-on`. Levels are error (it does not work), warning (it probably does not) and info.
+- **Checks:** `invalid-policy`, `unparsable-config`, `misnamed-file`, `wrong-servers-key`, `missing-mcp-type`, `local-overrides-project`, `conflicting-mcp-server`, `deprecated-format`, `stale-policy-entry`. Each finding names an https source: the fact of the knowledge base it rests on, the JSON, TOML or YAML specification, or the schema. Each check has a positive and a negative fixture; `docs/doctor.md` is generated from the checks.
+- **Deprecations are knowledge:** `AgentKnowledge.deprecations` is a list of facts, each with its own source: `.cursorrules` (Cursor), `tools.exclude` and, from code only, `httpUrl` (Gemini CLI), `~/.codex/prompts` and, from code only, `~/.codex/skills` (Codex). A deprecation known from code only is reported as info.
+- **Limits:** `misnamed-file` looks only in folders the knowledge base names with a fixed path, and matches names by case, extension variants and an edit distance of at most 2. `local-overrides-project` compares single values only, since some agents merge lists across files, and needs a verified precedence fact. Which of two conflicting MCP definitions wins is not claimed.
+
 ## Q-001: Does `acf` collide with a common tool in PATH?
 - **Status:** no collision found on 2026-11-06, not proven. No `bin/acf` in Debian stable or Ubuntu noble, and nothing in Homebrew, Arch, Repology or Chocolatey. Alpine's `acf-core` keeps it off PATH. npm `acf` has no `bin`. Not checked: PyPI `acf` entry points, and npm by binary name, which cannot be searched. The alias stays; decide at phase 9.
 
@@ -122,6 +138,9 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 
 ## Q-010: Credential formats in `secret-in-config`
 - **Status:** open. The token prefixes in `src/rules/secrets.ts` (GitHub, GitLab, Anthropic, OpenAI, AWS, Google, Slack, Stripe, npm, Hugging Face, private keys, JWT) were written from what is publicly known about them, not checked against each issuer's documentation in this session. Verify each and add the source next to it.
+
+## Q-011: Deprecated Windsurf paths
+- **Status:** open. `.windsurf/` and `.windsurfrules` are probably legacy since the rename to Devin Desktop (Q-007), but `docs.devin.ai` could not be reached from the cloud session on 2026-11-06, so no source was read and no deprecation was recorded. Read the rules page and add the facts.
 
 ## Q-005: TypeScript 7?
 - **Status:** open, maintainer's choice. `tsdown` 0.23.5 declares `^7.0.0` as a supported peer; whether 0.23.2 and the d.ts build work with it was not tested.

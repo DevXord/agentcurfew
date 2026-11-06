@@ -59,6 +59,7 @@ export function applyRules(inventory: Inventory, selected: readonly Rule[], cont
           ...(hit.line === undefined ? {} : { line: hit.line }),
           ...(hit.column === undefined ? {} : { column: hit.column }),
           message: quote(hit.message, 400),
+          ...(hit.tag === undefined ? {} : { tag: hit.tag }),
         });
       }
     }

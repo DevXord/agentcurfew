@@ -29,6 +29,7 @@ export interface SkillsLockEntry {
   name: string;
   computedHash: string;
   sourceType: string;
+  source: string;
 }
 
 export type SkillsLockRead = { status: 'missing' } | { status: 'invalid' } | { status: 'ok'; file: string; entries: SkillsLockEntry[] };
@@ -52,8 +53,8 @@ export function readSkillsLock(root: string, maxBytes = DEFAULT_LIMITS.maxFileBy
   for (const [name, entry] of Object.entries(skills)) {
     if (typeof entry !== 'object' || entry === null) continue;
     const hash = (entry as Record<string, unknown>)[LOCK.hashField];
-    const sourceType = (entry as Record<string, unknown>).sourceType;
-    if (typeof hash === 'string') entries.push({ name, computedHash: hash.toLowerCase(), sourceType: typeof sourceType === 'string' ? sourceType : '' });
+    const { sourceType, source } = entry as Record<string, unknown>;
+    if (typeof hash === 'string') entries.push({ name, computedHash: hash.toLowerCase(), sourceType: typeof sourceType === 'string' ? sourceType : '', source: typeof source === 'string' ? source : '' });
   }
   return { status: 'ok', file: LOCK.file, entries };
 }
