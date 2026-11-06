@@ -111,6 +111,31 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Deprecations are knowledge:** `AgentKnowledge.deprecations` is a list of facts, each with its own source: `.cursorrules` (Cursor), `tools.exclude` and, from code only, `httpUrl` (Gemini CLI), `~/.codex/prompts` and, from code only, `~/.codex/skills` (Codex). A deprecation known from code only is reported as info.
 - **Limits:** `misnamed-file` looks only in folders the knowledge base names with a fixed path, and matches names by case, extension variants and an edit distance of at most 2. `local-overrides-project` compares single values only, since some agents merge lists across files, and needs a verified precedence fact. Which of two conflicting MCP definitions wins is not claimed.
 
+## D-018: ajv for tests only
+- **Date:** 2026-11-06
+- **Decision of the maintainer:** `ajv` 8.20.0 (released 2026-04-24) as an exact dev dependency, installed with the pinned npm 11.21.1. Its dependencies `fast-deep-equal`, `fast-uri` 3.1.9 (2026-10-19), `json-schema-traverse` and `require-from-string` are past the 7-day cooldown. It is not in the package and no runtime code imports it.
+- **Why not our validator:** the SARIF schema uses `$ref`, `oneOf`, `anyOf` and more; a validator written for it would test our own reading of the schema with our own code. The policy keeps its own small validator (D-016), since that runs in the CLI.
+- **The SARIF schema** is stored in `tests/fixtures/sarif/` with its source and SHA-256 (`SOURCE.md`), so tests use no network. It is draft-04, whose only keyword in use that draft-07 lacks is the top-level `id`; the tests rename it to `$id`. Formats `uri`, `uri-reference` and `date-time` are checked by small functions in the test, instead of `ajv-formats`.
+
+## D-019: CLI for people
+- **Date:** 2026-11-06
+- **One table of commands** (`src/cli/commands.ts`) gives the welcome screen, `help`, `help <command>`, `<command> --help`, the options passed to `parseArgs` and the suggestions, so help cannot list an option a command does not take. A test runs every example of every command on an empty project; screens are recorded as Vitest snapshots.
+- **Errors** always have three lines: what, `in:` and `fix:`; a test checks this for each kind of mistake. Suggestions use an edit distance of at least 2 (so swapped letters are found) for commands, options, rules and `help <command>`.
+- **Colors** (decision of the maintainer): only the labels of levels and results, only on a terminal; `NO_COLOR` with any value turns them off and wins over `FORCE_COLOR`, which turns them on. The label's text is always printed, and nothing from a scanned file is colored. JSON and SARIF never have color.
+
+## D-020: SARIF
+- **Date:** 2026-11-06
+- **Output:** `scan --sarif` on stdout, not combined with `--json` or `--inventory`; levels and `security-severity` as in `docs/cli-json.md`; fingerprints without line numbers; accepted findings as suppressions; deterministic.
+- **doctor has no SARIF:** its findings are configuration that does not work, not security alerts, and Code Scanning would mix the two.
+- **Paths** are relative to the scanned directory, so an upload to Code Scanning maps them only when that directory is the repository root.
+
+## D-021: GitHub Action
+- **Date:** 2026-11-06
+- **Decisions of the maintainer:** a composite action that builds agentcurfew from its own source until the first npm release, then runs `npx agentcurfew@<version>` (phase 9); a test workflow on this branch.
+- **Pins:** `actions/setup-node` v7.1.0 (`949feb2…`, commit of 2026-10-07), `actions/checkout` v6.0.3 (`df4cb1c…`, 2026-06-02), `github/codeql-action/upload-sarif` v4.39.1 (`9b32540…`, 2026-10-21). v4.39.2 and v4.39.3 were 2 and 3 days old, under the 7-day cooldown. SHAs were read with `git ls-remote` (peeled tags) and dates from the commits.
+- **Inputs** reach the shell only through environment variables, never through `${{ }}` inside a script. `npm ci --ignore-scripts` builds from the lockfile. Upload to Code Scanning is off by default, since it needs `security-events: write` and Code Scanning enabled.
+- **Test:** `.github/workflows/action-test.yml` (read-only permissions) runs the action from `./` on fixtures: scan with a finding (exit 1, SARIF with the finding), scan of an empty project (exit 0), verify without a lock (exit 1), doctor on a working configuration (exit 0).
+
 ## Q-001: Does `acf` collide with a common tool in PATH?
 - **Status:** no collision found on 2026-11-06, not proven. No `bin/acf` in Debian stable or Ubuntu noble, and nothing in Homebrew, Arch, Repology or Chocolatey. Alpine's `acf-core` keeps it off PATH. npm `acf` has no `bin`. Not checked: PyPI `acf` entry points, and npm by binary name, which cannot be searched. The alias stays; decide at phase 9.
 

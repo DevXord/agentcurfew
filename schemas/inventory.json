@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://unpkg.com/agentcurfew/schemas/inventory.json",
+  "title": "agentcurfew scan --inventory --json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "components",
+    "problems"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "agents",
+          "scope",
+          "file",
+          "name",
+          "bytes"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "skill",
+              "mcp-server",
+              "hook",
+              "auto-run",
+              "context-file",
+              "permission",
+              "subagent",
+              "command"
+            ]
+          },
+          "agents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scope": {
+            "enum": [
+              "project",
+              "user",
+              "managed"
+            ]
+          },
+          "file": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "bytes"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "bytes": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "problems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "file"
+        ],
+        "properties": {
+          "code": {
+            "enum": [
+              "outside-project",
+              "too-large",
+              "too-deep",
+              "too-many-entries",
+              "unreadable",
+              "unparsable"
+            ]
+          },
+          "file": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

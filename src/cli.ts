@@ -27,8 +27,10 @@ function dropColorWarning(): void {
 }
 
 dropColorWarning();
-import('./cli/run.ts')
-  .then(({ run }) => run(process.argv.slice(2), { stdout: quietWhenClosed(process.stdout), stderr: quietWhenClosed(process.stderr) }))
+Promise.all([import('./cli/run.ts'), import('./cli/style.ts')])
+  .then(([{ run }, { wantsColor }]) =>
+    run(process.argv.slice(2), { stdout: quietWhenClosed(process.stdout), stderr: quietWhenClosed(process.stderr), color: wantsColor(process.stdout.isTTY, process.env) }),
+  )
   .then(
     (code) => {
       if (process.exitCode === undefined || process.exitCode === 0) process.exitCode = code;

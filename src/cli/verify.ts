@@ -1,14 +1,15 @@
-import { parseArgs } from 'node:util';
 import { analyzeProject } from '../analyze.ts';
 import { buildLock } from '../lock/build.ts';
 import { diffLocks } from '../lock/diff.ts';
 import type { Change } from '../lock/diff.ts';
 import { LOCKFILE } from '../lock/types.ts';
 import { skillsLockMismatch } from '../rules/rules/skills-lock-mismatch.ts';
+import { parseCommand } from './commands.ts';
 import { EXIT_FAILURE, EXIT_OK } from './io.ts';
 import type { CliIo } from './io.ts';
 import { printable, printableJson } from './printable.ts';
 import { policyError, projectRoot } from './project.ts';
+import { label } from './style.ts';
 import { problemLines } from './scan.ts';
 
 /** Version of the JSON that verify --json prints. */
@@ -21,7 +22,7 @@ function changeLines(change: Change): string[] {
 }
 
 export function runVerify(argv: readonly string[], io: CliIo, usageError: (what: string) => number): number {
-  const { values, positionals } = parseArgs({ args: [...argv], allowPositionals: true, options: { json: { type: 'boolean' } } });
+  const { values, positionals } = parseCommand('verify', argv);
   const root = projectRoot(positionals, io, usageError, 'verify');
   if (typeof root === 'number') return root;
   const analysis = analyzeProject(root, { rules: false });
@@ -40,10 +41,10 @@ export function runVerify(argv: readonly string[], io: CliIo, usageError: (what:
     io.stdout(`${printableJson(output)}\n`);
     return changes.length === 0 ? EXIT_OK : EXIT_FAILURE;
   }
-  const lines = changes.length === 0 ? [`OK: matches ${LOCKFILE} (${lock.lock.components.length} components)`] : [`Drift: ${changes.length} ${changes.length === 1 ? 'change' : 'changes'} since ${LOCKFILE}`, ...changes.flatMap(changeLines)];
+  const lines = changes.length === 0 ? [`${label(io, 'OK')}: matches ${LOCKFILE} (${lock.lock.components.length} components)`] : [`${label(io, 'Drift')}: ${changes.length} ${changes.length === 1 ? 'change' : 'changes'} since ${LOCKFILE}`, ...changes.flatMap(changeLines)];
   if (skills.length > 0) {
     lines.push('', 'skills-lock.json (does not change the result):');
-    for (const hit of skills) lines.push(`  ${(hit.level ?? 'medium').toUpperCase()}  ${printable(hit.file)}: ${printable(hit.message)}`);
+    for (const hit of skills) lines.push(`  ${label(io, (hit.level ?? 'medium').toUpperCase())}  ${printable(hit.file)}: ${printable(hit.message)}`);
   }
   lines.push(...problemLines(inventory));
   if (changes.length > 0) lines.push('', `If the changes are expected, run agentcurfew lock and commit ${LOCKFILE}.`);

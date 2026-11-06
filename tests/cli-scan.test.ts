@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { EXIT_FAILURE, EXIT_OK, EXIT_USAGE, INVENTORY_SCHEMA_VERSION, run, SCAN_SCHEMA_VERSION } from '../src/index.ts';
 import { materialize } from './rules/materialize.ts';
+import { COMMANDS } from '../src/cli/commands.ts';
 
 const fixture = (name: string) => fileURLToPath(new URL(`fixtures/repos/${name}`, import.meta.url));
 const SECRET = 'not-a-real-secret-0123456789';
@@ -167,10 +168,11 @@ describe('acf explain', () => {
 });
 
 describe('help examples', () => {
-  it('all run', async () => {
-    const { stdout } = await cli('--help');
+  it.each(COMMANDS.map((command) => command.name))('of %s all run', async (name) => {
+    const { stdout } = await cli(name, '--help');
+    expect(stdout).toContain(`Usage: agentcurfew ${name}`);
     const examples = stdout.split('\n').filter((text) => text.startsWith('  agentcurfew ')).map((text) => text.trim().split(/\s+/).slice(1));
-    expect(examples.length).toBeGreaterThan(2);
+    expect(examples.length).toBeGreaterThan(0);
     // Each runs on a fresh empty project, never on the repository itself, since lock writes a file.
     const base = mkdtempSync(join(tmpdir(), 'acf-help-'));
     try {

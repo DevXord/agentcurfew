@@ -2,6 +2,16 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-06: Phase 6, CLI for people, SARIF and GitHub Action
+
+- One table of commands gives the welcome screen (`acf` with no arguments), `help`, `help <command>` and `<command> --help`, the options of `parseArgs` and the suggestions for mistyped commands, options, rules and help topics (D-019). Every error has what, where and a fix.
+- Colors only for labels, only on a terminal; `NO_COLOR` wins over `FORCE_COLOR`, and the label's text is always there.
+- `scan --sarif`: SARIF 2.1.0 with rules, OWASP tags, `security-severity`, stable fingerprints and policy exceptions as suppressions (D-020).
+- JSON Schemas of every `--json` output in `schemas/` (in the package), described in `docs/cli-json.md`.
+- `action.yml`: a composite action with pinned SHAs that builds from source until the npm release, and `.github/workflows/action-test.yml`, which runs it on fixtures (D-021).
+- `ajv` as a dev dependency validates SARIF against the official schema, stored with its source and checksum, and the JSON outputs against `schemas/` (D-018).
+- Tests: every help example runs, 22 screen snapshots, errors in three lines, colors only on labels, SARIF valid for every rule fixture and deterministic, JSON outputs valid against their schemas. 326 tests.
+
 ## 2026-11-06: Phase 5, policy and doctor
 
 - `agentcurfew.policy.json` with `schema.json` (D-016): settings that raise or lower rules, allowed skill sources and MCP servers, excluded paths and exceptions with a reason and an optional end date. A validator without dependencies reads the schema itself and names the path of each problem. `docs/policy.md` is generated from the schema.

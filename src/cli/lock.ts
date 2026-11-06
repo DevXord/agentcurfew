@@ -1,18 +1,18 @@
 import { lstatSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseArgs } from 'node:util';
 import { analyzeProject } from '../analyze.ts';
 import { buildLock, serializeLock } from '../lock/build.ts';
 import { carryExecutableBits } from '../lock/diff.ts';
 import { LOCKFILE } from '../lock/types.ts';
 import { atLeast } from '../rules/index.ts';
+import { parseCommand } from './commands.ts';
 import { EXIT_FAILURE, EXIT_OK } from './io.ts';
 import type { CliIo } from './io.ts';
 import { policyError, projectRoot } from './project.ts';
 import { problemLines } from './scan.ts';
 
 export function runLock(argv: readonly string[], io: CliIo, usageError: (what: string) => number): number {
-  const { positionals } = parseArgs({ args: [...argv], allowPositionals: true, options: {} });
+  const { positionals } = parseCommand('lock', argv);
   const root = projectRoot(positionals, io, usageError, 'lock');
   if (typeof root === 'number') return root;
   const path = join(root, LOCKFILE);

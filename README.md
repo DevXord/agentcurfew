@@ -2,7 +2,7 @@
 
 > One local, account-less security policy for the files that steer your AI coding agents — skills, MCP servers, hooks, context files, permissions.
 
-**Status:** pre-release. Phases 0 to 5 of [docs/PLAN.md](docs/PLAN.md) are done: `acf scan` checks what steers agents in a project against the [rules](docs/rules.md), from a sourced [knowledge base](docs/knowledge.md), `acf scan --inventory` lists it, `acf lock` and `acf verify` pin it with checksums in `agentcurfew.lock`, `agentcurfew.policy.json` sets what is allowed ([policy](docs/policy.md)), and `acf doctor` finds configuration that agents ignore ([checks](docs/doctor.md)).
+**Status:** pre-release. Phases 0 to 6 of [docs/PLAN.md](docs/PLAN.md) are done: `acf scan` checks what steers agents in a project against the [rules](docs/rules.md), from a sourced [knowledge base](docs/knowledge.md), `acf scan --inventory` lists it, `acf lock` and `acf verify` pin it with checksums in `agentcurfew.lock`, `agentcurfew.policy.json` sets what is allowed ([policy](docs/policy.md)), and `acf doctor` finds configuration that agents ignore ([checks](docs/doctor.md)).
 
 ```bash
 acf scan                       # exit code 1 on a finding at level high or above
@@ -12,9 +12,29 @@ acf verify                     # in CI: exit code 1 when anything changed since 
 acf init                       # write agentcurfew.policy.json from what the project has now
 acf doctor                     # find files and settings that agents ignore
 acf explain hidden-unicode
+acf scan --sarif > agentcurfew.sarif   # for GitHub Code Scanning
 ```
 
+Run `acf` for the common commands, and `acf help <command>` for the options and examples of one. JSON and SARIF output are described in [docs/cli-json.md](docs/cli-json.md).
+
 A clean scan means that none of the rules' patterns was found, not that the configuration is safe: see [what agentcurfew does not find](docs/rules.md#what-agentcurfew-does-not-find).
+
+## GitHub Action
+
+```yaml
+permissions:
+  contents: read
+steps:
+  - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+    with:
+      persist-credentials: false
+  - uses: DevXord/agentcurfew@<full commit sha> # pin to a commit, not a tag
+    with:
+      command: scan          # or verify, doctor
+      fail-on: high
+```
+
+Inputs: `command`, `directory`, `fail-on`, `sarif-file` and `upload-sarif` (needs `security-events: write`). Output: `exit-code`. Until the first npm release the action builds agentcurfew from its own source.
 
 ## What it does (when finished)
 

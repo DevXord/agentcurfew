@@ -17,7 +17,15 @@ async function cli(...argv: string[]): Promise<{ code: number; stdout: string; s
 }
 
 describe('agentcurfew CLI', () => {
-  it.each([[[]], [['--help']], [['-h']], [['help']]])('prints help for %j', async (argv) => {
+  it('greets with the common commands when run without arguments', async () => {
+    const { code, stdout, stderr } = await cli();
+    expect(code).toBe(EXIT_OK);
+    expect(stderr).toBe('');
+    expect(stdout).toContain('Common commands:');
+    expect(stdout).toContain('agentcurfew help');
+  });
+
+  it.each([[['--help']], [['-h']], [['help']]])('prints help for %j', async (argv) => {
     const { code, stdout, stderr } = await cli(...argv);
     expect(code).toBe(EXIT_OK);
     expect(stderr).toBe('');
@@ -46,14 +54,24 @@ describe('agentcurfew CLI', () => {
     expect(stdout).toBe('');
     expect(stderr).toContain('frobnicate');
     expect(stderr).toContain('command line');
-    expect(stderr).toContain('agentcurfew --help');
+    expect(stderr).toContain('fix: run agentcurfew help');
+  });
+
+  it('suggests the closest command and option', async () => {
+    expect((await cli('scna')).stderr).toContain('fix: did you mean scan?');
+    const option = await cli('scan', '--jsn');
+    expect(option.code).toBe(EXIT_USAGE);
+    expect(option.stderr).toContain('unknown option for scan: --jsn');
+    expect(option.stderr).toContain('fix: did you mean --json? run agentcurfew help scan to see its options');
+    expect((await cli('explain', 'hiden-unicode')).stderr).toContain('fix: did you mean hidden-unicode?');
+    expect((await cli('help', 'doctr')).stderr).toContain('did you mean doctor?');
   });
 
   it('rejects an unknown option the same way', async () => {
     const { code, stderr } = await cli('--frobnicate');
     expect(code).toBe(EXIT_USAGE);
     expect(stderr).toContain('--frobnicate');
-    expect(stderr).toContain('agentcurfew --help');
+    expect(stderr).toContain('fix: run agentcurfew help');
   });
 
   it('does not echo control characters from the command line', async () => {

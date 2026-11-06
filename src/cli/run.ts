@@ -1,97 +1,92 @@
-import { parseArgs } from 'node:util';
+import { closest } from '../text/distance.ts';
 import { getVersion } from '../version.ts';
-import { EXIT_OK, EXIT_USAGE } from './io.ts';
-import type { CliIo } from './io.ts';
-import { printable } from './printable.ts';
+import { COMMANDS, commandHelpText, findCommand, helpText, welcomeText } from './commands.ts';
 import { runDoctorCommand } from './doctor.ts';
 import { runExplain } from './explain.ts';
 import { runInit } from './init.ts';
+import { EXIT_OK, EXIT_USAGE } from './io.ts';
+import type { CliIo } from './io.ts';
 import { runLock } from './lock.ts';
+import { printable } from './printable.ts';
 import { runScan } from './scan.ts';
 import { runVerify } from './verify.ts';
 
-const HELP = `agentcurfew: inventory, lock and check what steers your AI coding agents.
+type Handler = (argv: readonly string[], io: CliIo, usageError: (what: string) => number) => number;
 
-Usage: agentcurfew <command> [options]
-       acf <command> [options]
+const HANDLERS: Readonly<Record<string, Handler>> = {
+  scan: runScan,
+  lock: runLock,
+  verify: runVerify,
+  init: runInit,
+  doctor: runDoctorCommand,
+  explain: runExplain,
+};
 
-Commands:
-  scan [directory]              Check what steers agents in a project against the rules
-    --fail-on <level>           Exit with 1 at this level or above: critical, high (default), medium, low, none
-    --inventory                 Only list the components, without the rules
-    --json                      Print JSON; file contents and secrets are left out
-    --user                      Also read your home directory and machine settings
-  lock [directory]              Write agentcurfew.lock with a checksum of every component
-  verify [directory]            Exit with 1 when a component changed since agentcurfew.lock
-    --json                      Print JSON
-  init [directory]              Write agentcurfew.policy.json from what the project has now
-    --print                     Print the proposal instead of writing it
-    --force                     Replace an existing policy
-  doctor [directory]            Find configuration that agents ignore or that does not work
-    --fail-on <level>           Exit with 1 at this level or above: error, warning (default), info, none
-    --json                      Print JSON
-  explain <rule>                Say what a rule finds, why it matters and how to fix it
-
-Examples:
-  agentcurfew scan
-  agentcurfew scan --fail-on medium --json
-  agentcurfew lock
-  agentcurfew verify
-  agentcurfew init --print
-  agentcurfew doctor
-  agentcurfew explain hidden-unicode
-
-Options:
-  -h, --help     Show this help
-  -v, --version  Show the version
-
-Planned command, not available yet: mcp
-`;
-
-function usageError(io: CliIo, what: string): number {
-  io.stderr(`agentcurfew: ${printable(what)}\n  in: the command line\n  fix: run agentcurfew --help to see what is available\n`);
+function usageError(io: CliIo, what: string, command?: string, suggestion?: string): number {
+  const hint = suggestion === undefined ? '' : `did you mean ${suggestion}? `;
+  const fix = command === undefined ? 'run agentcurfew help to see what is available' : `run agentcurfew help ${command} to see its options`;
+  io.stderr(`agentcurfew: ${printable(what)}\n  in: the command line\n  fix: ${hint}${fix}\n`);
   return EXIT_USAGE;
 }
 
-function isParseError(error: unknown): error is Error {
+function isParseError(error: unknown): error is Error & { code: string } {
   return error instanceof Error && 'code' in error && String(error.code).startsWith('ERR_PARSE_ARGS_');
 }
 
-function parseGlobal(argv: readonly string[]) {
-  return parseArgs({
-    args: [...argv],
-    allowPositionals: true,
-    options: {
-      help: { type: 'boolean', short: 'h' },
-      version: { type: 'boolean', short: 'v' },
-    },
-  });
+/** A parseArgs error in one line, with the closest option of the command when the option is unknown. */
+function parseError(io: CliIo, error: Error & { code: string }, command: string): number {
+  const first = error.message.split('\n')[0] ?? 'invalid arguments';
+  const unknown = /^Unknown option '(-{1,2}[^']*)'/.exec(first)?.[1];
+  if (unknown !== undefined) {
+    const options = (findCommand(command)?.options ?? []).map((option) => `--${option.name}`);
+    return usageError(io, `unknown option for ${command}: ${unknown}`, command, closest(unknown, [...options, '--help']));
+  }
+  return usageError(io, first.replace(/\. To specify a positional argument.*$/, ''), command);
 }
 
 export async function run(argv: readonly string[], io: CliIo): Promise<number> {
+  const [first, ...rest] = argv;
+  if (first === undefined) {
+    io.stdout(welcomeText());
+    return EXIT_OK;
+  }
+  if (first === '--version' || first === '-v') {
+    io.stdout(`${getVersion()}\n`);
+    return EXIT_OK;
+  }
+  if (first === '--help' || first === '-h') {
+    io.stdout(helpText());
+    return EXIT_OK;
+  }
+  if (first === 'help') {
+    if (rest.includes('--help') || rest.includes('-h')) {
+      io.stdout(commandHelpText(findCommand('help') as NonNullable<ReturnType<typeof findCommand>>));
+      return EXIT_OK;
+    }
+    const target = rest[0];
+    if (target === undefined) {
+      io.stdout(helpText());
+      return EXIT_OK;
+    }
+    const spec = findCommand(target);
+    if (spec === undefined || rest.length > 1) return usageError(io, `no such command: ${target}`, undefined, closest(target, COMMANDS.map((command) => command.name)));
+    io.stdout(commandHelpText(spec));
+    return EXIT_OK;
+  }
+  const spec = findCommand(first);
+  const handler = HANDLERS[first];
+  if (spec === undefined || handler === undefined) {
+    if (first.startsWith('-')) return usageError(io, `unknown option: ${first}`, undefined, closest(first, ['--help', '--version']));
+    return usageError(io, `unknown command: ${first}`, undefined, closest(first, COMMANDS.map((command) => command.name)));
+  }
+  if (rest.includes('--help') || rest.includes('-h')) {
+    io.stdout(commandHelpText(spec));
+    return EXIT_OK;
+  }
   try {
-    if (argv[0] === 'scan' && !argv.includes('--help') && !argv.includes('-h')) {
-      return runScan(argv.slice(1), io, (what) => usageError(io, what));
-    }
-    const helped = argv.includes('--help') || argv.includes('-h');
-    if (argv[0] === 'explain' && !helped) return runExplain(argv.slice(1), io, (what) => usageError(io, what));
-    if (argv[0] === 'lock' && !helped) return runLock(argv.slice(1), io, (what) => usageError(io, what));
-    if (argv[0] === 'verify' && !helped) return runVerify(argv.slice(1), io, (what) => usageError(io, what));
-    if (argv[0] === 'init' && !helped) return runInit(argv.slice(1), io, (what) => usageError(io, what));
-    if (argv[0] === 'doctor' && !helped) return runDoctorCommand(argv.slice(1), io, (what) => usageError(io, what));
-    const parsed = parseGlobal(argv);
-    const [command] = parsed.positionals;
-    if (parsed.values.version === true && command === undefined) {
-      io.stdout(`${getVersion()}\n`);
-      return EXIT_OK;
-    }
-    if (command === undefined || command === 'help' || command === 'scan' || command === 'explain' || command === 'lock' || command === 'verify' || command === 'init' || command === 'doctor') {
-      io.stdout(HELP);
-      return EXIT_OK;
-    }
-    return usageError(io, `unknown command: ${command}`);
+    return handler(rest, io, (what) => usageError(io, what, first));
   } catch (error) {
-    if (isParseError(error)) return usageError(io, error.message.split('\n')[0] ?? 'invalid arguments');
+    if (isParseError(error)) return parseError(io, error, first);
     throw error;
   }
 }

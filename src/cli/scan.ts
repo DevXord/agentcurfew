@@ -1,14 +1,16 @@
-import { parseArgs } from 'node:util';
 import { analyzeProject } from '../analyze.ts';
 import type { Component, Inventory, InventoryProblem } from '../inventory/index.ts';
 import { LOCKFILE } from '../lock/types.ts';
 import type { Suppressed } from '../policy/apply.ts';
+import { toSarif } from '../report/sarif.ts';
 import { atLeast, LEVELS } from '../rules/index.ts';
 import type { Finding, Level } from '../rules/index.ts';
+import { parseCommand } from './commands.ts';
 import { EXIT_FAILURE, EXIT_OK } from './io.ts';
 import type { CliIo } from './io.ts';
 import { printable, printableJson } from './printable.ts';
 import { policyError, projectRoot } from './project.ts';
+import { label } from './style.ts';
 
 /** Version of the JSON that scan --inventory --json prints. */
 export const INVENTORY_SCHEMA_VERSION = 1;
@@ -53,21 +55,21 @@ function where(finding: Finding): string {
   return printable(`${finding.file}${place}${name}`);
 }
 
-function renderFindings(inventory: Inventory, findings: readonly Finding[], suppressed: readonly Suppressed[], failOn: FailOn): string {
+function renderFindings(io: CliIo, inventory: Inventory, findings: readonly Finding[], suppressed: readonly Suppressed[], failOn: FailOn): string {
   const counts = LEVELS.map((level) => [level, findings.filter((finding) => finding.level === level).length] as const).filter(([, count]) => count > 0);
   const summary = counts.length === 0 ? '' : ` (${counts.map(([level, count]) => `${count} ${level}`).join(', ')})`;
   const lines = [`${plural(inventory.components.length, 'component')} scanned, ${plural(findings.length, 'finding')}${summary}`];
   let rule = '';
   for (const finding of findings) {
     const set = finding.policy === undefined ? '' : ` (level set by policy: ${finding.policy})`;
-    lines.push('', `${finding.level.toUpperCase()}  ${finding.rule}  ${where(finding)}${set}`, `  ${printable(finding.message)}`);
+    lines.push('', `${label(io, finding.level.toUpperCase())}  ${finding.rule}  ${where(finding)}${set}`, `  ${printable(finding.message)}`);
     if (finding.rule !== rule) lines.push(`  more: agentcurfew explain ${finding.rule}`);
     rule = finding.rule;
   }
   if (suppressed.length > 0) lines.push('', `${plural(suppressed.length, 'finding')} accepted by exceptions in agentcurfew.policy.json (see --json).`);
   lines.push(...problemLines(inventory));
   const failing = failOn === 'none' ? 0 : findings.filter((finding) => atLeast(finding.level, failOn)).length;
-  if (failing > 0) lines.push('', `Failed: ${plural(failing, 'finding')} at level ${failOn} or above (change with --fail-on).`);
+  if (failing > 0) lines.push('', `${label(io, 'Failed')}: ${plural(failing, 'finding')} at level ${failOn} or above (change with --fail-on).`);
   return `${lines.join('\n')}\n`;
 }
 
@@ -82,19 +84,11 @@ function renderText(inventory: Inventory): string {
 }
 
 export function runScan(argv: readonly string[], io: CliIo, usageError: (what: string) => number): number {
-  const { values, positionals } = parseArgs({
-    args: [...argv],
-    allowPositionals: true,
-    options: {
-      inventory: { type: 'boolean' },
-      json: { type: 'boolean' },
-      user: { type: 'boolean' },
-      'fail-on': { type: 'string' },
-    },
-  });
+  const { values, positionals } = parseCommand('scan', argv);
   const flag = values['fail-on'] as FailOn | undefined;
   if (flag !== undefined && !FAIL_ON.includes(flag)) return usageError(`--fail-on takes one of ${FAIL_ON.join(', ')}, got ${flag}`);
   if (values.inventory === true && flag !== undefined) return usageError('--fail-on applies to the rules, so it cannot be used with --inventory');
+  if (values.sarif === true && (values.json === true || values.inventory === true)) return usageError('--sarif cannot be combined with --json or --inventory');
   const root = projectRoot(positionals, io, usageError, 'scan');
   if (typeof root === 'number') return root;
   const analysis = analyzeProject(root, { user: values.user === true, rules: values.inventory !== true });
@@ -110,12 +104,14 @@ export function runScan(argv: readonly string[], io: CliIo, usageError: (what: s
     }
     return EXIT_OK;
   }
-  if (values.json === true) {
+  if (values.sarif === true) {
+    io.stdout(`${printableJson(toSarif(findings, suppressed))}\n`);
+  } else if (values.json === true) {
     const output = { schemaVersion: SCAN_SCHEMA_VERSION, failOn, components: inventory.components.map(publicComponent), findings, suppressed, problems: inventory.problems };
     io.stdout(`${printableJson(output)}\n`);
   } else {
     const note = lock.status === 'invalid' ? `\nNote: ${LOCKFILE} was not compared, because ${lock.reason}.\n` : '';
-    io.stdout(renderFindings(inventory, findings, suppressed, failOn) + note);
+    io.stdout(renderFindings(io, inventory, findings, suppressed, failOn) + note);
   }
   const failed = failOn !== 'none' && findings.some((finding) => atLeast(finding.level, failOn as Level));
   return failed ? EXIT_FAILURE : EXIT_OK;

@@ -9,6 +9,7 @@ import { SCHEMA_URL } from '../policy/types.ts';
 import { quote } from '../rules/mask.ts';
 import { keyMatches } from '../rules/knowledge.ts';
 import { entryValue, isRecord } from '../rules/text.ts';
+import { distance } from '../text/distance.ts';
 import { evidenceOf, knownPaths, mcpFacts } from './paths.ts';
 import type { DoctorCheck, DoctorContext, DoctorHit } from './types.ts';
 
@@ -22,24 +23,6 @@ const knowledge = (context: DoctorContext) => context.analysis.context.knowledge
 
 function unique<T>(values: Iterable<T>): T[] {
   return [...new Set(values)];
-}
-
-/** Edit distance, bounded: past `max` it stops counting. */
-function distance(a: string, b: string, max: number): number {
-  if (Math.abs(a.length - b.length) > max) return max + 1;
-  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
-  for (let i = 1; i <= a.length; i++) {
-    const current = [i];
-    let best = i;
-    for (let j = 1; j <= b.length; j++) {
-      const value = Math.min((previous[j] as number) + 1, (current[j - 1] as number) + 1, (previous[j - 1] as number) + (a[i - 1] === b[j - 1] ? 0 : 1));
-      current.push(value);
-      best = Math.min(best, value);
-    }
-    if (best > max) return max + 1;
-    previous = current;
-  }
-  return previous[b.length] as number;
 }
 
 const EXTENSION_VARIANTS: Readonly<Record<string, readonly string[]>> = { '.json': ['.jsonc', '.json5'], '.toml': ['.tml'], '.md': ['.markdown', '.mdx', '.txt'] };

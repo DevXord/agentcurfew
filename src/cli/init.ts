@@ -1,18 +1,18 @@
 import { existsSync, lstatSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseArgs } from 'node:util';
 import { scanInventory } from '../inventory/index.ts';
 import { knowledgeBase } from '../knowledge/index.ts';
 import { readSkillsLock } from '../lock/skills-lock.ts';
 import { proposePolicy, serializePolicy } from '../policy/init.ts';
 import { POLICY_FILE } from '../policy/types.ts';
 import { runRules } from '../rules/index.ts';
+import { parseCommand } from './commands.ts';
 import { EXIT_FAILURE, EXIT_OK } from './io.ts';
 import type { CliIo } from './io.ts';
 import { projectRoot } from './project.ts';
 
 export function runInit(argv: readonly string[], io: CliIo, usageError: (what: string) => number): number {
-  const { values, positionals } = parseArgs({ args: [...argv], allowPositionals: true, options: { print: { type: 'boolean' }, force: { type: 'boolean' } } });
+  const { values, positionals } = parseCommand('init', argv);
   const root = projectRoot(positionals, io, usageError, 'init');
   if (typeof root === 'number') return root;
   const path = join(root, POLICY_FILE);
