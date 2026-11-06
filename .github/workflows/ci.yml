@@ -96,8 +96,6 @@ jobs:
           node dist/cli.js scan .
           node dist/cli.js verify .
           node dist/cli.js doctor .
-      # depcurfew is excluded from the cooldown in depcurfew.json (D-022); npm exec ignores that exclusion, install does not.
+      # depcurfew is a dev dependency (D-028), excluded from the cooldown in depcurfew.json (D-022).
       - name: depcurfew doctor
-        run: |
-          $NPM install --no-save --ignore-scripts --no-audit --no-fund depcurfew@1.5.2
-          node node_modules/depcurfew/dist/cli.js doctor
+        run: node node_modules/depcurfew/dist/cli.js doctor

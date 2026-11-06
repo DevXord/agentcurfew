@@ -3,6 +3,7 @@ import { broadShellPermission } from './rules/broad-shell-permission.ts';
 import { dangerousHookCommand } from './rules/dangerous-hook-command.ts';
 import { drift } from './rules/drift.ts';
 import { hiddenUnicode } from './rules/hidden-unicode.ts';
+import { mcpPackage } from './rules/mcp-package.ts';
 import { obfuscatedContent } from './rules/obfuscated-content.ts';
 import { outOfPolicy } from './rules/out-of-policy.ts';
 import { permissionBypass } from './rules/permission-bypass.ts';
@@ -32,6 +33,7 @@ export const rules: readonly Rule[] = [
   drift,
   skillsLockMismatch,
   outOfPolicy,
+  mcpPackage,
 ];
 
 /** Rules of the plan that need a later phase; none left since phase 5. */

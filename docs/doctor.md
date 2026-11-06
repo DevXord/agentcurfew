@@ -18,6 +18,8 @@ Levels: `error` (it does not work), `warning` (it probably does not), `info`. Th
 | [`deprecated-format`](#deprecated-format) | warning | No deprecated file or setting is used |
 | [`stale-policy-entry`](#stale-policy-entry) | info | Every entry of the policy still matches something |
 | [`agentcurfew-hook-missing`](#agentcurfew-hook-missing) | warning | The agentcurfew hook finds agentcurfew |
+| [`depcurfew-hook-missing`](#depcurfew-hook-missing) | warning | A project with depcurfew.json has the depcurfew hook |
+| [`depcurfew-hook-broken`](#depcurfew-hook-broken) | warning | The depcurfew hook finds depcurfew |
 
 ## invalid-policy
 
@@ -118,3 +120,23 @@ The hook that agentcurfew init --hook writes runs node_modules/agentcurfew/dist/
 Fix: Install agentcurfew as a dev dependency (npm install --save-dev agentcurfew) and run the install before starting the agent, or remove the hook.
 
 Sources: <https://code.claude.com/docs/en/hooks>.
+
+## depcurfew-hook-missing
+
+**A project with depcurfew.json has the depcurfew hook.** Level warning.
+
+The project has a depcurfew policy, but the Claude Code settings of the project have no depcurfew hook, so the agent can install packages without depcurfew checking them first. agentcurfew does not check installs: that is the hook of depcurfew.
+
+Fix: Add the hook from the README of depcurfew (section Claude Code) to .claude/settings.json; it runs next to the agentcurfew hook.
+
+Sources: <https://github.com/DevXord/depcurfew#claude-code>.
+
+## depcurfew-hook-broken
+
+**The depcurfew hook finds depcurfew.** Level warning.
+
+The depcurfew hook runs node_modules/depcurfew/dist/cli.js of the project. When that file is missing, the hook checks nothing; with onFailure "block" it instead blocks every command of the tools it covers, including the install that would bring depcurfew.
+
+Fix: Install depcurfew (npm ci, or npm install --save-dev depcurfew) before the agent starts, as the README of depcurfew describes, or fix the path in the hook.
+
+Sources: <https://github.com/DevXord/depcurfew#claude-code>.

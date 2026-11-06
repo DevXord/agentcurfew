@@ -22,6 +22,7 @@ Levels: `critical`, `high`, `medium`, `low`, `info`. `agentcurfew scan` exits wi
 | [`drift`](#drift) | high | AST07 |  |
 | [`skills-lock-mismatch`](#skills-lock-mismatch) | medium | AST07 |  |
 | [`out-of-policy`](#out-of-policy) | high | AST09 |  |
+| [`mcp-package`](#mcp-package) | high | AST02 |  |
 
 ## hidden-unicode
 
@@ -178,6 +179,16 @@ Checks the project against the lists of agentcurfew.policy.json: skills whose so
 Example: `mcp.allowServers is ["@modelcontextprotocol/*"], and .mcp.json starts npx -y random-server@1.0.0`
 
 Fix: Remove the component, or, if it was reviewed and is wanted, add its source, package or address to the policy. local allows skills that skills-lock.json does not list and servers started from a local command.
+
+## mcp-package
+
+**MCP server package refused by depcurfew.** Level high. AST02 Supply Chain Compromise.
+
+When depcurfew is installed and the project has depcurfew.json, checks the package that an MCP server starts through npx, uvx and the like with depcurfew, offline: a source the policy forbids (a git repository, a tarball URL, a local folder) or a spec that is not one. An error of depcurfew is high, a warning medium. The checks that need the registry (release age, existence, install scripts, similar names, known malicious versions) are not made, since agentcurfew uses no network; run npx depcurfew check <package> for those.
+
+Example: `"command": "npx", "args": ["-y", "github:someone/mcp-server"], with sources.git deny in depcurfew.json`
+
+Fix: Follow the fix depcurfew gives in the message, or start the server from a package source depcurfew.json allows.
 
 ## Policy
 

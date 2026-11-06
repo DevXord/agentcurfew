@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { analyzeProject } from '../../src/analyze.ts';
+import { analyzeProjectAsync } from '../../src/analyze.ts';
 import { EXIT_FAILURE, EXIT_USAGE, run } from '../../src/index.ts';
 import { toSarif } from '../../src/report/sarif.ts';
 import { rules } from '../../src/rules/index.ts';
@@ -23,10 +23,10 @@ describe('SARIF', () => {
     expect(createHash('sha256').update(bytes).digest('hex')).toBe('c3b4bb2d6093897483348925aaa73af03b3e3f4bd4ca38cef26dcb4212a2682e');
   });
 
-  it.each(readdirSync(fixtureDir('')))('is valid SARIF 2.1.0 for the %s fixture', (rule) => {
+  it.each(readdirSync(fixtureDir('')))('is valid SARIF 2.1.0 for the %s fixture', async (rule) => {
     const { root, cleanup } = materialize(`${rule}/positive`);
     try {
-      const { findings, suppressed } = analyzeProject(root);
+      const { findings, suppressed } = await analyzeProjectAsync(root);
       const sarif = toSarif(findings, suppressed);
       const valid = validate(sarif);
       expect(validate.errors ?? [], JSON.stringify(validate.errors)).toEqual([]);

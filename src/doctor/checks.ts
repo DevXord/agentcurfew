@@ -364,6 +364,61 @@ export const agentcurfewHookMissing: DoctorCheck = {
   },
 };
 
+const DEPCURFEW_HOOK = 'https://github.com/DevXord/depcurfew#claude-code';
+
+/** Whether a hook command line is depcurfew's guard of installs for Claude Code. */
+export function isDepcurfewHook(line: string): boolean {
+  return /\bdepcurfew\b(?:\/dist\/cli\.js["']?)?\s+check\b.*--hook\b/.test(line) || /\bdcf\s+check\b.*--hook\b/.test(line);
+}
+
+const claudeHooks = (context: DoctorContext) => project(context).filter((component) => component.kind === 'hook' && component.agents.includes('claude-code'));
+
+export const depcurfewHookMissing: DoctorCheck = {
+  id: 'depcurfew-hook-missing',
+  title: 'A project with depcurfew.json has the depcurfew hook',
+  level: 'warning',
+  description:
+    'The project has a depcurfew policy, but the Claude Code settings of the project have no depcurfew hook, so the agent can install packages without depcurfew checking them first. agentcurfew does not check installs: that is the hook of depcurfew.',
+  fix: 'Add the hook from the README of depcurfew (section Claude Code) to .claude/settings.json; it runs next to the agentcurfew hook.',
+  sources: [DEPCURFEW_HOOK],
+  applies: (context) => existsSync(join(context.root, 'depcurfew.json')),
+  run(context) {
+    if (claudeHooks(context).some((component) => isDepcurfewHook(handlerLine(component) ?? ''))) return [];
+    return [{ file: 'depcurfew.json', message: 'the project has a depcurfew policy, but no depcurfew hook in the Claude Code settings of the project, so installs by the agent are not checked' }];
+  },
+};
+
+export const depcurfewHookBroken: DoctorCheck = {
+  id: 'depcurfew-hook-broken',
+  title: 'The depcurfew hook finds depcurfew',
+  level: 'warning',
+  description:
+    'The depcurfew hook runs node_modules/depcurfew/dist/cli.js of the project. When that file is missing, the hook checks nothing; with onFailure "block" it instead blocks every command of the tools it covers, including the install that would bring depcurfew.',
+  fix: 'Install depcurfew (npm ci, or npm install --save-dev depcurfew) before the agent starts, as the README of depcurfew describes, or fix the path in the hook.',
+  sources: [DEPCURFEW_HOOK],
+  applies: (context) => claudeHooks(context).some((component) => isDepcurfewHook(handlerLine(component) ?? '')),
+  run(context) {
+    return claudeHooks(context).flatMap((component) => {
+      const line = handlerLine(component);
+      if (line === undefined || !isDepcurfewHook(line)) return [];
+      const path = /(node_modules[\\/]depcurfew[\\/]dist[\\/]cli\.js)/.exec(line)?.[1];
+      if (path === undefined || existsSync(join(context.root, path))) return [];
+      const value = entryValue(component);
+      const handler = isRecord(value) && isRecord(value.handler) ? value.handler : {};
+      const blocks = handler.onFailure === 'block';
+      return [
+        {
+          file: component.file,
+          message: blocks
+            ? `the depcurfew hook ${quote(component.name, 40)} runs ${path}, which does not exist, and with onFailure "block" every command it covers is blocked`
+            : `the depcurfew hook ${quote(component.name, 40)} runs ${path}, which does not exist, so installs are not checked`,
+          level: blocks ? 'error' : 'warning',
+        },
+      ];
+    });
+  },
+};
+
 /** Every check, in the order of docs/doctor.md. */
 export const checks: readonly DoctorCheck[] = [
   invalidPolicy,
@@ -376,4 +431,6 @@ export const checks: readonly DoctorCheck[] = [
   deprecatedFormat,
   stalePolicyEntry,
   agentcurfewHookMissing,
+  depcurfewHookMissing,
+  depcurfewHookBroken,
 ];

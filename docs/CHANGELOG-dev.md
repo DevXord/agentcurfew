@@ -2,6 +2,15 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-06: Phase 8, depcurfew
+
+- `src/depcurfew/bridge.ts` calls depcurfew's public API (1.5.2, optional peer, dynamic import) offline: a `fetch` that refuses every request, the project's `depcurfew.json`, and only the findings that need no registry (D-028). The new rule `mcp-package` reports them for MCP servers started through npx, uvx and the like.
+- `analyzeProjectAsync` gathers depcurfew's reports before the rules; `scan`, `lock` and the MCP tools use it.
+- `doctor` checks `depcurfew-hook-missing` and `depcurfew-hook-broken` (D-029).
+- depcurfew 1.5.2 as a dev dependency; CI runs `depcurfew doctor` from it. Tests with and without depcurfew, with another major version and a broken `depcurfew.json`, a test that no depcurfew code is bundled and that no package-check logic exists outside the bridge. 386 tests.
+- Q-012 lists what depcurfew's API lacks for more: its popular names and the folder of its local OSV.dev data.
+- The new doctor check found that this repository had no depcurfew hook: `.claude/settings.json` now has depcurfew's and agentcurfew's hooks and a SessionStart install, with a policy exception for that auto-run and a new lock.
+
 ## 2026-11-06: Phase 7, MCP server and hook
 
 - `acf mcp`: an MCP server without the SDK, speaking 2026-07-28 and 2025-11-25, with the read-only tools `scan_project`, `check_skill`, `check_mcp_config` and `explain_rule`, limited to its folder, `--root` folders and the client's roots (D-025). Tested with the official TypeScript client in both eras, plus raw JSON-RPC, stdio streams and fuzzing.

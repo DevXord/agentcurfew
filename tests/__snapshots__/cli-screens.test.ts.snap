@@ -3,7 +3,7 @@
 exports[`screens > doctor and init 1`] = `
 "$ agentcurfew doctor <project>
 [exit 1]
-10 checks: 4 passed, 1 failed, 5 not applicable
+12 checks: 4 passed, 1 failed, 7 not applicable
   not applicable  agentcurfew.policy.json follows the schema [invalid-policy]
   passed          Every agent configuration file can be parsed [unparsable-config]
   passed          No file is named almost like one an agent reads [misnamed-file]
@@ -14,6 +14,8 @@ exports[`screens > doctor and init 1`] = `
   failed          No deprecated file or setting is used [deprecated-format]
   not applicable  Every entry of the policy still matches something [stale-policy-entry]
   not applicable  The agentcurfew hook finds agentcurfew [agentcurfew-hook-missing]
+  not applicable  A project with depcurfew.json has the depcurfew hook [depcurfew-hook-missing]
+  not applicable  The depcurfew hook finds depcurfew [depcurfew-hook-broken]
 
 WARNING  deprecated-format  .cursorrules
   Cursor calls .cursorrules deprecated; use rules in .cursor/rules/*.mdc
@@ -93,7 +95,7 @@ exports[`screens > errors with a suggestion 3`] = `
 [stderr]
 agentcurfew: unknown rule: hiden-unicode
   in: the command line
-  fix: did you mean hidden-unicode? The rules are hidden-unicode, unpinned-mcp-server, plain-http-mcp, secret-in-config, dangerous-hook-command, auto-run-on-open, permission-bypass, broad-shell-permission, remote-instructions, obfuscated-content, persistence-instruction, drift, skills-lock-mismatch, out-of-policy
+  fix: did you mean hidden-unicode? The rules are hidden-unicode, unpinned-mcp-server, plain-http-mcp, secret-in-config, dangerous-hook-command, auto-run-on-open, permission-bypass, broad-shell-permission, remote-instructions, obfuscated-content, persistence-instruction, drift, skills-lock-mismatch, out-of-policy, mcp-package
 "
 `;
 

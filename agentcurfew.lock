@@ -3,6 +3,15 @@
   "components": [
     {
       "agents": [
+        "claude-code"
+      ],
+      "file": ".claude/settings.json",
+      "hash": "6a12e92b3586859b5c69b130838001a4ca047ff80f7c6a72db1b794623cc6104",
+      "kind": "auto-run",
+      "name": "SessionStart#0"
+    },
+    {
+      "agents": [
         "claude-code",
         "copilot-vscode",
         "cursor"
@@ -11,6 +20,42 @@
       "hash": "2b4b7a5c7abe79b8f0b2b048f5f967466cf13da7784cbeb7fbaae86a1e883aa9",
       "kind": "context-file",
       "name": "CLAUDE.md"
+    },
+    {
+      "agents": [
+        "claude-code",
+        "copilot-vscode",
+        "cursor",
+        "windsurf"
+      ],
+      "file": ".claude/settings.json",
+      "hash": "bd16a55e20118853db660fcd7328e2b481c188a3743fb489fc42e42af05e3cdb",
+      "kind": "hook",
+      "name": "PreToolUse#0"
+    },
+    {
+      "agents": [
+        "claude-code",
+        "copilot-vscode",
+        "cursor",
+        "windsurf"
+      ],
+      "file": ".claude/settings.json",
+      "hash": "5709a19cfce96dc5bb12d9b73f24fa234641ee6802df49d2453145e98a58c823",
+      "kind": "hook",
+      "name": "PreToolUse#1"
+    },
+    {
+      "agents": [
+        "claude-code",
+        "copilot-vscode",
+        "cursor",
+        "windsurf"
+      ],
+      "file": ".claude/settings.json",
+      "hash": "6a12e92b3586859b5c69b130838001a4ca047ff80f7c6a72db1b794623cc6104",
+      "kind": "hook",
+      "name": "SessionStart#0"
     }
   ],
   "lockfileVersion": 1

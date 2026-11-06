@@ -24,5 +24,11 @@
       "reason": "Test fixtures hold deliberately dangerous or broken agent configuration, which the tests expect to be found."
     }
   ],
-  "exceptions": []
+  "exceptions": [
+    {
+      "rule": "auto-run-on-open",
+      "path": ".claude/settings.json",
+      "reason": "The SessionStart hook installs the locked dev dependencies and builds dist/ when they are missing, so that the depcurfew and agentcurfew hooks can run from the first command, as depcurfew's README recommends."
+    }
+  ]
 }

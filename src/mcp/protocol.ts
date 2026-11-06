@@ -95,10 +95,14 @@ export class McpServer {
     }
     const params = isRecord(message.params) ? message.params : {};
     if (!hasId) return this.#notification(message.method);
+    const answer = (response: Message) => this.#options.send(response);
+    const failed = () => this.#options.send(rpcError(id, -32603, 'internal error'));
     try {
-      this.#options.send(this.#request(id, message.method, params));
+      const response = this.#request(id, message.method, params);
+      if (response instanceof Promise) void response.then(answer, failed);
+      else answer(response);
     } catch {
-      this.#options.send(rpcError(id, -32603, 'internal error'));
+      failed();
     }
   }
 
@@ -132,7 +136,7 @@ export class McpServer {
     return { modern: true };
   }
 
-  #request(id: Id, method: string, params: Record<string, unknown>): Message {
+  #request(id: Id, method: string, params: Record<string, unknown>): Message | Promise<Message> {
     const serverInfo = { name: 'agentcurfew', version: getVersion() };
     if (method === 'initialize') {
       const requested = typeof params.protocolVersion === 'string' ? params.protocolVersion : '';
@@ -156,8 +160,7 @@ export class McpServer {
       const name = params.name;
       if (typeof name !== 'string' || !TOOLS.some((tool) => tool.name === name)) return rpcError(id, INVALID_PARAMS, 'unknown tool');
       const args = isRecord(params.arguments) ? params.arguments : {};
-      const result = callTool(name, args, { root: this.#options.root, allowed: () => this.#allowed(), ...(this.#options.now === undefined ? {} : { now: this.#options.now }) });
-      return rpcResult(id, { ...result, ...extra });
+      return callTool(name, args, { root: this.#options.root, allowed: () => this.#allowed(), ...(this.#options.now === undefined ? {} : { now: this.#options.now }) }).then((result) => rpcResult(id, { ...result, ...extra }));
     }
     return rpcError(id, METHOD_NOT_FOUND, 'method not found');
   }

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { pathToFileURL } from 'node:url';
 import { Client } from '@modelcontextprotocol/client';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { McpServer } from '../../src/mcp/protocol.ts';
 import { serveStdio } from '../../src/mcp/stdio.ts';
 import { materialize } from '../rules/materialize.ts';
@@ -134,7 +134,7 @@ describe('MCP protocol details', () => {
     expect(sent[0]).toMatchObject({ id: 'd', result: { resultType: 'complete', supportedVersions: ['2026-07-28'], capabilities: { tools: {} }, cacheScope: 'public', _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'agentcurfew' } } } });
   });
 
-  it('negotiates the legacy version and asks for roots', () => {
+  it('negotiates the legacy version and asks for roots', async () => {
     const { server, sent } = raw();
     server.receive({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: { roots: {} }, clientInfo: { name: 'c', version: '1' } } });
     expect((sent[0]?.result as { protocolVersion: string }).protocolVersion).toBe('2025-11-25');
@@ -145,6 +145,7 @@ describe('MCP protocol details', () => {
     mkdirSync(extra);
     server.receive({ jsonrpc: '2.0', id: request.id, result: { roots: [{ uri: pathToFileURL(extra).href }] } });
     server.receive({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'scan_project', arguments: { path: extra } } });
+    await vi.waitFor(() => expect(sent).toHaveLength(3));
     expect((sent[2]?.result as { isError?: boolean }).isError).toBeUndefined();
     server.receive({ jsonrpc: '2.0', id: 3, method: 'ping' });
     expect(sent[3]).toEqual({ jsonrpc: '2.0', id: 3, result: {} });

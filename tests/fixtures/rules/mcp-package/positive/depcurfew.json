@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "cooldown": {
+    "minimum": "7d"
+  },
+  "sources": {
+    "git": "deny",
+    "remoteTarball": "deny",
+    "file": "deny",
+    "directory": "deny"
+  }
+}

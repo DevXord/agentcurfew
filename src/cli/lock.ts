@@ -1,6 +1,6 @@
 import { lstatSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { analyzeProject } from '../analyze.ts';
+import { analyzeProjectAsync } from '../analyze.ts';
 import { buildLock, serializeLock } from '../lock/build.ts';
 import { carryExecutableBits } from '../lock/diff.ts';
 import { LOCKFILE } from '../lock/types.ts';
@@ -11,7 +11,7 @@ import type { CliIo } from './io.ts';
 import { policyError, projectRoot } from './project.ts';
 import { problemLines } from './scan.ts';
 
-export function runLock(argv: readonly string[], io: CliIo, usageError: (what: string) => number): number {
+export async function runLock(argv: readonly string[], io: CliIo, usageError: (what: string) => number): Promise<number> {
   const { positionals } = parseCommand('lock', argv);
   const root = projectRoot(positionals, io, usageError, 'lock');
   if (typeof root === 'number') return root;
@@ -24,7 +24,7 @@ export function runLock(argv: readonly string[], io: CliIo, usageError: (what: s
   } catch {
     // No lock yet.
   }
-  const analysis = analyzeProject(root);
+  const analysis = await analyzeProjectAsync(root);
   if (analysis.policy.status === 'invalid') return policyError(io, analysis.policy.issues);
   const { inventory, context, lock: previous } = analysis;
   let lock = buildLock(inventory, context.knowledge);

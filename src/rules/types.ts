@@ -2,6 +2,7 @@ import type { Component, ComponentKind, Inventory } from '../inventory/types.ts'
 import type { AgentKnowledge } from '../knowledge/types.ts';
 import type { SkillsLockRead } from '../lock/skills-lock.ts';
 import type { Lockfile } from '../lock/types.ts';
+import type { PackageReport } from '../depcurfew/bridge.ts';
 import type { Policy } from '../policy/types.ts';
 
 export const LEVELS = ['critical', 'high', 'medium', 'low', 'info'] as const;
@@ -46,6 +47,8 @@ export interface RuleContext {
   compareExecutableBits?: boolean;
   /** agentcurfew.policy.json, when there is a valid one. */
   policy?: Policy;
+  /** depcurfew's offline reports on the packages MCP servers start, keyed by file and server name (D-028). */
+  packageReports?: ReadonlyMap<string, PackageReport>;
 }
 
 /** A hit of a rule that looks at the whole project, such as drift, which also reports what is no longer there. */

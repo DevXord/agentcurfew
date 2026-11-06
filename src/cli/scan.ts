@@ -1,4 +1,4 @@
-import { analyzeProject } from '../analyze.ts';
+import { analyzeProjectAsync } from '../analyze.ts';
 import type { Component, Inventory, InventoryProblem } from '../inventory/index.ts';
 import { LOCKFILE } from '../lock/types.ts';
 import type { Suppressed } from '../policy/apply.ts';
@@ -83,7 +83,7 @@ function renderText(inventory: Inventory): string {
   return `${lines.join('\n')}\n`;
 }
 
-export function runScan(argv: readonly string[], io: CliIo, usageError: (what: string) => number): number {
+export async function runScan(argv: readonly string[], io: CliIo, usageError: (what: string) => number): Promise<number> {
   const { values, positionals } = parseCommand('scan', argv);
   const flag = values['fail-on'] as FailOn | undefined;
   if (flag !== undefined && !FAIL_ON.includes(flag)) return usageError(`--fail-on takes one of ${FAIL_ON.join(', ')}, got ${flag}`);
@@ -91,7 +91,7 @@ export function runScan(argv: readonly string[], io: CliIo, usageError: (what: s
   if (values.sarif === true && (values.json === true || values.inventory === true)) return usageError('--sarif cannot be combined with --json or --inventory');
   const root = projectRoot(positionals, io, usageError, 'scan');
   if (typeof root === 'number') return root;
-  const analysis = analyzeProject(root, { user: values.user === true, rules: values.inventory !== true });
+  const analysis = await analyzeProjectAsync(root, { user: values.user === true, rules: values.inventory !== true });
   if (analysis.policy.status === 'invalid') return policyError(io, analysis.policy.issues);
   const { inventory, findings, suppressed, lock } = analysis;
   const failOn: FailOn = flag ?? analysis.context.policy?.failOn ?? 'high';

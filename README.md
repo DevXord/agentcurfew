@@ -2,7 +2,7 @@
 
 > One local, account-less security policy for the files that steer your AI coding agents — skills, MCP servers, hooks, context files, permissions.
 
-**Status:** pre-release, nothing published yet; the first release will be 1.0.0. Phases 0 to 7 and the release machinery of phase 9 are done: `acf scan` checks what steers agents in a project against the [rules](docs/rules.md), from a sourced [knowledge base](docs/knowledge.md), `acf scan --inventory` lists it, `acf lock` and `acf verify` pin it with checksums in `agentcurfew.lock`, `agentcurfew.policy.json` sets what is allowed ([policy](docs/policy.md)), `acf doctor` finds configuration that agents ignore ([checks](docs/doctor.md)), and an MCP server and a Claude Code hook check skills and MCP servers before they are added ([MCP server and hook](docs/mcp.md)).
+**Status:** pre-release, nothing published yet; the first release will be 1.0.0. Phases 0 to 9 are done, except the release itself: `acf scan` checks what steers agents in a project against the [rules](docs/rules.md), from a sourced [knowledge base](docs/knowledge.md), `acf scan --inventory` lists it, `acf lock` and `acf verify` pin it with checksums in `agentcurfew.lock`, `agentcurfew.policy.json` sets what is allowed ([policy](docs/policy.md)), `acf doctor` finds configuration that agents ignore ([checks](docs/doctor.md)), and an MCP server and a Claude Code hook check skills and MCP servers before they are added ([MCP server and hook](docs/mcp.md)).
 
 ```bash
 acf scan                       # exit code 1 on a finding at level high or above
@@ -22,6 +22,16 @@ A clean scan means that none of the rules' patterns was found, not that the conf
 ## MCP server and hook
 
 `acf mcp` serves read-only tools to an agent over MCP: `check_skill` and `check_mcp_config` before something is installed, `scan_project` and `explain_rule`. `acf init --hook` adds a `PreToolUse` hook to `.claude/settings.json`, next to depcurfew's hook if there is one: writes to the files that steer agents ask first and are denied when the new text is dangerous or out of the policy, and so are `npx skills add` and `claude mcp add` outside the policy. See [docs/mcp.md](docs/mcp.md).
+
+## With depcurfew
+
+agentcurfew protects what configures the agent; [depcurfew](https://github.com/DevXord/depcurfew) protects the packages the project and the agent install. Together:
+
+- When depcurfew 1.5.2 or a later 1.x is installed and the project has `depcurfew.json`, the rule `mcp-package` checks the package each MCP server starts through `npx`, `uvx` and the like with depcurfew's library, **offline**: sources the policy forbids and specs that are not specs. Checks that need the registry (release age, existence, install scripts, similar names, known malicious versions) stay with `npx depcurfew check <package>`, which `unpinned-mcp-server` points to.
+- `agentcurfew doctor` warns when the project has `depcurfew.json` but Claude Code has no depcurfew hook (`depcurfew-hook-missing`), and when that hook points at a depcurfew that is not installed (`depcurfew-hook-broken`, an error with `onFailure: "block"`, since every command is then blocked).
+- `agentcurfew init --hook` adds its own hook next to depcurfew's, and never changes it.
+
+depcurfew is an optional peer dependency: without it, everything else works the same.
 
 ## GitHub Action
 

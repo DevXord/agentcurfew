@@ -1,6 +1,7 @@
 import { realpathSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
-import { analyzeProject } from '../analyze.ts';
+import { analyzeProjectAsync } from '../analyze.ts';
+import { checkMcpPackages } from '../depcurfew/bridge.ts';
 import { scanSkillFolder } from '../inventory/index.ts';
 import type { Component, Inventory } from '../inventory/types.ts';
 import { knowledgeBase } from '../knowledge/index.ts';
@@ -116,9 +117,10 @@ function checkContext(root: string): { context: RuleContext; policyError?: strin
   return policy.status === 'invalid' ? { context: result, policyError: `agentcurfew.policy.json does not follow the schema: ${policy.issues[0]?.path}: ${policy.issues[0]?.message}` } : { context: result };
 }
 
-function checkInventory(inventory: Inventory, context: ToolContext, kinds: readonly string[]): { findings: Finding[]; suppressed: Suppressed[]; policyError?: string } {
+async function checkInventory(inventory: Inventory, context: ToolContext, kinds: readonly string[]): Promise<{ findings: Finding[]; suppressed: Suppressed[]; policyError?: string }> {
   const { context: ruleContext, policyError } = checkContext(context.root);
-  const selected = rules.filter((rule) => rule.id !== 'drift' && rule.id !== 'skills-lock-mismatch' && (rule.kinds.some((kind) => kinds.includes(kind)) || rule.id === 'out-of-policy'));
+  if (kinds.includes('mcp-server')) ruleContext.packageReports = (await checkMcpPackages(inventory, context.root, context.now)).reports;
+  const selected = rules.filter((rule) => rule.id !== 'drift' && rule.id !== 'skills-lock-mismatch' && (rule.kinds.some((kind) => kinds.includes(kind)) || rule.id === 'out-of-policy' || rule.id === 'mcp-package'));
   const result = applyPolicy(runRules(inventory, { rules: selected, context: ruleContext }), ruleContext.policy, today(context.now));
   return policyError === undefined ? result : { ...result, policyError };
 }
@@ -130,7 +132,7 @@ function servers(config: Record<string, unknown>, name: unknown): [string, unkno
   return entries.length > 0 && entries.every(([, value]) => isRecord(value)) ? entries : undefined;
 }
 
-export function callTool(name: string, args: Record<string, unknown>, context: ToolContext): ToolResult {
+export async function callTool(name: string, args: Record<string, unknown>, context: ToolContext): Promise<ToolResult> {
   if (name === 'explain_rule') {
     if (typeof args.id !== 'string') return error('id must be a string');
     const rule = findRule(args.id);
@@ -143,7 +145,7 @@ export function callTool(name: string, args: Record<string, unknown>, context: T
   if (name === 'scan_project') {
     const where = allowedPath(context, args.path);
     if ('why' in where) return error(where.why);
-    const analysis = analyzeProject(where.path, context.now === undefined ? {} : { now: context.now });
+    const analysis = await analyzeProjectAsync(where.path, context.now === undefined ? {} : { now: context.now });
     if (analysis.policy.status === 'invalid') return error(`agentcurfew.policy.json does not follow the schema: ${analysis.policy.issues[0]?.path}: ${analysis.policy.issues[0]?.message}`);
     return report('Project', analysis.findings, analysis.suppressed, { components: analysis.inventory.components.length, problems: analysis.inventory.problems });
   }
@@ -152,7 +154,7 @@ export function callTool(name: string, args: Record<string, unknown>, context: T
     if ('why' in where) return error(where.why);
     const inventory = scanSkillFolder(where.path);
     if (inventory.components.length === 0) return error('the folder has no SKILL.md, or it could not be read');
-    const { findings, suppressed, policyError } = checkInventory(inventory, context, ['skill']);
+    const { findings, suppressed, policyError } = await checkInventory(inventory, context, ['skill']);
     if (policyError !== undefined) return error(policyError);
     return report('Skill', findings, suppressed, { problems: inventory.problems });
   }
@@ -162,7 +164,7 @@ export function callTool(name: string, args: Record<string, unknown>, context: T
     if (entries === undefined) return error('config is neither a server nor a map of servers');
     const agents = knowledgeBase.filter((agent) => agent.mcp.status === 'disputed' || agent.mcp.value !== null).map((agent) => agent.id).sort();
     const components: Component[] = entries.map(([server, value]) => ({ kind: 'mcp-server', agents, scope: 'project', file: '<config>', name: server, raw: JSON.stringify(value) ?? '' }));
-    const { findings, suppressed, policyError } = checkInventory({ components, problems: [] }, context, ['mcp-server']);
+    const { findings, suppressed, policyError } = await checkInventory({ components, problems: [] }, context, ['mcp-server']);
     if (policyError !== undefined) return error(policyError);
     return report('MCP configuration', findings, suppressed, { servers: entries.length });
   }

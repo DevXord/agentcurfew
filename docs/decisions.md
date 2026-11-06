@@ -176,6 +176,25 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Entry:** `command: "node"` with `args`, as depcurfew's README writes its own hook, so no shell reads the path; `${CLAUDE_PROJECT_DIR}` points at `node_modules/agentcurfew/dist/cli.js`; timeout 30 s. No `onFailure: "block"`: with agentcurfew not installed it would block every write and command. `doctor` reports that case instead (`agentcurfew-hook-missing`).
 - **Keeping other hooks:** every other key and hook entry is kept as it was (a test uses depcurfew's recommended entry); a second run adds nothing; settings with comments, other shapes and links are refused with the entry to add by hand.
 
+## D-028: depcurfew, offline
+- **Date:** 2026-11-06
+- **Decisions of the maintainer:** only offline; the missing parts of depcurfew's API go to its own session (Q-012); depcurfew 1.5.2 as an exact dev dependency and an optional peer `>=1.5.2 <2`; an error of depcurfew is high, a warning medium, in the new rule `mcp-package` (AST02).
+- **API used:** `getVersion`, `loadPolicy`, `checkSpecs` and `PopularNames`, the public exports of depcurfew 1.5.2 (`dist/index.d.ts`, README section Library), loaded with a dynamic `import()` that the bundle keeps external; a test checks that no code of depcurfew is bundled and that no other file of `src` calls depcurfew or holds package checks of its own.
+- **Offline:** `checkSpecs` gets a `fetch` that refuses every request and an empty `PopularNames`. Measured on 1.5.2: with `depcurfew.json`, git, tarball and local sources give `forbidden-source` and bad specs `invalid-spec` without any request; every registry package gives `unverified`, only because the registry cannot be reached, and is dropped. Only `forbidden-source`, `invalid-spec`, `unchecked-source` and `insecure-registry` are reported. Without `depcurfew.json`, `loadPolicy` throws, so nothing is checked. The value is therefore narrow: the full check of a server's package stays `npx depcurfew check <package>`.
+- **Asynchronous:** depcurfew's checks are asynchronous and the rules are not, so `analyzeProjectAsync` gathers the reports first and the rule reads them from its context. `scan`, `lock` and the MCP tools use it; the hook does not, since installs are depcurfew's hook.
+- **Specs:** npm launchers pass their spec as written; `uvx`, `uv tool run` and `pipx run` become `pypi:` specs, with `name@version` written `name==version`; images are not packages here.
+
+## D-029: doctor and depcurfew's hook
+- **Date:** 2026-11-06
+- **Checks:** `depcurfew-hook-missing` (the project has `depcurfew.json` and no depcurfew hook in its Claude Code settings) and `depcurfew-hook-broken` (the hook runs a `node_modules/depcurfew/dist/cli.js` that does not exist; an error with `onFailure: "block"`, since depcurfew's README says that then blocks every command, otherwise a warning). The hook is recognised as `depcurfew … check … --hook`, in `command` or `args`. Source: depcurfew's README on GitHub.
+- **This repository (decision of the maintainer):** `doctor .` found that the repository had `depcurfew.json` and no depcurfew hook, so `.claude/settings.json` now holds depcurfew's hook as its README writes it (`onFailure: "block"`), agentcurfew's own hook (running `dist/cli.js`, since agentcurfew is the project here, not a package in `node_modules`), and a SessionStart hook that runs `npm ci --ignore-scripts` and the build when they are missing. That hook is an auto-run, which the repository's policy accepts by an exception with its reason; `agentcurfew.lock` was updated.
+
+## Q-012: For the depcurfew session
+- **Status:** open, to raise in depcurfew's own session; agentcurfew does not change depcurfew.
+- `popularPackages` and `popularPythonPackages` are not exported, so agentcurfew cannot check similar names of MCP server packages offline without copying them.
+- The default directory of the local OSV.dev data is not exported, so `LocalOsvData` cannot be pointed at the data `depcurfew osv update` writes without copying that logic.
+- npm 11.21.1 honours `min-release-age-exclude[]=depcurfew` for `npm install` but not for `npm exec`/`npx` (D-022), which `depcurfew apply` may want to know.
+
 ## Q-001: Does `acf` collide with a common tool in PATH?
 - **Status:** no collision found on 2026-11-06, not proven. No `bin/acf` in Debian stable or Ubuntu noble, and nothing in Homebrew, Arch, Repology or Chocolatey. Alpine's `acf-core` keeps it off PATH. npm `acf` has no `bin`. Not checked: PyPI `acf` entry points, and npm by binary name, which cannot be searched. The alias stays; decide at phase 9.
 

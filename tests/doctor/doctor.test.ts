@@ -44,6 +44,8 @@ const POSITIVE: Readonly<Record<string, readonly string[]>> = {
     'info | agentcurfew.policy.json | mcp.allowServers[0] (ghost-server) matches no server of the project',
     'info | agentcurfew.policy.json | skills.allowSources[0] (github:none/*) matches no skill of the project',
   ],
+  'depcurfew-hook-missing': ['warning | depcurfew.json | the project has a depcurfew policy, but no depcurfew hook in the Claude Code settings of the project, so installs by the agent are not checked'],
+  'depcurfew-hook-broken': ['error | .claude/settings.json | the depcurfew hook PreToolUse#0 runs node_modules/depcurfew/dist/cli.js, which does not exist, and with onFailure "block" every command it covers is blocked'],
   'agentcurfew-hook-missing': ['warning | .claude/settings.json | the hook PreToolUse#0 runs node_modules/agentcurfew/dist/cli.js, which does not exist in this project, so it checks nothing'],
 };
 
