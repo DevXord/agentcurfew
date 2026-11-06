@@ -1,3 +1,5 @@
+import { realpathSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deeperThan } from '../inventory/parse.ts';
 import { getVersion } from '../version.ts';
@@ -27,6 +29,15 @@ type Message = Record<string, unknown>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** A folder with its links resolved, so that it compares with resolved paths (macOS /var is /private/var, Windows short names). */
+function real(folder: string): string {
+  try {
+    return realpathSync.native(folder);
+  } catch {
+    return resolve(folder);
+  }
 }
 
 function rpcError(id: Id | null, code: number, message: string, data?: unknown): Message {
@@ -59,7 +70,7 @@ export class McpServer {
   }
 
   #allowed(): string[] {
-    return [this.#options.root, ...(this.#options.roots ?? []), ...this.#clientRoots];
+    return [this.#options.root, ...(this.#options.roots ?? []), ...this.#clientRoots].map(real);
   }
 
   #requestRoots(): void {

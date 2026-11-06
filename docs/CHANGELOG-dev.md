@@ -2,6 +2,12 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-06: Before 1.0.0, hardening
+
+- CI on Windows and macOS (`test-os`) found three problems, now fixed: the MCP server compared resolved paths with folders that were not resolved, so it refused its own folder where the temporary folder is a link (macOS `/var` is `/private/var`; Windows short names); git turned LF into CRLF on Windows checkouts, which broke the checksums of the SARIF schema and of a `skills-lock.json` fixture, so `.gitattributes` now keeps every file's bytes (`* -text`). A test runs the MCP server through linked folders.
+- `agentcurfew verify` failed on a large project, whose lock is over the old 2 MB read limit: the lock limit is now 64 MB, with a test of a 30,000-component lock.
+- Faster scans: a file's type is read once, not once per glob that reaches it, and `scan` builds the inventory once instead of twice. On this repository, scan and lock went from 5.6 s to 2.7 s.
+
 ## 2026-11-06: Phase 8, depcurfew
 
 - `src/depcurfew/bridge.ts` calls depcurfew's public API (1.5.2, optional peer, dynamic import) offline: a `fetch` that refuses every request, the project's `depcurfew.json`, and only the findings that need no registry (D-028). The new rule `mcp-package` reports them for MCP servers started through npx, uvx and the like.

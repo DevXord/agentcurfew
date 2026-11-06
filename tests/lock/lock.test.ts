@@ -8,7 +8,7 @@ import { scanInventory } from '../../src/inventory/index.ts';
 import { buildLock, serializeLock } from '../../src/lock/build.ts';
 import { carryExecutableBits, diffLocks } from '../../src/lock/diff.ts';
 import { canonicalJson, normalizeText } from '../../src/lock/hash.ts';
-import { parseLock } from '../../src/lock/read.ts';
+import { parseLock, readLock } from '../../src/lock/read.ts';
 import { redact } from '../../src/lock/redact.ts';
 import { materialize } from '../rules/materialize.ts';
 import { canLinkFiles, linkFile } from '../support/links.ts';
@@ -200,7 +200,6 @@ describe('a hostile or missing lock', () => {
     ['another version', '{"lockfileVersion":2,"algorithm":"sha256","components":[]}', 'lockfileVersion is not 1'],
     ['a bad component', '{"lockfileVersion":1,"algorithm":"sha256","components":[{"__proto__":{"kind":"skill"}}]}', 'component 0 does not have the expected fields'],
     ['a short hash', '{"lockfileVersion":1,"algorithm":"sha256","components":[{"kind":"skill","file":"a","name":"a","agents":[],"hash":"abc"}]}', 'component 0 does not have the expected fields'],
-    ['too large', `{"x":"${'a'.repeat(3 * 1024 * 1024)}"}`, 'it is over the size limit'],
   ])('%s: verify says what and how to fix it', async (_what, text, reason) => {
     if (text !== null) writeFileSync(join(root, 'agentcurfew.lock'), text);
     const { code, stdout, stderr } = await cli('verify', root);
@@ -209,6 +208,16 @@ describe('a hostile or missing lock', () => {
     expect(stderr).toContain(reason);
     expect(stderr).toContain('fix: run agentcurfew lock');
     expect(({} as { kind?: string }).kind).toBeUndefined();
+  });
+
+  it('has a size limit, above the size of a large project\'s lock', () => {
+    const component = { kind: 'context-file', file: 'x', name: 'x', agents: [], hash: 'a'.repeat(64) };
+    const big = { lockfileVersion: 1, algorithm: 'sha256', components: Array.from({ length: 30_000 }, (_, index) => ({ ...component, file: `dir${index}/AGENTS.md`, name: 'AGENTS.md' })) };
+    const text = JSON.stringify(big);
+    expect(text.length).toBeGreaterThan(3 * 1024 * 1024);
+    writeFileSync(join(root, 'agentcurfew.lock'), text);
+    expect(readLock(root).status).toBe('ok');
+    expect(readLock(root, 1024)).toEqual({ status: 'invalid', reason: 'it is over the size limit' });
   });
 
   it('is noted by scan and replaced by lock', async () => {

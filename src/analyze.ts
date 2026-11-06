@@ -31,11 +31,11 @@ export interface AnalyzeOptions {
   packageReports?: ReadonlyMap<string, PackageReport>;
 }
 
-export function analyzeProject(root: string, options: AnalyzeOptions = {}): Analysis {
+export function analyzeProject(root: string, options: AnalyzeOptions & { inventory?: Inventory } = {}): Analysis {
   const { context, lock, policy } = projectContext(root);
   if (options.packageReports !== undefined) context.packageReports = options.packageReports;
-  const scanned = scanInventory({ root, user: options.user === true, ...(options.overlay === undefined ? {} : { overlay: options.overlay }) });
-  const inventory = excludePaths(scanned, context.policy);
+  const scanned = options.inventory ?? scanInventory({ root, user: options.user === true, ...(options.overlay === undefined ? {} : { overlay: options.overlay }) });
+  const inventory = options.inventory ?? excludePaths(scanned, context.policy);
   if (options.rules === false) return { inventory, context, lock, policy, findings: [], suppressed: [] };
   const { findings, suppressed } = applyPolicy(runRules(inventory, { context }), context.policy, today(options.now));
   return { inventory, context, lock, policy, findings, suppressed };
@@ -49,5 +49,5 @@ export async function analyzeProjectAsync(root: string, options: AnalyzeOptions 
   const first = analyzeProject(root, { ...options, rules: false });
   if (first.policy.status === 'invalid' || options.rules === false) return { ...first, depcurfew: { status: 'missing', reason: 'not checked' } };
   const { state, reports } = await checkMcpPackages(first.inventory, root, options.now);
-  return { ...analyzeProject(root, { ...options, packageReports: reports }), depcurfew: state };
+  return { ...analyzeProject(root, { ...options, packageReports: reports, inventory: first.inventory }), depcurfew: state };
 }

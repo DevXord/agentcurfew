@@ -52,6 +52,23 @@ describe('MCP server with the official client', () => {
     await client.close();
   });
 
+  it('reads its folders through a link, as macOS /var is /private/var', async () => {
+    writeFileSync(join(root, '.mcp.json'), JSON.stringify({ mcpServers: { web: { type: 'http', url: 'http://mcp.example.com/mcp' } } }));
+    const extra = join(base, 'extra');
+    mkdirSync(extra);
+    linkDirectory(root, join(base, 'via-root'));
+    linkDirectory(extra, join(base, 'via-extra'));
+    const transport = new ServerTransport({ root: join(base, 'via-root'), roots: [join(base, 'via-extra')] });
+    const client = new Client({ name: 'test', version: '1.0.0' });
+    await client.connect(transport);
+    const own = await client.callTool({ name: 'scan_project', arguments: {} });
+    expect(own.isError).toBeFalsy();
+    expect(text(own)).toContain('plain-http-mcp');
+    const other = await client.callTool({ name: 'scan_project', arguments: { path: extra } });
+    expect(other.isError).toBeFalsy();
+    await client.close();
+  });
+
   it('checks a skill folder before it is installed', async () => {
     const { root: fixture, cleanup } = materialize('remote-instructions/positive');
     try {

@@ -1,6 +1,5 @@
 import { lstatSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULT_LIMITS } from '../inventory/files.ts';
 import { parseConfig } from '../inventory/parse.ts';
 import type { ComponentKind } from '../inventory/types.ts';
 import type { LockedComponent, LockedServer, LockedSkill, Lockfile } from './types.ts';
@@ -75,8 +74,14 @@ export function parseLock(value: unknown): { lock: Lockfile } | { reason: string
   return { lock: { lockfileVersion: LOCKFILE_VERSION, algorithm: 'sha256', components } };
 }
 
+/**
+ * The largest agentcurfew.lock read. A lock lists every file of every skill, so a large project's lock outgrows the
+ * limit of the files agentcurfew scans; it is still bounded, since it is as untrusted as any other file.
+ */
+export const MAX_LOCK_BYTES = 64 * 1024 * 1024;
+
 /** Reads agentcurfew.lock of a project, which is as untrusted as any other file there: size limit, no links. */
-export function readLock(root: string, maxBytes = DEFAULT_LIMITS.maxFileBytes): LockRead {
+export function readLock(root: string, maxBytes = MAX_LOCK_BYTES): LockRead {
   const path = join(root, LOCKFILE);
   let text: string;
   try {

@@ -22,6 +22,14 @@ export interface Found {
 
 type Kind = 'file' | 'directory';
 
+interface Entry {
+  kind: Kind;
+  real: string;
+  bytes: number;
+  link: boolean;
+  executable: boolean;
+}
+
 export interface TreeFile {
   found: Found;
   relative: string;
@@ -85,7 +93,24 @@ export class ScanFiles {
   }
 
   /** What is at a path, seen through a link only when it stays inside the area. */
-  #kind(area: Area, path: string, file: string): { kind: Kind; real: string; bytes: number; link: boolean; executable: boolean } | undefined {
+  // Every ** pattern of the knowledge base walks the same tree, so what is at a path is looked up once per scan.
+  readonly #kinds = new Map<string, Entry | undefined>();
+
+  #kind(area: Area, path: string, file: string): Entry | undefined {
+    const key = `${area.base}\0${path}`;
+    if (this.#kinds.has(key)) {
+      const known = this.#kinds.get(key);
+      if (known === undefined && this.#outside.has(key)) this.report('outside-project', file);
+      return known;
+    }
+    const entry = this.#lookup(area, path, file);
+    this.#kinds.set(key, entry);
+    return entry;
+  }
+
+  readonly #outside = new Set<string>();
+
+  #lookup(area: Area, path: string, file: string): Entry | undefined {
     const overlaid = this.#overlay.get(path);
     if (overlaid !== undefined) return { kind: 'file', real: path, bytes: overlaid.length, link: false, executable: false };
     if ([...this.#overlay.keys()].some((key) => key.startsWith(path + sep))) {
@@ -105,6 +130,7 @@ export class ScanFiles {
       const real = realpathSync.native(path);
       if (real !== area.base && !real.startsWith(area.base + sep)) {
         this.report('outside-project', file);
+        this.#outside.add(`${area.base}\0${path}`);
         return undefined;
       }
       const target = statSync(real);

@@ -194,6 +194,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - `popularPackages` and `popularPythonPackages` are not exported, so agentcurfew cannot check similar names of MCP server packages offline without copying them.
 - The default directory of the local OSV.dev data is not exported, so `LocalOsvData` cannot be pointed at the data `depcurfew osv update` writes without copying that logic.
 - npm 11.21.1 honours `min-release-age-exclude[]=depcurfew` for `npm install` but not for `npm exec`/`npx` (D-022), which `depcurfew apply` may want to know.
+- Its hook, active in this repository's sessions, judges `npx <bin>` by the registry's newest version even when the binary is the project's own, pinned dev dependency: `npx vitest` was denied for vitest 5.1.0 (4 days old) while the project pins an older one, `npx tsdown` likewise, and `npx tsc` got a warning. The workaround here is `npm test`, `npm run build` and `npm run typecheck`. A local binary in `node_modules/.bin` could be checked against its installed version instead.
 
 ## Q-001: Does `acf` collide with a common tool in PATH?
 - **Status:** no collision found on 2026-11-06, not proven. No `bin/acf` in Debian stable or Ubuntu noble, and nothing in Homebrew, Arch, Repology or Chocolatey. Alpine's `acf-core` keeps it off PATH. npm `acf` has no `bin`. Not checked: PyPI `acf` entry points, and npm by binary name, which cannot be searched. The alias stays; decide at phase 9.
