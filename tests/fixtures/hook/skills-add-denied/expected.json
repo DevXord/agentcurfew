@@ -1,0 +1,4 @@
+{
+  "decision": "deny",
+  "reasonContains": "not in skills.allowSources"
+}

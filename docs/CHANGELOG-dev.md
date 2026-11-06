@@ -2,6 +2,14 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-06: Phase 7, MCP server and hook
+
+- `acf mcp`: an MCP server without the SDK, speaking 2026-07-28 and 2025-11-25, with the read-only tools `scan_project`, `check_skill`, `check_mcp_config` and `explain_rule`, limited to its folder, `--root` folders and the client's roots (D-025). Tested with the official TypeScript client in both eras, plus raw JSON-RPC, stdio streams and fuzzing.
+- `acf hook`: a Claude Code PreToolUse hook that asks before writes to files that steer agents, denies them when the new text is dangerous or out of the policy, and checks `npx skills add` and `claude mcp add` against the policy (D-026). The new text is scanned as an overlay, never written. 18 fixtures with hand-written decisions.
+- `acf init --hook` adds the hook to `.claude/settings.json` next to depcurfew's hook, which a test keeps byte for byte in structure (D-027); `doctor` has a tenth check, `agentcurfew-hook-missing`.
+- Knowledge: Claude Code's PreToolUse input and output, `claude mcp add`, and `npx skills add`; `docs/knowledge.md` lists them.
+- `@modelcontextprotocol/client` 2.4.0 as a dev dependency for the tests. `docs/mcp.md`, README.
+
 ## 2026-11-06: Phase 9, release machinery without a release
 
 - The maintainer decided that the first release is 1.0.0 with phases 7 and 8, so this phase publishes nothing and the version stays 0.0.0.

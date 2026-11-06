@@ -1,4 +1,4 @@
-import { lstatSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Component } from '../inventory/types.ts';
 import { parseConfig } from '../inventory/parse.ts';
@@ -6,6 +6,7 @@ import { serverIdentity } from '../lock/build.ts';
 import { canonicalJson } from '../lock/hash.ts';
 import { globMatch } from '../policy/glob.ts';
 import { SCHEMA_URL } from '../policy/types.ts';
+import { isOwnHook } from '../hook/install.ts';
 import { quote } from '../rules/mask.ts';
 import { keyMatches } from '../rules/knowledge.ts';
 import { entryValue, isRecord } from '../rules/text.ts';
@@ -330,6 +331,39 @@ export const stalePolicyEntry: DoctorCheck = {
   },
 };
 
+const CLAUDE_HOOKS = 'https://code.claude.com/docs/en/hooks';
+
+/** The command line of a hook handler as one string: command, then args. */
+function handlerLine(component: Component): string | undefined {
+  const value = entryValue(component);
+  const handler = isRecord(value) && isRecord(value.handler) ? value.handler : value;
+  if (!isRecord(handler) || typeof handler.command !== 'string') return undefined;
+  const args = Array.isArray(handler.args) ? handler.args.filter((arg): arg is string => typeof arg === 'string') : [];
+  return [handler.command, ...args].join(' ');
+}
+
+export const agentcurfewHookMissing: DoctorCheck = {
+  id: 'agentcurfew-hook-missing',
+  title: 'The agentcurfew hook finds agentcurfew',
+  level: 'warning',
+  description:
+    'The hook that agentcurfew init --hook writes runs node_modules/agentcurfew/dist/cli.js of the project. When that file is missing, because agentcurfew is not a dev dependency or the dependencies are not installed, node cannot start it and Claude Code goes on without the check, so writes to agent files are no longer asked about.',
+  fix: 'Install agentcurfew as a dev dependency (npm install --save-dev agentcurfew) and run the install before starting the agent, or remove the hook.',
+  sources: [CLAUDE_HOOKS],
+  applies: (context) => project(context).some((component) => component.kind === 'hook' && isOwnHook(handlerLine(component) ?? '')),
+  run(context) {
+    return project(context)
+      .filter((component) => component.kind === 'hook')
+      .flatMap((component) => {
+        const line = handlerLine(component);
+        if (line === undefined || !isOwnHook(line)) return [];
+        const path = /(?:\$\{?CLAUDE_PROJECT_DIR\}?[\\/])?(node_modules[\\/]agentcurfew[\\/]dist[\\/]cli\.js)/.exec(line)?.[1];
+        if (path === undefined || existsSync(join(context.root, path))) return [];
+        return [{ file: component.file, message: `the hook ${quote(component.name, 40)} runs ${path}, which does not exist in this project, so it checks nothing` }];
+      });
+  },
+};
+
 /** Every check, in the order of docs/doctor.md. */
 export const checks: readonly DoctorCheck[] = [
   invalidPolicy,
@@ -341,4 +375,5 @@ export const checks: readonly DoctorCheck[] = [
   conflictingMcpServer,
   deprecatedFormat,
   stalePolicyEntry,
+  agentcurfewHookMissing,
 ];

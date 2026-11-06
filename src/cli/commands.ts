@@ -5,6 +5,8 @@ export interface OptionSpec {
   name: string;
   type: 'boolean' | 'string';
   short?: string;
+  /** The option can be given more than once. */
+  multiple?: boolean;
   /** The value's placeholder in help, for string options. */
   value?: string;
   description: string;
@@ -64,12 +66,14 @@ export const COMMANDS: readonly CommandSpec[] = [
     name: 'init',
     summary: 'Write agentcurfew.policy.json from what the project has now',
     usage: 'init [directory] [options]',
-    description: 'Proposes a policy that the project passes as it is: the skill sources and MCP servers it has now, and the strict value of each setting it already meets. Lists what it left loose.',
+    description:
+      'Proposes a policy that the project passes as it is: the skill sources and MCP servers it has now, and the strict value of each setting it already meets. Lists what it left loose. With --hook it adds the agentcurfew hook for Claude Code to .claude/settings.json instead, keeping every other hook, such as depcurfew\'s.',
     options: [
-      { name: 'print', type: 'boolean', description: 'Print the proposal instead of writing it' },
+      { name: 'print', type: 'boolean', description: 'Print the result instead of writing it' },
       { name: 'force', type: 'boolean', description: 'Replace an existing policy' },
+      { name: 'hook', type: 'boolean', description: 'Add the agentcurfew hook to .claude/settings.json instead, next to any other hook' },
     ],
-    examples: ['init --print', 'init'],
+    examples: ['init --print', 'init', 'init --hook --print'],
   },
   {
     name: 'doctor',
@@ -83,6 +87,24 @@ export const COMMANDS: readonly CommandSpec[] = [
     ],
     examples: ['doctor', 'doctor --fail-on error', 'doctor --json'],
     common: true,
+  },
+  {
+    name: 'mcp',
+    summary: 'Serve read-only checks to an agent over MCP (stdio)',
+    usage: 'mcp [options]',
+    description:
+      'Starts an MCP server on stdin and stdout with read-only tools: scan_project, check_skill (a skill folder before it is installed), check_mcp_config (a server definition before it is added) and explain_rule. It reads files only inside the folder it is started in, the folders given with --root and the roots the client shares. Speaks MCP 2026-07-28 and 2025-11-25.',
+    options: [{ name: 'root', type: 'string', value: 'folder', multiple: true, description: 'Another folder the tools may read; repeat for more' }],
+    examples: ['mcp'],
+  },
+  {
+    name: 'hook',
+    summary: 'Check a tool call of Claude Code before it runs (used as a hook)',
+    usage: 'hook < input.json',
+    description:
+      'Reads the PreToolUse input of Claude Code on stdin. Writes to files that steer agents ask first, and are denied when the new text has a finding at high or above or breaks the policy; adding a skill or an MCP server is denied when the policy does not allow it. Prints nothing for every other call, so it never allows anything by itself. Install it with agentcurfew init --hook.',
+    options: [],
+    examples: ['hook'],
   },
   {
     name: 'explain',
@@ -109,13 +131,15 @@ export function findCommand(name: string): CommandSpec | undefined {
 }
 
 /** The parseArgs options of a command, from the same table as its help, so the two cannot differ. */
-export function parseCommand(name: string, argv: readonly string[]): { values: Record<string, string | boolean | undefined>; positionals: string[] } {
+export function parseCommand(name: string, argv: readonly string[]): { values: Record<string, string | boolean | string[] | boolean[] | undefined>; positionals: string[] } {
   const spec = findCommand(name);
   if (spec === undefined) throw new Error(`no such command: ${name}`);
-  const options: Record<string, { type: 'boolean' | 'string'; short?: string }> = {};
-  for (const option of [...spec.options, HELP_OPTION]) options[option.name] = option.short === undefined ? { type: option.type } : { type: option.type, short: option.short };
+  const options: Record<string, { type: 'boolean' | 'string'; short?: string; multiple?: boolean }> = {};
+  for (const option of [...spec.options, HELP_OPTION]) {
+    options[option.name] = { type: option.type, ...(option.short === undefined ? {} : { short: option.short }), ...(option.multiple === true ? { multiple: true } : {}) };
+  }
   const { values, positionals } = parseArgs({ args: [...argv], allowPositionals: true, options });
-  return { values: values as Record<string, string | boolean | undefined>, positionals };
+  return { values: values as Record<string, string | boolean | string[] | boolean[] | undefined>, positionals };
 }
 
 function optionLine(option: OptionSpec): [string, string] {
@@ -160,7 +184,6 @@ export function helpText(): string {
     ]),
     '',
     'Run agentcurfew help <command> for the options and examples of a command.',
-    'Planned command, not available yet: mcp',
     '',
   ].join('\n');
 }

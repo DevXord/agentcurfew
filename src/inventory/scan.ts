@@ -1,13 +1,14 @@
 import { realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { knowledgeBase } from '../knowledge/index.ts';
+import { shared } from '../knowledge/shared.ts';
 import type { AgentId, AgentKnowledge, AgentPath, Fact, FileFormat, Scope } from '../knowledge/types.ts';
 import { DEFAULT_LIMITS, ScanFiles } from './files.ts';
 import type { Area, Found, TreeFile } from './files.ts';
 import { parseFrontmatter } from './frontmatter.ts';
 import { entryText, lookup, parseConfig } from './parse.ts';
-import type { Component, ComponentKind, Inventory, ScanOptions, SkillFile, SkillFileType } from './types.ts';
+import type { Component, ComponentKind, Inventory, Limits, ScanOptions, SkillFile, SkillFileType } from './types.ts';
 
 const EXECUTABLE_MAGIC = ['7f454c46', '4d5a', 'feedface', 'feedfacf', 'cefaedfe', 'cffaedfe', 'cafebabe', '0061736d'];
 const MEDIA_MAGIC = ['89504e47', 'ffd8ff', '47494638', '25504446', '494433', '4f676753', '774f4646', '774f4632', '00010000', '4f54544f', '00000100'];
@@ -61,7 +62,9 @@ class Scan {
     this.#root = { base: realpathSync.native(options.root), label: '' };
     this.#platform = options.platform ?? process.platform;
     this.#env = options.env ?? process.env;
-    this.files = new ScanFiles({ ...DEFAULT_LIMITS, ...options.limits });
+    const overlay = new Map<string, Buffer>();
+    for (const [relative, text] of options.overlay ?? []) overlay.set(join(this.#root.base, ...relative.split('/')), Buffer.from(text, 'utf8'));
+    this.files = new ScanFiles({ ...DEFAULT_LIMITS, ...options.limits }, overlay);
   }
 
   /** The area of a path of the knowledge base and the pattern below it; undefined when it does not apply here. */
@@ -331,3 +334,25 @@ class Scan {
 export function scanInventory(options: ScanOptions): Inventory {
   return new Scan(options).run();
 }
+
+/** A skill folder anywhere, such as one downloaded but not installed yet, as the component the rules check. */
+export function scanSkillFolder(folder: string, limits: Partial<Limits> = {}): Inventory {
+  const format = shared.skillFormat.status === 'disputed' ? shared.skillFormat.variants[0].value : shared.skillFormat.value;
+  const files = new ScanFiles({ ...DEFAULT_LIMITS, ...limits });
+  const area = { base: realpathSync.native(folder), label: '' };
+  const entry = files.match(area, [format.entryFile], false)[0];
+  if (entry === undefined) return { components: [], problems: [...files.problems] };
+  const raw = files.read(entry);
+  if (raw === undefined) return { components: [], problems: [...files.problems] };
+  const skillFiles: SkillFile[] = files.tree({ path: area.base, file: '', area }).map((inner) => {
+    const flags = { ...(inner.link ? { link: true } : {}), ...(inner.executable ? { executableBit: true } : {}) };
+    const content = files.readBytes(inner.found);
+    if (content === undefined) return { path: inner.relative, bytes: inner.bytes, ...flags };
+    const type = fileType(content);
+    return type === 'text' ? { path: inner.relative, bytes: inner.bytes, type, raw: content.toString('utf8'), content, ...flags } : { path: inner.relative, bytes: inner.bytes, type, content, ...flags };
+  });
+  const agents = knowledgeBase.filter((agent) => presentValues(agent.skills).length > 0).map((agent) => agent.id).sort();
+  const name = area.base.split(/[\\/]/).at(-1) ?? 'skill';
+  return { components: [{ kind: 'skill', agents, scope: 'project', file: format.entryFile, name, raw, files: skillFiles }], problems: [...files.problems] };
+}
+

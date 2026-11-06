@@ -3,7 +3,7 @@
 exports[`screens > doctor and init 1`] = `
 "$ agentcurfew doctor <project>
 [exit 1]
-9 checks: 4 passed, 1 failed, 4 not applicable
+10 checks: 4 passed, 1 failed, 5 not applicable
   not applicable  agentcurfew.policy.json follows the schema [invalid-policy]
   passed          Every agent configuration file can be parsed [unparsable-config]
   passed          No file is named almost like one an agent reads [misnamed-file]
@@ -13,6 +13,7 @@ exports[`screens > doctor and init 1`] = `
   not applicable  No MCP server is defined twice in different ways [conflicting-mcp-server]
   failed          No deprecated file or setting is used [deprecated-format]
   not applicable  Every entry of the policy still matches something [stale-policy-entry]
+  not applicable  The agentcurfew hook finds agentcurfew [agentcurfew-hook-missing]
 
 WARNING  deprecated-format  .cursorrules
   Cursor calls .cursorrules deprecated; use rules in .cursor/rules/*.mdc
@@ -173,6 +174,23 @@ Examples:
 "
 `;
 
+exports[`screens > help of hook 1`] = `
+"$ agentcurfew hook --help
+[exit 0]
+agentcurfew hook: Check a tool call of Claude Code before it runs (used as a hook)
+
+Usage: agentcurfew hook < input.json
+
+Reads the PreToolUse input of Claude Code on stdin. Writes to files that steer agents ask first, and are denied when the new text has a finding at high or above or breaks the policy; adding a skill or an MCP server is denied when the policy does not allow it. Prints nothing for every other call, so it never allows anything by itself. Install it with agentcurfew init --hook.
+
+Options:
+  -h, --help  Show this help
+
+Examples:
+  agentcurfew hook
+"
+`;
+
 exports[`screens > help of init 1`] = `
 "$ agentcurfew init --help
 [exit 0]
@@ -180,16 +198,18 @@ agentcurfew init: Write agentcurfew.policy.json from what the project has now
 
 Usage: agentcurfew init [directory] [options]
 
-Proposes a policy that the project passes as it is: the skill sources and MCP servers it has now, and the strict value of each setting it already meets. Lists what it left loose.
+Proposes a policy that the project passes as it is: the skill sources and MCP servers it has now, and the strict value of each setting it already meets. Lists what it left loose. With --hook it adds the agentcurfew hook for Claude Code to .claude/settings.json instead, keeping every other hook, such as depcurfew's.
 
 Options:
-  --print     Print the proposal instead of writing it
+  --print     Print the result instead of writing it
   --force     Replace an existing policy
+  --hook      Add the agentcurfew hook to .claude/settings.json instead, next to any other hook
   -h, --help  Show this help
 
 Examples:
   agentcurfew init --print
   agentcurfew init
+  agentcurfew init --hook --print
 "
 `;
 
@@ -207,6 +227,24 @@ Options:
 
 Examples:
   agentcurfew lock
+"
+`;
+
+exports[`screens > help of mcp 1`] = `
+"$ agentcurfew mcp --help
+[exit 0]
+agentcurfew mcp: Serve read-only checks to an agent over MCP (stdio)
+
+Usage: agentcurfew mcp [options]
+
+Starts an MCP server on stdin and stdout with read-only tools: scan_project, check_skill (a skill folder before it is installed), check_mcp_config (a server definition before it is added) and explain_rule. It reads files only inside the folder it is started in, the folders given with --root and the roots the client shares. Speaks MCP 2026-07-28 and 2025-11-25.
+
+Options:
+  --root <folder>  Another folder the tools may read; repeat for more
+  -h, --help       Show this help
+
+Examples:
+  agentcurfew mcp
 "
 `;
 
@@ -409,6 +447,8 @@ Commands:
   verify   Exit with 1 when a component changed since agentcurfew.lock
   init     Write agentcurfew.policy.json from what the project has now
   doctor   Find configuration that agents ignore or that does not work
+  mcp      Serve read-only checks to an agent over MCP (stdio)
+  hook     Check a tool call of Claude Code before it runs (used as a hook)
   explain  Say what a rule finds, why it matters and how to fix it
   help     Show every command, or the help of one
 
@@ -417,6 +457,5 @@ Options:
   -v, --version  Show the version
 
 Run agentcurfew help <command> for the options and examples of a command.
-Planned command, not available yet: mcp
 "
 `;

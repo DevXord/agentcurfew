@@ -149,6 +149,38 @@ export interface Deprecation {
   replacement: string;
 }
 
+/** A hook that runs before a tool and can allow, deny or ask: what it reads on stdin and how it answers. */
+export interface ToolHookKnowledge {
+  /** The event, e.g. PreToolUse, and where its handlers sit in the settings, as a dotted key. */
+  event: string;
+  settingsKey: string;
+  /** The field of the stdin JSON with the tool's name, and the one with its input. */
+  toolNameField: string;
+  toolInputField: string;
+  /** Tools by name, with the fields of their input that matter. */
+  tools: Readonly<Record<string, { command?: string; path?: string; content?: string; oldText?: string; newText?: string; replaceAll?: string }>>;
+  /** Where the answer goes in the stdout JSON, dotted, the field with the reason, and the one that names the event. */
+  decisionField: string;
+  eventNameField: string;
+  reasonField: string;
+  /** Every decision, from the one that wins over the others to the one that loses. */
+  decisions: readonly string[];
+  /** The variable that holds the project root in a hook command. */
+  projectDirVariable: string;
+}
+
+/** A command of the agent's own CLI that adds an MCP server. */
+export interface McpAddKnowledge {
+  /** The words that start it, e.g. ["claude", "mcp", "add"]. */
+  command: readonly string[];
+  /** The same with a JSON definition, e.g. ["claude", "mcp", "add-json"]. */
+  jsonCommand: readonly string[];
+  /** The word after which the server's own command line starts. */
+  separator: string;
+  /** Options that take a value, so that the value is not taken for the name. */
+  valueOptions: readonly string[];
+}
+
 export interface AgentKnowledge {
   id: AgentId;
   name: string;
@@ -161,6 +193,9 @@ export interface AgentKnowledge {
   permissions: Fact<PermissionsKnowledge | null>;
   autoRun: Fact<AutoRunKnowledge | null>;
   extensions: Fact<ExtensionsKnowledge | null>;
+  /** A hook before each tool call that can block it; absent when the agent has none or it is not researched. */
+  toolHook?: Fact<ToolHookKnowledge>;
+  mcpAdd?: Fact<McpAddKnowledge>;
   /** One fact per deprecation, each with its own source; absent when none is known. */
   deprecations?: readonly Fact<Deprecation>[];
 }
@@ -186,7 +221,17 @@ export interface SkillsLockKnowledge {
   hashAlgorithm: string;
 }
 
+/** The add command of the Vercel skills installer. */
+export interface SkillsInstallerKnowledge {
+  /** The package run by a launcher, and its subcommand: npx skills add <source>. */
+  packageName: string;
+  addCommand: string;
+  /** Options that take a value. */
+  valueOptions: readonly string[];
+}
+
 export interface SharedKnowledge {
   skillFormat: Fact<SkillFormatKnowledge>;
   skillsLock: Fact<SkillsLockKnowledge>;
+  skillsInstaller: Fact<SkillsInstallerKnowledge>;
 }

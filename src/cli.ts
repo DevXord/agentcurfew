@@ -27,9 +27,30 @@ function dropColorWarning(): void {
 }
 
 dropColorWarning();
+// The whole of stdin, read only by the commands that ask for it, and only up to a limit: more is a sign of the wrong input.
+function readStdin(): Promise<string> {
+  const limit = 8 * 1024 * 1024;
+  return new Promise((resolve) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    process.stdin.on('data', (chunk: Buffer) => {
+      size += chunk.length;
+      if (size <= limit) chunks.push(chunk);
+    });
+    process.stdin.on('end', () => resolve(size > limit ? 'x'.repeat(limit + 1) : Buffer.concat(chunks).toString('utf8')));
+    process.stdin.on('error', () => resolve(''));
+  });
+}
+
 Promise.all([import('./cli/run.ts'), import('./cli/style.ts')])
   .then(([{ run }, { wantsColor }]) =>
-    run(process.argv.slice(2), { stdout: quietWhenClosed(process.stdout), stderr: quietWhenClosed(process.stderr), color: wantsColor(process.stdout.isTTY, process.env) }),
+    run(process.argv.slice(2), {
+      stdout: quietWhenClosed(process.stdout),
+      stderr: quietWhenClosed(process.stderr),
+      color: wantsColor(process.stdout.isTTY, process.env),
+      stdin: readStdin,
+      streams: { input: process.stdin, output: process.stdout },
+    }),
   )
   .then(
     (code) => {

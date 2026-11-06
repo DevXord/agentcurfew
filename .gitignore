@@ -5,3 +5,6 @@ dist/
 coverage/
 .vitest-cache/
 .tsbuildinfo
+# A doctor fixture needs an installed copy to stand in for agentcurfew
+!tests/fixtures/doctor/agentcurfew-hook-missing/negative/node_modules/
+!tests/fixtures/doctor/agentcurfew-hook-missing/negative/node_modules/agentcurfew/dist/

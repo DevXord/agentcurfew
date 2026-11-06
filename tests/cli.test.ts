@@ -34,9 +34,11 @@ describe('agentcurfew CLI', () => {
     expect(stdout).toContain('--version');
   });
 
-  it('does not offer commands that do not exist yet as working', async () => {
+  it('lists the MCP server and the hook as commands', async () => {
     const { stdout } = await cli('--help');
-    expect(stdout).toMatch(/planned/i);
+    expect(stdout).toMatch(/^ {2}mcp /m);
+    expect(stdout).toMatch(/^ {2}hook /m);
+    expect(stdout).not.toMatch(/planned/i);
   });
 
   it.each([['--version'], ['-v']])('prints the version of package.json for %s', async (flag) => {

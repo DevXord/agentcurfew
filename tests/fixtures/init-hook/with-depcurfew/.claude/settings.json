@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": ["Bash(npm test)"]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Monitor",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/node_modules/depcurfew/dist/cli.js",
+              "check",
+              "--hook",
+              "claude-code"
+            ],
+            "onFailure": "block"
+          }
+        ]
+      }
+    ]
+  }
+}

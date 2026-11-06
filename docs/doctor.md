@@ -17,6 +17,7 @@ Levels: `error` (it does not work), `warning` (it probably does not), `info`. Th
 | [`conflicting-mcp-server`](#conflicting-mcp-server) | warning | No MCP server is defined twice in different ways |
 | [`deprecated-format`](#deprecated-format) | warning | No deprecated file or setting is used |
 | [`stale-policy-entry`](#stale-policy-entry) | info | Every entry of the policy still matches something |
+| [`agentcurfew-hook-missing`](#agentcurfew-hook-missing) | warning | The agentcurfew hook finds agentcurfew |
 
 ## invalid-policy
 
@@ -107,3 +108,13 @@ Reports exceptions that match no finding, and entries of skills.allowSources and
 Fix: Remove the entry, or narrow it to what the project uses.
 
 Sources: <https://unpkg.com/agentcurfew/schema.json>.
+
+## agentcurfew-hook-missing
+
+**The agentcurfew hook finds agentcurfew.** Level warning.
+
+The hook that agentcurfew init --hook writes runs node_modules/agentcurfew/dist/cli.js of the project. When that file is missing, because agentcurfew is not a dev dependency or the dependencies are not installed, node cannot start it and Claude Code goes on without the check, so writes to agent files are no longer asked about.
+
+Fix: Install agentcurfew as a dev dependency (npm install --save-dev agentcurfew) and run the install before starting the agent, or remove the hook.
+
+Sources: <https://code.claude.com/docs/en/hooks>.

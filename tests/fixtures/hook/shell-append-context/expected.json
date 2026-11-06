@@ -1,0 +1,4 @@
+{
+  "decision": "ask",
+  "reasonContains": "writes to a file that steers an agent"
+}

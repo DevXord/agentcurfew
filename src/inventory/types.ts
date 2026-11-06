@@ -63,4 +63,9 @@ export interface ScanOptions {
   env?: Readonly<Record<string, string | undefined>>;
   platform?: NodeJS.Platform;
   limits?: Partial<Limits>;
+  /**
+   * Files read as if they held this text, by path relative to the project with / separators; a path that does not exist
+   * yet is seen as a new file. The hook checks a write this way before it happens. Nothing is written to disk.
+   */
+  overlay?: ReadonlyMap<string, string>;
 }

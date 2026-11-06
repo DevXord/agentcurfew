@@ -155,6 +155,27 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Decision of the maintainer:** a released version of the action runs agentcurfew from npm, pinned to the version in its own `package.json`; the unreleased 0.0.0 builds from source as before.
 - **How:** `npm install agentcurfew@<version> --ignore-scripts` into a folder under `$RUNNER_TEMP`, outside the workspace, so that a `.npmrc` with `min-release-age` (the user's, or this repository's) does not refuse a fresh release; `npm install` rather than `npx`, which gives the path of the CLI and is the command the cooldown exclusion was seen to work with.
 
+## D-025: MCP server
+- **Date:** 2026-11-06
+- **Decision of the maintainer:** a server of our own, without the SDK, in the main package as `acf mcp`, so the runtime dependencies stay `smol-toml` and `yaml`; the official client `@modelcontextprotocol/client` 2.4.0 (2026-10-23, installed with the pinned npm, so its dependencies passed the cooldown) is a dev dependency for the tests. Q-003 is answered: no separate package.
+- **Two eras:** MCP 2026-07-28 is the latest revision; it drops `initialize`, `notifications/initialized` and `ping`, and requires `server/discover` and the version in each request's `_meta`. 2025-11-25 is what many clients still speak. The server answers both: `initialize` puts a connection in the 2025 era (versions 2025-11-25 and 2025-06-18), otherwise every request must carry a supported 2026 version or gets -32022 with the list. Shapes were taken from the specification's `schema.ts` and examples on GitHub (modelcontextprotocol.io was not reachable from the session). The tests connect the official client in its default legacy mode and in auto mode, which negotiates 2026-07-28.
+- **Paths (decision of the maintainer):** the folder the server runs in, `--root` folders and, under 2025-11-25, the client's roots from `roots/list`; links are resolved before the check.
+- **Safety:** lines over 1 MB and JSON deeper than 64 levels are refused, error messages carry nothing from the input, secrets in findings are masked as everywhere, and nothing but MCP messages goes to stdout.
+
+## D-026: The hook
+- **Date:** 2026-11-06
+- **Decisions of the maintainer:** writes to files that steer agents ask; they are denied when the new text brings a finding at high or above or out of the policy; `skills add` and `claude mcp add` are denied outside the policy and asked about otherwise.
+- **Facts in the knowledge base:** the PreToolUse input and output of Claude Code (`toolHook`), including `hookEventName`, which `hookSpecificOutput` requires, the precedence `deny > defer > ask > allow` and parallel hooks; `claude mcp add` (`mcpAdd`); `npx skills add` (`shared.skillsInstaller`). There is no MultiEdit tool, and NotebookEdit's fields are not documented, so the matcher is `Bash|Write|Edit`.
+- **How a write is judged:** the new text (Write's content, or Edit applied to the current file, with `replace_all`) is scanned as an overlay (`ScanOptions.overlay`, read only, never written); findings that are new for that file, after the policy, decide. Drift and `skills-lock-mismatch` are left out, since every write would raise them. A policy file is validated directly, since the policy is read from disk.
+- **Silence, never allow:** a call the hook has nothing to say about gets no output and exit code 0, so Claude Code's own permissions and other hooks decide. On an internal error during a write to an agent file it asks; elsewhere it stays silent and says so on stderr. It never exits with 2.
+- **Shell commands** are split into simple commands on `;`, `&&`, `||`, `|` and newlines outside quotes; the source of `skills add` is the word after `add`, or the last plain word when options with several values come first. Shell writes cannot be checked before they run, so they ask.
+
+## D-027: Installing the hook
+- **Date:** 2026-11-06
+- **Decision of the maintainer:** `acf init --hook` writes to `.claude/settings.json`, next to depcurfew's hook.
+- **Entry:** `command: "node"` with `args`, as depcurfew's README writes its own hook, so no shell reads the path; `${CLAUDE_PROJECT_DIR}` points at `node_modules/agentcurfew/dist/cli.js`; timeout 30 s. No `onFailure: "block"`: with agentcurfew not installed it would block every write and command. `doctor` reports that case instead (`agentcurfew-hook-missing`).
+- **Keeping other hooks:** every other key and hook entry is kept as it was (a test uses depcurfew's recommended entry); a second run adds nothing; settings with comments, other shapes and links are refused with the entry to add by hand.
+
 ## Q-001: Does `acf` collide with a common tool in PATH?
 - **Status:** no collision found on 2026-11-06, not proven. No `bin/acf` in Debian stable or Ubuntu noble, and nothing in Homebrew, Arch, Repology or Chocolatey. Alpine's `acf-core` keeps it off PATH. npm `acf` has no `bin`. Not checked: PyPI `acf` entry points, and npm by binary name, which cannot be searched. The alias stays; decide at phase 9.
 
@@ -162,7 +183,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Status:** free on 2026-11-06, checked again in phase 9 (`npm view agentcurfew` returns E404). Check once more right before the first publish (docs/RELEASING.md).
 
 ## Q-003: Separate `@agentcurfew/mcp` package?
-- **Status:** open until phase 7, depending on whether the MCP server needs the SDK.
+- **Status:** answered by D-025: no; the server needs no SDK and lives in the main package.
 
 ## Q-004: Is Node 18.3 really the floor?
 - **Status:** answered in phase 9. CI ran the assembled package (bundle and runtime dependencies) through `scripts/smoke.sh` on Node 18.20.8, 20, 22, 24 and 26 on 2026-11-06, all green; the test suite runs on 22 and 24, since the test tools need a newer Node. `engines` is now `>=18.20.0`, the oldest line tested at its last release, instead of the untested `>=18.3.0`. Node 18 is past its end of life; dropping it is a choice for 1.0.0.

@@ -1,5 +1,5 @@
 import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
-import { join, sep } from 'node:path';
+import { basename, dirname, join, sep } from 'node:path';
 import type { InventoryProblem, Limits, ProblemCode } from './types.ts';
 
 export const DEFAULT_LIMITS: Limits = { maxFileBytes: 2 * 1024 * 1024, maxDepth: 32, maxEntries: 200_000 };
@@ -45,8 +45,12 @@ export class ScanFiles {
   readonly #listings = new Map<string, readonly string[]>();
   #entries = 0;
 
-  constructor(limits: Limits) {
+  readonly #overlay: ReadonlyMap<string, Buffer>;
+
+  /** `overlay` maps absolute paths to the bytes they are read as; see ScanOptions.overlay. */
+  constructor(limits: Limits, overlay: ReadonlyMap<string, Buffer> = new Map()) {
     this.#limits = limits;
+    this.#overlay = overlay;
   }
 
   get problems(): readonly InventoryProblem[] {
@@ -64,7 +68,11 @@ export class ScanFiles {
     try {
       names = readdirSync(path).sort();
     } catch {
-      this.report('unreadable', file === '' ? '.' : file);
+      if (![...this.#overlay.keys()].some((key) => dirname(key) === path)) this.report('unreadable', file === '' ? '.' : file);
+    }
+    for (const key of this.#overlay.keys()) {
+      const name = basename(key);
+      if (dirname(key) === path && !names.includes(name)) names = [...names, name].sort();
     }
     const room = this.#limits.maxEntries - this.#entries;
     if (names.length > room) {
@@ -78,6 +86,15 @@ export class ScanFiles {
 
   /** What is at a path, seen through a link only when it stays inside the area. */
   #kind(area: Area, path: string, file: string): { kind: Kind; real: string; bytes: number; link: boolean; executable: boolean } | undefined {
+    const overlaid = this.#overlay.get(path);
+    if (overlaid !== undefined) return { kind: 'file', real: path, bytes: overlaid.length, link: false, executable: false };
+    if ([...this.#overlay.keys()].some((key) => key.startsWith(path + sep))) {
+      try {
+        if (lstatSync(path).isDirectory()) return { kind: 'directory', real: path, bytes: 0, link: false, executable: false };
+      } catch {
+        return { kind: 'directory', real: path, bytes: 0, link: false, executable: false };
+      }
+    }
     try {
       const link = lstatSync(path);
       if (!link.isSymbolicLink()) {
@@ -180,6 +197,14 @@ export class ScanFiles {
   }
 
   readBytes(found: Found): Buffer | undefined {
+    const overlaid = this.#overlay.get(found.path);
+    if (overlaid !== undefined) {
+      if (overlaid.length > this.#limits.maxFileBytes) {
+        this.report('too-large', found.file);
+        return undefined;
+      }
+      return overlaid;
+    }
     try {
       if (statSync(found.path).size > this.#limits.maxFileBytes) {
         this.report('too-large', found.file);

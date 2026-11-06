@@ -171,4 +171,29 @@ export const claudeCode: AgentKnowledge = {
     SUB_AGENTS,
     `Subagent frontmatter can set hooks, mcpServers and permissionMode, which are ignored for plugin subagents. Command paths are from ${DIRECTORY}: commands were merged into skills and share their frontmatter fields except name and paths; a skill wins over a command of the same name. That page also lists workflows/*.js, scripts that become commands, which this shape has no place for.`,
   ),
+  toolHook: verified(
+    {
+      event: 'PreToolUse',
+      settingsKey: 'hooks.PreToolUse',
+      toolNameField: 'tool_name',
+      toolInputField: 'tool_input',
+      tools: {
+        Bash: { command: 'command' },
+        Write: { path: 'file_path', content: 'content' },
+        Edit: { path: 'file_path', oldText: 'old_string', newText: 'new_string', replaceAll: 'replace_all' },
+      },
+      decisionField: 'hookSpecificOutput.permissionDecision',
+      eventNameField: 'hookSpecificOutput.hookEventName',
+      reasonField: 'hookSpecificOutput.permissionDecisionReason',
+      decisions: ['deny', 'defer', 'ask', 'allow'],
+      projectDirVariable: 'CLAUDE_PROJECT_DIR',
+    },
+    HOOKS,
+    `The stdin JSON also has session_id, transcript_path, cwd, permission_mode, hook_event_name and tool_use_id. "When multiple PreToolUse hooks return different decisions, precedence is deny > defer > ask > allow", and matching hooks run in parallel, so another hook on the same tool (depcurfew's) keeps working. defer needs non-interactive mode (-p). Exit code 2 blocks whatever the JSON says. hookSpecificOutput "requires a hookEventName field set to the event name"; stdout must hold nothing but the JSON object; "Exit code 0 with no output means the hook has no decision to report", and staying silent does not approve the call. Command hooks time out after 600 s by default. A matcher of letters, digits, _, -, spaces, commas and | lists exact tool names. There is no MultiEdit tool (${DOCS}/tools-reference); the input fields of NotebookEdit are not shown in the docs, so it is left out.`,
+  ),
+  mcpAdd: verified(
+    { command: ['claude', 'mcp', 'add'], jsonCommand: ['claude', 'mcp', 'add-json'], separator: '--', valueOptions: ['--transport', '-t', '--env', '-e', '--scope', '-s', '--header', '-H'] },
+    MCP,
+    'Syntax: claude mcp add [options] <name> -- <command> [args...]; with --transport http or sse the argument after the name is the address. --scope project writes .mcp.json.',
+  ),
 };

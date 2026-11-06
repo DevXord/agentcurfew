@@ -8,6 +8,8 @@ const SPECIFICATION = 'https://agentskills.io/specification';
 // Tag v1.7.6, the gitHead of skills@1.7.6, the latest version on npm on 2026-11-06.
 const SKILLS_V1_7_6 = 'https://github.com/vercel-labs/skills/blob/7a5e920bead4b1039a6d6df5d7e1163b7b09423a/src';
 
+const SKILLS_DOCS = 'https://raw.githubusercontent.com/vercel-labs/skills/main/docs/commands.md';
+
 export const shared: SharedKnowledge = {
   skillFormat: verified(
     {
@@ -35,5 +37,10 @@ export const shared: SharedKnowledge = {
       `Hashing the installed folder does not always reproduce computedHash. Except for well-known sources, the hash is taken at the source, not from the installed copy (sourceSkillHash in ${SKILLS_V1_7_6}/add.ts), while the copy drops files named metadata.json, directories named __pycache__ or __pypackages__ and dereferences symlinks (copyDirectory in ${SKILLS_V1_7_6}/installer.ts). A skill with any of those can show a false mismatch.`,
       `Skills installed from a blob snapshot use computeSnapshotHash (${SKILLS_V1_7_6}/blob.ts): the same scheme over the snapshot's file list, whose contents are strings, and for a skill at the repository root only its SKILL.md. The default-locale sort can order paths differently between machines. The user-level lock is a different file (skill-lock.ts), whose skillFolderHash may be a GitHub tree SHA.`,
     ].join(' '),
+  ),
+  skillsInstaller: verified(
+    { packageName: 'skills', addCommand: 'add', valueOptions: ['-a', '--agent', '-s', '--skill'] },
+    SKILLS_DOCS,
+    'npx skills add <source>, where the source is owner/repo, owner/repo@ref, a GitHub or GitLab URL, any git URL or a local path. Flags: -g/--global, -a/--agent <agents...>, -s/--skill <skills...>, -l/--list, --copy, -y/--yes, --all. Claude Code skills go to .claude/skills or ~/.claude/skills (docs/agents.md).',
   ),
 };

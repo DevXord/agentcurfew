@@ -44,6 +44,7 @@ const POSITIVE: Readonly<Record<string, readonly string[]>> = {
     'info | agentcurfew.policy.json | mcp.allowServers[0] (ghost-server) matches no server of the project',
     'info | agentcurfew.policy.json | skills.allowSources[0] (github:none/*) matches no skill of the project',
   ],
+  'agentcurfew-hook-missing': ['warning | .claude/settings.json | the hook PreToolUse#0 runs node_modules/agentcurfew/dist/cli.js, which does not exist in this project, so it checks nothing'],
 };
 
 describe('doctor checks', () => {

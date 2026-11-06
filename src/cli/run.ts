@@ -3,6 +3,8 @@ import { getVersion } from '../version.ts';
 import { COMMANDS, commandHelpText, findCommand, helpText, welcomeText } from './commands.ts';
 import { runDoctorCommand } from './doctor.ts';
 import { runExplain } from './explain.ts';
+import { runHookCommand } from './hook.ts';
+import { runMcp } from './mcp.ts';
 import { runInit } from './init.ts';
 import { EXIT_OK, EXIT_USAGE } from './io.ts';
 import type { CliIo } from './io.ts';
@@ -11,7 +13,7 @@ import { printable } from './printable.ts';
 import { runScan } from './scan.ts';
 import { runVerify } from './verify.ts';
 
-type Handler = (argv: readonly string[], io: CliIo, usageError: (what: string) => number) => number;
+type Handler = (argv: readonly string[], io: CliIo, usageError: (what: string) => number) => number | Promise<number>;
 
 const HANDLERS: Readonly<Record<string, Handler>> = {
   scan: runScan,
@@ -20,6 +22,8 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   init: runInit,
   doctor: runDoctorCommand,
   explain: runExplain,
+  hook: runHookCommand,
+  mcp: runMcp,
 };
 
 function usageError(io: CliIo, what: string, command?: string, suggestion?: string): number {
@@ -84,7 +88,7 @@ export async function run(argv: readonly string[], io: CliIo): Promise<number> {
     return EXIT_OK;
   }
   try {
-    return handler(rest, io, (what) => usageError(io, what, first));
+    return await handler(rest, io, (what) => usageError(io, what, first));
   } catch (error) {
     if (isParseError(error)) return parseError(io, error, first);
     throw error;

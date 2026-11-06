@@ -1,0 +1,1 @@
+`with-depcurfew/.claude/settings.json` holds the hook entry that the README of depcurfew 1.5.2 recommends (its generated section `claude-code-hook`), next to a permission, so that a test can check that `agentcurfew init --hook` keeps both exactly as they are.

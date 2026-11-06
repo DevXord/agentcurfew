@@ -6,6 +6,8 @@ import { entryText, lookup, parseConfig, stripJsonc } from '../../src/inventory/
 import { diffLocks } from '../../src/lock/diff.ts';
 import { parseLock } from '../../src/lock/read.ts';
 import { redact } from '../../src/lock/redact.ts';
+import { runHook } from '../../src/hook/index.ts';
+import { McpServer } from '../../src/mcp/protocol.ts';
 import { validatePolicy } from '../../src/policy/validate.ts';
 import { runRules } from '../../src/rules/index.ts';
 
@@ -78,6 +80,24 @@ describe('policy', () => {
         if (result.issues.length === 0 && (typeof value !== 'object' || value === null || (value as { version?: unknown }).version !== 1)) throw new Error('accepted a policy without version 1');
       }),
       { numRuns: 3000 },
+    );
+  });
+});
+
+describe('MCP server and hook', () => {
+  it('answer any line and any hook input without throwing', () => {
+    const line = fc.oneof(fc.string({ unit: 'binary' }), fc.json(), fc.json().map((params) => `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":${params}}`));
+    fc.assert(
+      fc.property(line, (text) => {
+        const sent: unknown[] = [];
+        const server = new McpServer({ root: process.cwd(), send: (message) => sent.push(message) });
+        server.receiveLine(text);
+        for (const message of sent) JSON.stringify(message);
+        const result = runHook(text, {}, process.cwd());
+        if (result.stdout !== '' && !result.stdout.includes('"hookEventName":"PreToolUse"')) throw new Error('hook printed something that is not a decision');
+        if (result.stdout.includes('"allow"')) throw new Error('hook allowed');
+      }),
+      { numRuns: 1500 },
     );
   });
 });

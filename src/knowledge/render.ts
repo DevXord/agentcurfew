@@ -84,6 +84,27 @@ function deprecationLines(): string[] {
   return lines;
 }
 
+function commandLines(): string[] {
+  const lines: string[] = [];
+  for (const agent of knowledgeBase) {
+    if (agent.toolHook !== undefined) {
+      for (const evidence of evidenceOf(agent.toolHook)) {
+        const value = evidence.value;
+        lines.push(`| ${agent.name} | hook ${code(value.event)} | tools ${Object.keys(value.tools).map(code).join(', ')}; answer ${code(value.decisionField)} (${value.decisions.map(code).join(' > ')}) | ${agent.toolHook.status} | ${link(evidence.source)} | ${evidence.verifiedAt} |`);
+      }
+    }
+    if (agent.mcpAdd !== undefined) {
+      for (const evidence of evidenceOf(agent.mcpAdd)) {
+        lines.push(`| ${agent.name} | add an MCP server | ${code(evidence.value.command.join(' '))}, ${code(evidence.value.jsonCommand.join(' '))} | ${agent.mcpAdd.status} | ${link(evidence.source)} | ${evidence.verifiedAt} |`);
+      }
+    }
+  }
+  for (const evidence of evidenceOf(shared.skillsInstaller)) {
+    lines.push(`| skills installer | add a skill | ${code(`npx ${evidence.value.packageName} ${evidence.value.addCommand} <source>`)} | ${shared.skillsInstaller.status} | ${link(evidence.source)} | ${evidence.verifiedAt} |`);
+  }
+  return lines;
+}
+
 function openFacts(): string[] {
   const lines: string[] = [];
   for (const agent of knowledgeBase) {
@@ -118,6 +139,12 @@ export function renderKnowledge(): string {
     '| Agent | What | Replaced by | Status | Source | Verified |',
     '| --- | --- | --- | --- | --- | --- |',
     ...deprecationLines(),
+    '',
+    '## Hooks and commands',
+    '',
+    '| Agent | What | Value | Status | Source | Verified |',
+    '| --- | --- | --- | --- | --- | --- |',
+    ...commandLines(),
     '',
     '## Shared formats',
     '',

@@ -123,6 +123,14 @@ Generated from `src/knowledge/` by `npm run docs:knowledge`; do not edit by hand
 | Gemini CLI | `tools.exclude` in `.gemini/settings.json`, `~/.gemini/settings.json` | deny rules of the policy engine | verified | [source](https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/reference/configuration.md) | 2026-11-06 |
 | Gemini CLI | `mcpServers.*.httpUrl` in `.gemini/settings.json`, `~/.gemini/settings.json` | url with type http | uncertain | [source](https://github.com/google-gemini/gemini-cli/blob/3fd7d263466b9e5d30b2da1ebf85dae956a0fb86/packages/core/src/tools/mcp-client.ts) | 2026-11-06 |
 
+## Hooks and commands
+
+| Agent | What | Value | Status | Source | Verified |
+| --- | --- | --- | --- | --- | --- |
+| Claude Code | hook `PreToolUse` | tools `Bash`, `Write`, `Edit`; answer `hookSpecificOutput.permissionDecision` (`deny` > `defer` > `ask` > `allow`) | verified | [source](https://code.claude.com/docs/en/hooks) | 2026-11-06 |
+| Claude Code | add an MCP server | `claude mcp add`, `claude mcp add-json` | verified | [source](https://code.claude.com/docs/en/mcp) | 2026-11-06 |
+| skills installer | add a skill | `npx skills add <source>` | verified | [source](https://raw.githubusercontent.com/vercel-labs/skills/main/docs/commands.md) | 2026-11-06 |
+
 ## Shared formats
 
 | Fact | Status | Value | Source | Verified |

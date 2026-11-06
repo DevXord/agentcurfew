@@ -2,7 +2,7 @@
 
 > One local, account-less security policy for the files that steer your AI coding agents — skills, MCP servers, hooks, context files, permissions.
 
-**Status:** pre-release, nothing published yet; the first release will be 1.0.0. Phases 0 to 6 and the release machinery of phase 9 are done: `acf scan` checks what steers agents in a project against the [rules](docs/rules.md), from a sourced [knowledge base](docs/knowledge.md), `acf scan --inventory` lists it, `acf lock` and `acf verify` pin it with checksums in `agentcurfew.lock`, `agentcurfew.policy.json` sets what is allowed ([policy](docs/policy.md)), and `acf doctor` finds configuration that agents ignore ([checks](docs/doctor.md)).
+**Status:** pre-release, nothing published yet; the first release will be 1.0.0. Phases 0 to 7 and the release machinery of phase 9 are done: `acf scan` checks what steers agents in a project against the [rules](docs/rules.md), from a sourced [knowledge base](docs/knowledge.md), `acf scan --inventory` lists it, `acf lock` and `acf verify` pin it with checksums in `agentcurfew.lock`, `agentcurfew.policy.json` sets what is allowed ([policy](docs/policy.md)), `acf doctor` finds configuration that agents ignore ([checks](docs/doctor.md)), and an MCP server and a Claude Code hook check skills and MCP servers before they are added ([MCP server and hook](docs/mcp.md)).
 
 ```bash
 acf scan                       # exit code 1 on a finding at level high or above
@@ -18,6 +18,10 @@ acf scan --sarif > agentcurfew.sarif   # for GitHub Code Scanning
 Run `acf` for the common commands, and `acf help <command>` for the options and examples of one. JSON and SARIF output are described in [docs/cli-json.md](docs/cli-json.md).
 
 A clean scan means that none of the rules' patterns was found, not that the configuration is safe: see [what agentcurfew does not find](docs/rules.md#what-agentcurfew-does-not-find).
+
+## MCP server and hook
+
+`acf mcp` serves read-only tools to an agent over MCP: `check_skill` and `check_mcp_config` before something is installed, `scan_project` and `explain_rule`. `acf init --hook` adds a `PreToolUse` hook to `.claude/settings.json`, next to depcurfew's hook if there is one: writes to the files that steer agents ask first and are denied when the new text is dangerous or out of the policy, and so are `npx skills add` and `claude mcp add` outside the policy. See [docs/mcp.md](docs/mcp.md).
 
 ## GitHub Action
 

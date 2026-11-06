@@ -3,7 +3,7 @@
 # can run on every Node version in engines. Usage: scripts/smoke.sh [path to dist/cli.js]
 set -euo pipefail
 
-CLI="${1:-dist/cli.js}"
+CLI="$(cd "$(dirname "${1:-dist/cli.js}")" && pwd)/$(basename "${1:-dist/cli.js}")"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -63,6 +63,15 @@ expect 1 doctor "$F/doctor/deprecated-format/positive"
 expect 0 init "$F/repos/claude-basic" --print
 contains '"version": 1'
 expect 0 explain hidden-unicode
+
+# The MCP server over a real pipe, and the hook with a PreToolUse input on stdin.
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{}}}' '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+  | (cd "$F/repos/claude-basic" && node "$CLI" mcp) > "$WORK/out" || { echo "FAIL: mcp exited with $?"; failures=$((failures + 1)); }
+contains '"name":"check_skill"'
+cp -R "$F/repos/claude-basic" "$WORK/hooked"
+printf '{"tool_name":"Write","tool_input":{"file_path":"%s/CLAUDE.md","content":"# Rules\\n"}}' "$WORK/hooked" \
+  | CLAUDE_PROJECT_DIR="$WORK/hooked" node "$CLI" hook > "$WORK/out" || { echo "FAIL: hook exited with $?"; failures=$((failures + 1)); }
+contains '"permissionDecision":"ask"'
 
 if [ "$failures" -gt 0 ]; then
   echo "$failures smoke check(s) failed"
