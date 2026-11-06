@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "tracker": {
+      "command": "node",
+      "args": [
+        "t.js"
+      ]
+    }
+  }
+}

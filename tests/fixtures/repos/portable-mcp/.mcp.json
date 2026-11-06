@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "first": {
+      "command": "node",
+      "args": [
+        "a.js"
+      ]
+    },
+    "second": {
+      "url": "https://mcp.example.test/b"
+    }
+  }
+}

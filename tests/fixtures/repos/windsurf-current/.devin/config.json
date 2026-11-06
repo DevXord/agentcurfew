@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Exec(ls)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo stop"
+          }
+        ]
+      }
+    ]
+  }
+}

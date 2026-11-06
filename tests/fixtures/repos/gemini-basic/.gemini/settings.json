@@ -1,0 +1,28 @@
+{
+  "general": {
+    "defaultApprovalMode": "default"
+  },
+  "tools": {
+    "allowed": [
+      "ls"
+    ]
+  },
+  "mcpServers": {
+    "search": {
+      "httpUrl": "https://mcp.example.test/s"
+    }
+  },
+  "hooks": {
+    "BeforeTool": [
+      {
+        "matcher": "shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo before"
+          }
+        ]
+      }
+    ]
+  }
+}

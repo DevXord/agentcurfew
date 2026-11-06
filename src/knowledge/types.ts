@@ -64,8 +64,13 @@ export interface McpKnowledge {
   remote: { url: string; headers: string | null } | null;
 }
 
+export interface HookFile extends AgentPath {
+  /** The hooks in this file, when it differs from HooksKnowledge.key; null when they are the whole file. */
+  key?: string | null;
+}
+
 export interface HooksKnowledge {
-  files: readonly AgentPath[];
+  files: readonly HookFile[];
   /** Dotted path to the hooks inside the file; null when each file is a hook. */
   key: string | null;
   events: readonly string[];
@@ -100,6 +105,8 @@ export interface PermissionsKnowledge {
  */
 export interface AutoRunKnowledge {
   files: readonly AgentPath[];
+  /** Dotted path to a list of entries, each with its own trigger (tasks in tasks.json); absent when each file is one. */
+  containerKey?: string;
   /** Dotted path to the field that makes it start on its own. */
   triggerKey: string;
   /** The value that does; 'any' when the key being set is enough. */

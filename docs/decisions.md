@@ -45,6 +45,21 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Finding:** SHA-256 over the UTF-8 path and then the raw bytes of each file, sorted with `localeCompare`, with no separators; `.git`, `node_modules` and symlinks are skipped. Checked by reading `local-lock.ts` at tag v1.7.6.
 - **Consequence for phase 4:** the hash is usually taken at the source, while the installed copy drops `metadata.json`, `__pycache__` and `__pypackages__` and dereferences symlinks. Hashing the installed folder can therefore report drift on an untouched skill, so a mismatch cannot be treated as tampering without more care. The locale-dependent sort can also differ between machines.
 
+## D-010: TOML parser is `smol-toml`
+- **Date:** 2026-11-06
+- **Decision:** Use `smol-toml` 1.9.1, approved by the maintainer. Following D-004, it enters `package.json` in phase 2, with the first code that imports it, as an exact pin.
+- **Why:** No dependencies, no install scripts, released 2026-10-09 (past the 7-day cooldown), a verified npm attestation, about 64 million weekly downloads, and it supports Node 18, the `engines` floor. BSD-3-Clause, which fits an MIT tool.
+- **Rejected:** `toml` 5.0.1 parsed everything too, but has no provenance, needs Node 20 and was about 2 to 8 times slower on large input. `@iarna/toml` has had no `latest` release since 2020, `@ltd/j-toml` none since 2023 and is LGPL, `js-toml` and `@toml-tools/parser` have dependencies, `confbox` bundles parsers for other formats, and `fast-toml` has had no release since 2020.
+- **Tested on hostile input (Node 25.8.1):** no prototype pollution from `__proto__` or `constructor` keys in any form tried. Nesting of 100,000 levels is rejected with `TomlError`, not a stack overflow: 999 levels pass, 1001 fail, and a `maxDepth` option exists. 200,000 keys, 100,000 tables and a 16 MB string each took under 0.6 s.
+- **Consequences for phase 2:** results are objects with a null prototype, so use `Object.hasOwn`, not `.hasOwnProperty`. A `__proto__` key stays as a plain key, so a malicious server under that name is still seen, and walking results must keep treating it as data. Integers beyond 64 bits, duplicate keys and control characters are rejected, so a parse failure must be reported as a finding and must not stop the scan or be skipped silently. The package has one maintainer, so updates are reviewed like any other. The samples were written for this test from the Codex format, not taken from real projects.
+
+## D-011: Shape of the inventory
+- **Date:** 2026-11-06
+- **Decision:** A component is one entry per kind, file and name, with a list of the agents that read it, because one file such as `AGENTS.md` steers several agents and the plan's "agent" field would otherwise repeat it. Every variant of a disputed fact and every uncertain fact is scanned, so a doubt about an agent widens the inventory and never hides something.
+- **Output:** `raw` stays in memory for the rules. `--json` prints `bytes` in its place, and problems name a file and a code but no parser message, because either could carry a secret. Control and invisible characters in names are written as `\u` escapes.
+- **Hooks that start on their own** appear twice, as `hook` and as `auto-run`, so that the phase 3 rules can read each kind alone.
+- **Known gaps, for phase 3:** hooks in skill and subagent frontmatter are not split out, since that needs YAML (their whole text is inventoried). Gemini policy TOML files yield no component, because their keys are not in `permissions.keys`. Cursor's `workspaceOpen` is listed as a hook only. Local-scope servers in `~/.claude.json` under `projects` are not read. A parse failure lists nothing from that file; it is a problem in the output, with exit code 0 until rules exist.
+
 ## Q-001: Does `acf` collide with a common tool in PATH?
 - **Status:** no collision found on 2026-11-06, not proven. No `bin/acf` in Debian stable or Ubuntu noble, and nothing in Homebrew, Arch, Repology or Chocolatey. Alpine's `acf-core` keeps it off PATH. npm `acf` has no `bin`. Not checked: PyPI `acf` entry points, and npm by binary name, which cannot be searched. The alias stays; decide at phase 9.
 
@@ -58,7 +73,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Status:** open. Taken from depcurfew. The build tool does not support every Node version at build time (`rolldown-plugin-dts` warns on 25.8.1, though it builds), and the output has only been run on 25.8.1. A CI matrix should settle the floor in phase 6 or 9.
 
 ## Q-006: Which TOML parser for Codex?
-- **Status:** open, needs the maintainer's approval before phase 2. Codex keeps MCP servers, permissions, hooks and custom agents in TOML with inline tables and quoted keys, so a parser is needed. CLAUDE.md allows one parser with no transitive dependencies, after asking. None has been chosen or added.
+- **Status:** answered by D-010. Codex keeps MCP servers, permissions, hooks and custom agents in TOML with inline tables and quoted keys, so a parser is needed.
 
 ## Q-007: Does the Windsurf entry keep its name?
 - **Status:** open, maintainer's choice. Windsurf is now Devin Desktop: `docs.windsurf.com` redirects to `docs.devin.ai` (checked on 2026-11-06), `.devin/` is primary and `.windsurf/` is legacy. The id stays `windsurf` for now, with the name "Windsurf (Devin Desktop)", and the module lists both folders. The plan's agent list predates this.

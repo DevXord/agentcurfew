@@ -100,7 +100,7 @@ export const windsurf: AgentKnowledge = {
   hooks: verified(
     {
       files: [
-        { path: '**/.devin/hooks.v1.json', scope: 'project', format: 'json' },
+        { path: '**/.devin/hooks.v1.json', scope: 'project', format: 'json', key: null },
         ...projectConfig,
         { path: '.claude/settings.json', scope: 'project', format: 'json' },
         { path: '.claude/settings.local.json', scope: 'project', format: 'json' },
@@ -169,6 +169,7 @@ export const windsurf: AgentKnowledge = {
   autoRun: uncertain(
     {
       files: [{ path: '.vscode/tasks.json', scope: 'project', format: 'jsonc' }],
+      containerKey: 'tasks',
       triggerKey: 'runOptions.runOn',
       triggerValue: 'folderOpen',
       commandField: 'command',

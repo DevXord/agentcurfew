@@ -70,5 +70,8 @@
   },
   "allowScripts": {
     "fsevents": false
+  },
+  "dependencies": {
+    "smol-toml": "1.9.1"
   }
 }

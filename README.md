@@ -2,7 +2,7 @@
 
 > One local, account-less security policy for the files that steer your AI coding agents — skills, MCP servers, hooks, context files, permissions.
 
-**Status:** pre-release. Phases 0 and 1 of [docs/PLAN.md](docs/PLAN.md) are done: the CLI is a scaffold with no scanning commands yet, and the sourced [knowledge base](docs/knowledge.md) is in place.
+**Status:** pre-release. Phases 0 to 2 of [docs/PLAN.md](docs/PLAN.md) are done: `acf scan --inventory` lists what steers agents in a project from a sourced [knowledge base](docs/knowledge.md). The rules, the lockfile and the policy are not there yet.
 
 ## What it does (when finished)
 

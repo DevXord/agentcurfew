@@ -155,6 +155,7 @@ export const cursor: AgentKnowledge = {
   autoRun: uncertain(
     {
       files: [project('.vscode/tasks.json', 'jsonc')],
+      containerKey: 'tasks',
       triggerKey: 'runOptions.runOn',
       triggerValue: 'folderOpen',
       commandField: 'command',

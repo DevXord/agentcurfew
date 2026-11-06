@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "good": {
+      "command": "node",
+      "args": [
+        "a.js"
+      ]
+    }
+  }
+}

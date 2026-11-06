@@ -142,6 +142,7 @@ export const copilotVscode: AgentKnowledge = {
   autoRun: verified(
     {
       files: [{ path: '.vscode/tasks.json', scope: 'project', format: 'json' }],
+      containerKey: 'tasks',
       triggerKey: 'runOptions.runOn',
       triggerValue: 'folderOpen',
       commandField: 'command',

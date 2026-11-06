@@ -6,6 +6,7 @@ Local MIT CLI that inventories what steers AI coding agents (skills, MCP servers
 ## Hard rules
 - The scanner NEVER runs any command, script, hook or MCP server that it finds, and NEVER uses the network. If a check would need either, it does not belong in agentcurfew.
 - We do not duplicate depcurfew. Checking packages installed by the agent, release-age checks, similar-name detection and OSV data stay in depcurfew. When we need to check a package (e.g. an MCP server launched by `npx` or `uvx`), we call depcurfew's public API as an optional peer dependency instead of re-implementing its logic.
+- Work only on agentcurfew here. depcurfew may be used as a model and general helpers may be copied from it, but do not change or develop that package: it has its own session.
 - Runtime dependencies: only `yaml` when strictly needed for one agent format, one zero-dep TOML parser when strictly needed for Codex's config, and `depcurfew` as an optional peer. Every dependency gets a justification in [docs/decisions.md](docs/decisions.md) and a prior ask.
 - Every fact about an agent (file paths, formats, config precedence, hook and MCP schemas, skill format) lives only in `src/knowledge/`. Each entry has a `source` (URL of official docs or source code) and a `verifiedAt` date. A test refuses an entry without a source.
 - Never write a fact about an agent from memory. Verify in the current docs (WebFetch / WebSearch) and record the source. Keep conflicting sources both and mark the field as disputed.

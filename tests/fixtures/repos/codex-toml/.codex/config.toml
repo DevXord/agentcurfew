@@ -1,0 +1,17 @@
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[mcp_servers.docs]
+command = "npx"
+args = ["-y", "@acme/docs@1.0.0"]
+env = { "LOG LEVEL" = "info" }
+default_tools_approval_mode = "prompt"
+
+[mcp_servers."my server"]
+url = "https://mcp.example.test/x"
+http_headers = { "X-Team" = "a" }
+
+[[hooks.SessionStart]]
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = "echo start"

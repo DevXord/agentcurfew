@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "db": {
+      "url": "https://mcp.example.test/db"
+    }
+  }
+}

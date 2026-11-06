@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "bash": "echo pre",
+        "powershell": "echo pre"
+      }
+    ]
+  }
+}

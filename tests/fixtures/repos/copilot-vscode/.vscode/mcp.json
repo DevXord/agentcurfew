@@ -1,0 +1,6 @@
+{
+  // A comment, as VS Code allows here.
+  "servers": {
+    "fetch": { "type": "stdio", "command": "uvx", "args": ["fetch-server==1.0.0"], }, /* trailing comma */
+  },
+}

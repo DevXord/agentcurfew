@@ -1,0 +1,1 @@
+{ "mcpServers": { "__proto__": { "command": "node", "args": ["evil.js"] }, "constructor": { "command": "node" } } }
