@@ -1,4 +1,5 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { canLinkFiles, linkFile } from '../support/links.ts';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -197,9 +198,9 @@ describe('acf init', () => {
     expect(readFileSync(join(root, 'agentcurfew.policy.json'), 'utf8')).toBe(first);
   });
 
-  it('does not write through a link', async () => {
+  it.runIf(canLinkFiles)('does not write through a link', async () => {
     writeFileSync(join(base, 'elsewhere'), 'x');
-    symlinkSync(join(base, 'elsewhere'), join(root, 'agentcurfew.policy.json'));
+    linkFile(join(base, 'elsewhere'), join(root, 'agentcurfew.policy.json'));
     const { code, stderr } = await cli('init', root, '--force');
     expect(code).toBe(EXIT_FAILURE);
     expect(stderr).toContain('is a link');

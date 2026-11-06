@@ -1,4 +1,5 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { linkDirectory } from '../support/links.ts';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
@@ -93,7 +94,7 @@ describe('MCP server with the official client', () => {
   it('refuses paths outside its folders, also through a link', async () => {
     const outside = join(base, 'outside');
     mkdirSync(outside);
-    symlinkSync(outside, join(root, 'link'));
+    linkDirectory(outside, join(root, 'link'));
     const { client } = await connect('auto');
     for (const path of [outside, join(root, 'link'), '../outside']) {
       const result = await client.callTool({ name: 'scan_project', arguments: { path } });

@@ -1,4 +1,5 @@
-import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync, mkdirSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { canLinkFiles, linkFile } from '../support/links.ts';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -66,9 +67,10 @@ describe('agentcurfew init --hook', () => {
     expect(commented.code).toBe(EXIT_FAILURE);
     expect(commented.stderr).toContain('because it has comments, which would be lost');
     expect(commented.stderr).toContain('fix: add this entry to hooks.PreToolUse by hand');
+    if (!canLinkFiles) return;
     rmSync(join(root, '.claude/settings.json'));
     writeFileSync(join(root, 'elsewhere.json'), '{}');
-    symlinkSync(join(root, 'elsewhere.json'), join(root, '.claude/settings.json'));
+    linkFile(join(root, 'elsewhere.json'), join(root, '.claude/settings.json'));
     expect((await cli('init', root, '--hook')).stderr).toContain('is a link');
     expect(readFileSync(join(root, 'elsewhere.json'), 'utf8')).toBe('{}');
   });

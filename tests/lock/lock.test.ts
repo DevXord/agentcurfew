@@ -1,4 +1,4 @@
-import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +11,7 @@ import { canonicalJson, normalizeText } from '../../src/lock/hash.ts';
 import { parseLock } from '../../src/lock/read.ts';
 import { redact } from '../../src/lock/redact.ts';
 import { materialize } from '../rules/materialize.ts';
+import { canLinkFiles, linkFile } from '../support/links.ts';
 
 const repo = (name: string) => fileURLToPath(new URL(`../fixtures/repos/${name}`, import.meta.url));
 const SECRET = 'not-a-real-secret-0123456789';
@@ -114,9 +115,9 @@ describe('acf lock', () => {
     expect(redact('-y')).toBe('-y');
   });
 
-  it('refuses to write through a link', async () => {
+  it.runIf(canLinkFiles)('refuses to write through a link', async () => {
     writeFileSync(join(base, 'elsewhere'), 'x');
-    symlinkSync(join(base, 'elsewhere'), join(root, 'agentcurfew.lock'));
+    linkFile(join(base, 'elsewhere'), join(root, 'agentcurfew.lock'));
     const { code, stderr } = await cli('lock', root);
     expect(code).toBe(EXIT_FAILURE);
     expect(stderr).toContain('is a link');

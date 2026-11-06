@@ -33,6 +33,29 @@ jobs:
       - run: npm run typecheck
       - run: npm run check:pkg
 
+  # Paths, links and execute bits differ on Windows and macOS, and agentcurfew reads files of every platform.
+  test-os:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: $NPM ci --ignore-scripts --no-audit --no-fund
+      - run: npm test
+      - run: npm run fuzz
+      - run: scripts/smoke.sh dist/cli.js
+
   build:
     runs-on: ubuntu-latest
     steps:
