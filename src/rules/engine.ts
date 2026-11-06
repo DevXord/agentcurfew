@@ -1,7 +1,7 @@
 import type { Inventory } from '../inventory/types.ts';
 import { knowledgeBase } from '../knowledge/index.ts';
 import { quote } from './mask.ts';
-import type { Finding, Level, Rule, RuleContext } from './types.ts';
+import type { Finding, Level, ProjectHit, Rule, RuleContext } from './types.ts';
 import { LEVELS } from './types.ts';
 
 export const LEVEL_RANK: Readonly<Record<Level, number>> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
@@ -61,6 +61,26 @@ export function applyRules(inventory: Inventory, selected: readonly Rule[], cont
           message: quote(hit.message, 400),
         });
       }
+    }
+  }
+  for (const rule of selected) {
+    if (rule.checkProject === undefined) continue;
+    let hits: readonly ProjectHit[];
+    try {
+      hits = rule.checkProject(inventory, context);
+    } catch {
+      findings.push({ rule: rule.id, level: 'info', kind: 'context-file', file: '.', name: '.', message: 'the rule failed on this project, so it was not checked' });
+      continue;
+    }
+    for (const hit of hits) {
+      findings.push({
+        rule: rule.id,
+        level: LEVELS.includes(hit.level as Level) ? (hit.level as Level) : rule.level,
+        kind: hit.kind,
+        file: hit.file,
+        name: hit.name,
+        message: quote(hit.message, 400),
+      });
     }
   }
   return findings.sort(

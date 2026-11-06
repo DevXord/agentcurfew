@@ -10,7 +10,7 @@ describe('rule registry', () => {
     expect(rule.owasp.length).toBeGreaterThan(0);
     for (const id of rule.owasp) expect(Object.keys(OWASP_AST)).toContain(id);
     for (const text of [rule.title, rule.description, rule.fix, rule.example]) expect(text.trim().length).toBeGreaterThan(10);
-    expect(rule.kinds.length).toBeGreaterThan(0);
+    expect(rule.kinds.length > 0 || rule.checkProject !== undefined).toBe(true);
     expect(findRule(rule.id)).toBe(rule);
   });
 

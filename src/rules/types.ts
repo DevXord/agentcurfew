@@ -1,5 +1,7 @@
-import type { Component, ComponentKind } from '../inventory/types.ts';
+import type { Component, ComponentKind, Inventory } from '../inventory/types.ts';
 import type { AgentKnowledge } from '../knowledge/types.ts';
+import type { SkillsLockRead } from '../lock/skills-lock.ts';
+import type { Lockfile } from '../lock/types.ts';
 
 export const LEVELS = ['critical', 'high', 'medium', 'low', 'info'] as const;
 export type Level = (typeof LEVELS)[number];
@@ -33,6 +35,19 @@ export interface RuleHit {
 
 export interface RuleContext {
   knowledge: readonly AgentKnowledge[];
+  /** agentcurfew.lock of the project, when there is a valid one. */
+  lock?: Lockfile;
+  /** skills-lock.json of the project, when there is one. */
+  skillsLock?: SkillsLockRead;
+  /** Whether execute bits can be compared here (not on Windows). */
+  compareExecutableBits?: boolean;
+}
+
+/** A hit of a rule that looks at the whole project, such as drift, which also reports what is no longer there. */
+export interface ProjectHit extends RuleHit {
+  kind: ComponentKind;
+  file: string;
+  name: string;
 }
 
 export interface Rule {
@@ -50,6 +65,8 @@ export interface Rule {
   example: string;
   kinds: readonly ComponentKind[];
   check(component: Component, context: RuleContext): readonly RuleHit[];
+  /** Runs once per scan, after the components. */
+  checkProject?(inventory: Inventory, context: RuleContext): readonly ProjectHit[];
 }
 
 export interface Finding {

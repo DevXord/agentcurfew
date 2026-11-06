@@ -1,6 +1,7 @@
 import { autoRunOnOpen } from './rules/auto-run-on-open.ts';
 import { broadShellPermission } from './rules/broad-shell-permission.ts';
 import { dangerousHookCommand } from './rules/dangerous-hook-command.ts';
+import { drift } from './rules/drift.ts';
 import { hiddenUnicode } from './rules/hidden-unicode.ts';
 import { obfuscatedContent } from './rules/obfuscated-content.ts';
 import { permissionBypass } from './rules/permission-bypass.ts';
@@ -8,6 +9,7 @@ import { persistenceInstruction } from './rules/persistence-instruction.ts';
 import { plainHttpMcp } from './rules/plain-http-mcp.ts';
 import { remoteInstructions } from './rules/remote-instructions.ts';
 import { secretInConfig } from './rules/secret-in-config.ts';
+import { skillsLockMismatch } from './rules/skills-lock-mismatch.ts';
 import { unpinnedMcpServer } from './rules/unpinned-mcp-server.ts';
 import type { Inventory } from '../inventory/types.ts';
 import { applyRules } from './engine.ts';
@@ -26,11 +28,12 @@ export const rules: readonly Rule[] = [
   remoteInstructions,
   obfuscatedContent,
   persistenceInstruction,
+  drift,
+  skillsLockMismatch,
 ];
 
-/** Rules of the plan that need a later phase: drift needs the lockfile, out-of-policy needs the policy file. */
+/** Rules of the plan that need a later phase: out-of-policy needs the policy file. */
 export const plannedRules: readonly { id: string; title: string; owasp: readonly string[]; phase: number }[] = [
-  { id: 'drift', title: 'Component changed since it was locked', owasp: ['AST07'], phase: 4 },
   { id: 'out-of-policy', title: 'Skill source or MCP server not allowed by the policy', owasp: ['AST09'], phase: 5 },
 ];
 
@@ -45,4 +48,4 @@ export function runRules(inventory: Inventory, options: { rules?: readonly Rule[
 
 export { applyRules, atLeast, LEVEL_RANK } from './engine.ts';
 export { LEVELS, OWASP_AST } from './types.ts';
-export type { Finding, Level, OwaspId, Rule, RuleContext, RuleHit } from './types.ts';
+export type { Finding, Level, OwaspId, ProjectHit, Rule, RuleContext, RuleHit } from './types.ts';

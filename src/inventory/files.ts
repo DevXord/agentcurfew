@@ -22,6 +22,14 @@ export interface Found {
 
 type Kind = 'file' | 'directory';
 
+export interface TreeFile {
+  found: Found;
+  relative: string;
+  bytes: number;
+  link: boolean;
+  executable: boolean;
+}
+
 function joinLabel(label: string, name: string): string {
   return label === '' ? name : `${label}/${name}`;
 }
@@ -69,12 +77,12 @@ export class ScanFiles {
   }
 
   /** What is at a path, seen through a link only when it stays inside the area. */
-  #kind(area: Area, path: string, file: string): { kind: Kind; real: string; bytes: number } | undefined {
+  #kind(area: Area, path: string, file: string): { kind: Kind; real: string; bytes: number; link: boolean; executable: boolean } | undefined {
     try {
       const link = lstatSync(path);
       if (!link.isSymbolicLink()) {
-        if (link.isFile()) return { kind: 'file', real: path, bytes: link.size };
-        if (link.isDirectory()) return { kind: 'directory', real: path, bytes: 0 };
+        if (link.isFile()) return { kind: 'file', real: path, bytes: link.size, link: false, executable: (link.mode & 0o111) !== 0 };
+        if (link.isDirectory()) return { kind: 'directory', real: path, bytes: 0, link: false, executable: false };
         return undefined;
       }
       const real = realpathSync.native(path);
@@ -83,8 +91,8 @@ export class ScanFiles {
         return undefined;
       }
       const target = statSync(real);
-      if (target.isFile()) return { kind: 'file', real, bytes: target.size };
-      if (target.isDirectory()) return { kind: 'directory', real, bytes: 0 };
+      if (target.isFile()) return { kind: 'file', real, bytes: target.size, link: true, executable: (target.mode & 0o111) !== 0 };
+      if (target.isDirectory()) return { kind: 'directory', real, bytes: 0, link: true, executable: false };
       return undefined;
     } catch {
       return undefined;
@@ -136,11 +144,14 @@ export class ScanFiles {
     return this.#kind(found.area, found.path, found.file)?.kind === 'directory';
   }
 
-  /** Every file below a directory, with paths relative to it and their sizes. */
-  tree(found: Found): { found: Found; relative: string; bytes: number }[] {
-    const files: { found: Found; relative: string; bytes: number }[] = [];
+  /**
+   * Every file below a directory, with paths relative to it, sizes, whether a link was crossed to reach it (the file or a
+   * folder above it) and whether its mode allows execution (always false on Windows, which has no such bit).
+   */
+  tree(found: Found): TreeFile[] {
+    const files: TreeFile[] = [];
     const seen = new Set<string>();
-    const visit = (dir: string, label: string, relative: string, depth: number): void => {
+    const visit = (dir: string, label: string, relative: string, depth: number, linked = false): void => {
       if (depth > this.#limits.maxDepth) {
         this.report('too-deep', label);
         return;
@@ -152,16 +163,16 @@ export class ScanFiles {
         if (entry === undefined) continue;
         const inner = relative === '' ? name : `${relative}/${name}`;
         if (entry.kind === 'file') {
-          files.push({ found: { path, file, area: found.area }, relative: inner, bytes: entry.bytes });
+          files.push({ found: { path, file, area: found.area }, relative: inner, bytes: entry.bytes, link: linked || entry.link, executable: entry.executable });
         } else if (!seen.has(entry.real)) {
           seen.add(entry.real);
-          visit(path, file, inner, depth + 1);
+          visit(path, file, inner, depth + 1, linked || entry.link);
         }
       }
     };
     seen.add(found.path);
     visit(found.path, found.file, '', 0);
-    return files.sort((a, b) => (a.relative < b.relative ? -1 : 1));
+    return files.sort((a, b) => (a.relative < b.relative ? -1 : a.relative > b.relative ? 1 : 0));
   }
 
   read(found: Found): string | undefined {

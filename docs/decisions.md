@@ -43,6 +43,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 ## D-009: `computedHash` of skills-lock.json
 - **Date:** 2026-11-06
 - **Finding:** SHA-256 over the UTF-8 path and then the raw bytes of each file, sorted with `localeCompare`, with no separators; `.git`, `node_modules` and symlinks are skipped. Checked by reading `local-lock.ts` at tag v1.7.6.
+- **Rechecked in phase 4:** `local-lock.ts` at v1.7.6, still the latest version on 2026-11-06, matches the description: hex digest, `.git` and `node_modules` skipped, links neither followed nor hashed, `localeCompare`, version 1 only. D-015 says how agentcurfew uses it.
 - **Consequence for phase 4:** the hash is usually taken at the source, while the installed copy drops `metadata.json`, `__pycache__` and `__pypackages__` and dereferences symlinks. Hashing the installed folder can therefore report drift on an untouched skill, so a mismatch cannot be treated as tampering without more care. The locale-dependent sort can also differ between machines.
 
 ## D-010: TOML parser is `smol-toml`
@@ -77,6 +78,22 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **JSON:** `scan --json` is schema version 2: the inventory's fields plus `failOn` and `findings`. `scan --inventory --json` stays at version 1.
 - **Fixtures:** each rule has `tests/fixtures/rules/<id>/positive` and `negative`. Hidden characters and secret-shaped values are written `{U+XXXX}` and `{{secret:name}}` and expanded only in a temporary copy, so that the repository holds no invisible text and nothing a secret scanner would take for a live token.
 - **Not in phase 3:** drift (phase 4, lockfile) and out-of-policy (phase 5, policy) are listed as planned in docs/rules.md.
+
+## D-014: agentcurfew.lock
+- **Date:** 2026-11-06
+- **Decisions of the maintainer:** CRLF and lone CR become LF in text before hashing, binary files are hashed as they are; MCP servers are written with command, arguments and addresses, secrets replaced by `<redacted>`; every kind of project component is locked, user and machine files never; `acf lock` writes even when the scan has serious findings, and warns; `acf scan` reports drift when a lock exists.
+- **Format:** JSON with keys sorted at every level, 2-space indent and a final newline, no time stamps or absolute paths. `lockfileVersion` 1, `algorithm` sha256, then the components in the inventory's order (kind, file, name). A component has `hash` (hex) and `agents`; the agents are for people only and not compared, because they follow the knowledge base, so an update of agentcurfew does not make drift.
+- **What is hashed:** a file component (context file, command, subagent, a hook that is a file) by its normalized text; an entry (MCP server, hook, auto-run, permission) by its JSON with sorted keys, so reordering keys is not a change; a skill by the list of its files' paths and hashes, sorted by bytes, written as JSON so that no path can run into the next.
+- **MCP servers:** also `command`, `args` and `urls` after redaction, the names of `env` and `headers` (never their values) and the package or image the launcher fetches (`npm`, `pypi`, `oci`, from the same parser as `unpinned-mcp-server`). The hash covers the full entry, so a changed secret is drift, reported as "another field changed" with nothing of the value.
+- **Executables of a skill:** programs by their first bytes, files that start with `#!` and scripts by extension in `executables`, the same on every platform; files whose mode allows execution in `executableBits`. Windows has no execute bit, so there `verify` does not compare it and `lock` keeps the bits of the old lock for files still present. Tested on Linux only.
+- **Untrusted:** the lock is read like any other file: size limit, links refused, shape checked field by field; a reason names the first problem and quotes nothing from the file. `lock` does not write through a link.
+- **Exit codes:** `verify` 0 when the project matches, 1 on drift or when the lock is missing or unusable, 2 on a usage error.
+
+## D-015: skills-lock.json
+- **Date:** 2026-11-06
+- **Decision of the maintainer:** a mismatch is a warning that never fails `verify`: the rule `skills-lock-mismatch` is medium, low when the folder shows a known cause of a false mismatch (links, `__pycache__` or `__pypackages__`, `metadata.json`), and info for an entry with no installed skill or a file that cannot be read.
+- **How:** `computedHash` is recomputed over each installed project skill of the same name, following the knowledge base (raw bytes, no normalization, unlike agentcurfew's own hashes); a match in any copy is enough. The test computes the expected hash with an independent implementation in the fixture, with paths whose `localeCompare` order differs from byte order.
+- **Limits:** the hash depends on the locale of the machine that sorts, and is usually taken at the source, so a mismatch is never treated as proof of tampering.
 
 ## Q-001: Does `acf` collide with a common tool in PATH?
 - **Status:** no collision found on 2026-11-06, not proven. No `bin/acf` in Debian stable or Ubuntu noble, and nothing in Homebrew, Arch, Repology or Chocolatey. Alpine's `acf-core` keeps it off PATH. npm `acf` has no `bin`. Not checked: PyPI `acf` entry points, and npm by binary name, which cannot be searched. The alias stays; decide at phase 9.

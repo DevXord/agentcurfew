@@ -1,0 +1,52 @@
+import { parseArgs } from 'node:util';
+import { scanInventory } from '../inventory/index.ts';
+import { buildLock } from '../lock/build.ts';
+import { projectContext } from '../lock/context.ts';
+import { diffLocks } from '../lock/diff.ts';
+import type { Change } from '../lock/diff.ts';
+import { LOCKFILE } from '../lock/types.ts';
+import { skillsLockMismatch } from '../rules/rules/skills-lock-mismatch.ts';
+import { EXIT_FAILURE, EXIT_OK } from './io.ts';
+import type { CliIo } from './io.ts';
+import { printable, printableJson } from './printable.ts';
+import { projectRoot } from './project.ts';
+import { problemLines } from './scan.ts';
+
+/** Version of the JSON that verify --json prints. */
+export const VERIFY_SCHEMA_VERSION = 1;
+
+function changeLines(change: Change): string[] {
+  const base = change.file.slice(change.file.lastIndexOf('/') + 1);
+  const name = change.name === base || change.file.includes(`/${change.name}/`) ? '' : ` (${change.name})`;
+  return [`  ${change.type}: ${change.kind} ${printable(change.file)}${printable(name)}`, ...change.details.map((detail) => `    ${printable(detail)}`)];
+}
+
+export function runVerify(argv: readonly string[], io: CliIo, usageError: (what: string) => number): number {
+  const { values, positionals } = parseArgs({ args: [...argv], allowPositionals: true, options: { json: { type: 'boolean' } } });
+  const root = projectRoot(positionals, io, usageError, 'verify');
+  if (typeof root === 'number') return root;
+  const { context, lock } = projectContext(root);
+  if (lock.status !== 'ok') {
+    const what = lock.status === 'missing' ? `no ${LOCKFILE} in this project` : `${LOCKFILE} cannot be used, because ${lock.reason}`;
+    io.stderr(`agentcurfew: ${what}\n  in: ${LOCKFILE}\n  fix: run agentcurfew lock, review the file and commit it\n`);
+    return EXIT_FAILURE;
+  }
+  const inventory = scanInventory({ root });
+  const options = context.compareExecutableBits === undefined ? {} : { compareExecutableBits: context.compareExecutableBits };
+  const changes = diffLocks(lock.lock, buildLock(inventory, context.knowledge), options);
+  const skills = skillsLockMismatch.checkProject?.(inventory, context) ?? [];
+  if (values.json === true) {
+    const output = { schemaVersion: VERIFY_SCHEMA_VERSION, ok: changes.length === 0, changes, skillsLock: skills, problems: inventory.problems };
+    io.stdout(`${printableJson(output)}\n`);
+    return changes.length === 0 ? EXIT_OK : EXIT_FAILURE;
+  }
+  const lines = changes.length === 0 ? [`OK: matches ${LOCKFILE} (${lock.lock.components.length} components)`] : [`Drift: ${changes.length} ${changes.length === 1 ? 'change' : 'changes'} since ${LOCKFILE}`, ...changes.flatMap(changeLines)];
+  if (skills.length > 0) {
+    lines.push('', 'skills-lock.json (does not change the result):');
+    for (const hit of skills) lines.push(`  ${(hit.level ?? 'medium').toUpperCase()}  ${printable(hit.file)}: ${printable(hit.message)}`);
+  }
+  lines.push(...problemLines(inventory));
+  if (changes.length > 0) lines.push('', `If the changes are expected, run agentcurfew lock and commit ${LOCKFILE}.`);
+  io.stdout(`${lines.join('\n')}\n`);
+  return changes.length === 0 ? EXIT_OK : EXIT_FAILURE;
+}

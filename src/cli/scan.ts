@@ -1,13 +1,14 @@
-import { statSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { scanInventory } from '../inventory/index.ts';
 import type { Component, Inventory, InventoryProblem } from '../inventory/index.ts';
+import { projectContext } from '../lock/context.ts';
+import { LOCKFILE } from '../lock/types.ts';
 import { atLeast, LEVELS, runRules } from '../rules/index.ts';
 import type { Finding, Level } from '../rules/index.ts';
 import { EXIT_FAILURE, EXIT_OK } from './io.ts';
 import type { CliIo } from './io.ts';
 import { printable, printableJson } from './printable.ts';
+import { projectRoot } from './project.ts';
 
 /** Version of the JSON that scan --inventory --json prints. */
 export const INVENTORY_SCHEMA_VERSION = 1;
@@ -38,7 +39,7 @@ function plural(count: number, word: string): string {
   return `${count} ${count === 1 ? word : `${word}s`}`;
 }
 
-function problemLines(inventory: Inventory): string[] {
+export function problemLines(inventory: Inventory): string[] {
   const lines: string[] = [];
   if (inventory.problems.length > 0) lines.push('', `${plural(inventory.problems.length, 'problem')}:`);
   for (const problem of inventory.problems) lines.push(`  ${problem.code}: ${printable(problem.file)}: ${PROBLEMS[problem.code]}`);
@@ -89,21 +90,11 @@ export function runScan(argv: readonly string[], io: CliIo, usageError: (what: s
       'fail-on': { type: 'string' },
     },
   });
-  if (positionals.length > 1) return usageError(`scan takes one directory, got ${positionals.length}`);
   const failOn = (values['fail-on'] ?? 'high') as FailOn;
   if (!FAIL_ON.includes(failOn)) return usageError(`--fail-on takes one of ${FAIL_ON.join(', ')}, got ${values['fail-on']}`);
   if (values.inventory === true && values['fail-on'] !== undefined) return usageError('--fail-on applies to the rules, so it cannot be used with --inventory');
-  const root = resolve(positionals[0] ?? '.');
-  let directory = false;
-  try {
-    directory = statSync(root).isDirectory();
-  } catch {
-    directory = false;
-  }
-  if (!directory) {
-    io.stderr(`agentcurfew: not a directory: ${printable(positionals[0] ?? '.')}\n  in: the command line\n  fix: pass the directory of a project\n`);
-    return EXIT_FAILURE;
-  }
+  const root = projectRoot(positionals, io, usageError, 'scan');
+  if (typeof root === 'number') return root;
   const inventory = scanInventory({ root, user: values.user === true });
   if (values.inventory === true) {
     if (values.json === true) {
@@ -114,12 +105,14 @@ export function runScan(argv: readonly string[], io: CliIo, usageError: (what: s
     }
     return EXIT_OK;
   }
-  const findings = runRules(inventory);
+  const { context, lock } = projectContext(root);
+  const findings = runRules(inventory, { context });
   if (values.json === true) {
     const output = { schemaVersion: SCAN_SCHEMA_VERSION, failOn, components: inventory.components.map(publicComponent), findings, problems: inventory.problems };
     io.stdout(`${printableJson(output)}\n`);
   } else {
-    io.stdout(renderFindings(inventory, findings, failOn));
+    const note = lock.status === 'invalid' ? `\nNote: ${LOCKFILE} was not compared, because ${lock.reason}.\n` : '';
+    io.stdout(renderFindings(inventory, findings, failOn) + note);
   }
   const failed = failOn !== 'none' && findings.some((finding) => atLeast(finding.level, failOn as Level));
   return failed ? EXIT_FAILURE : EXIT_OK;

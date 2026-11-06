@@ -1,0 +1,48 @@
+{
+  "algorithm": "sha256",
+  "components": [
+    {
+      "agents": [
+        "claude-code"
+      ],
+      "file": ".mcp.json",
+      "hash": "b2c8fc7578ecde90b95d7209379b3f2e835c111edee870a29c8788bcc6ee6540",
+      "kind": "mcp-server",
+      "name": "fs",
+      "server": {
+        "args": [
+          "-y",
+          "pkg@1.2.2"
+        ],
+        "command": "npx",
+        "env": [],
+        "headers": [],
+        "package": {
+          "ecosystem": "npm",
+          "name": "pkg",
+          "version": "1.2.2"
+        },
+        "urls": []
+      }
+    },
+    {
+      "agents": [
+        "codex"
+      ],
+      "file": "AGENTS.md",
+      "hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "kind": "context-file",
+      "name": "AGENTS.md"
+    },
+    {
+      "agents": [
+        "claude-code"
+      ],
+      "file": "CLAUDE.md",
+      "hash": "a3af2177809b3c009bfec4d1c507c6ee32757385e856bce9ae5ac3aec41a791b",
+      "kind": "context-file",
+      "name": "CLAUDE.md"
+    }
+  ],
+  "lockfileVersion": 1
+}

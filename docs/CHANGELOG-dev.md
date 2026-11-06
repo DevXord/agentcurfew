@@ -2,6 +2,16 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-06: Phase 4, lockfile and verification
+
+- `acf lock` writes `agentcurfew.lock` (D-014): every project component with a SHA-256 checksum, MCP servers with command, arguments and addresses with secrets redacted and the package they fetch, skills with a checksum per file and their executables. Text is normalized from CRLF, keys are sorted, nothing machine-specific is written, and an unchanged project leaves the file untouched.
+- `acf verify` exits with 1 on drift and says what changed: files of a skill, arguments, addresses, environment and header names, execute bits, or content. The rule `drift` reports the same in `acf scan` when a lock exists.
+- `skills-lock.json`: `computedHash` is recomputed over installed skills and compared by the new rule `skills-lock-mismatch`, a warning that never fails `verify` (D-015). The algorithm was read again in `local-lock.ts` at v1.7.6, still the latest version.
+- The inventory now records for each skill file whether a link was crossed, the execute bit and the raw bytes; none of it is printed. The launcher parser moved to `src/rules/launch.ts`, shared by the rule and the lock. Rules can look at the whole project (`checkProject`), with the locks in their context.
+- Tests: lock twice is identical, CRLF and key order do not count, a lock written by hand matches, every kind of component drifts when edited, added or removed, secrets stay out of the lock while their change is seen, hostile and missing locks give a reason and a fix, execute bits on Windows, `skills-lock.json` against an independent implementation. `npm run fuzz` reads random locks. 209 tests.
+
+Not verified: execute bits on Windows (only simulated); the effect of different locales on `computedHash`.
+
 ## 2026-11-06: Phase 3, rules
 
 - First run on Linux (Node 22.23.4): `npm ci`, `npm test` (99 tests, including the link to a file outside the project that Windows skipped), `fuzz`, `typecheck`, `check:pkg` and `npx depcurfew doctor` passed with no change. The container's npm is 10.9.9, not the pinned 11.21.1, which ignores the cooldown (Q-009).

@@ -19,7 +19,8 @@ Levels: `critical`, `high`, `medium`, `low`, `info`. `agentcurfew scan` exits wi
 | [`remote-instructions`](#remote-instructions) | medium | AST05 | skill, subagent, command, context-file |
 | [`obfuscated-content`](#obfuscated-content) | medium | AST01 | skill |
 | [`persistence-instruction`](#persistence-instruction) | low | AST01 | skill, subagent, command, context-file |
-| `drift` (planned, phase 4) | | AST07 | |
+| [`drift`](#drift) | high | AST07 |  |
+| [`skills-lock-mismatch`](#skills-lock-mismatch) | medium | AST07 |  |
 | `out-of-policy` (planned, phase 5) | | AST09 | |
 
 ## hidden-unicode
@@ -146,9 +147,30 @@ Fix: Read the instruction in context. If it is not part of the project's own pro
 
 False alarms: A heuristic on wording: a project can legitimately ask the agent to keep CLAUDE.md or AGENTS.md up to date.
 
+## drift
+
+**Component changed since it was locked.** Level high. AST07 Update Drift.
+
+Compares the project with agentcurfew.lock, when there is one, and reports every component that was added, removed or changed since the last agentcurfew lock: a skill file, an MCP server's command, arguments or address, a hook, a context file, a permission. A skill or configuration can change after it was reviewed, through an update, a merge or a compromised dependency, and nobody notices unless the change is compared with what was approved.
+
+Example: `.mcp.json (fs): args: ["-y","server@1.2.3"] -> ["-y","server@latest"]`
+
+Fix: Review the change. If it is expected, run agentcurfew lock and commit the new agentcurfew.lock with it; if not, restore the component from version control.
+
+## skills-lock-mismatch
+
+**Skill differs from skills-lock.json.** Level medium. AST07 Update Drift.
+
+Recomputes computedHash, the checksum that the skills installer writes to skills-lock.json, over each installed skill the file lists, and reports the skills whose folder no longer matches it, and entries with no installed skill. The installer usually takes the hash at the source, not from the copy it installs, so a skill that was never touched can still differ; when the folder shows a known cause, the finding is low and names it.
+
+Example: `skills-lock.json says computedHash 3f2a... for "lint", but .agents/skills/lint hashes to 9b1c...`
+
+Fix: Reinstall the skill with the skills installer, or update skills-lock.json, after checking what changed in the folder. Lock the result with agentcurfew lock.
+
+False alarms: The installer hashes the source, drops metadata.json, __pycache__ and __pypackages__ and copies links as files, and sorts paths by the machine's locale, so a mismatch is not proof of tampering.
+
 ## Planned
 
-- `drift`: Component changed since it was locked (AST07). Needs phase 4 of the plan.
 - `out-of-policy`: Skill source or MCP server not allowed by the policy (AST09). Needs phase 5 of the plan.
 
 ## What agentcurfew does not find

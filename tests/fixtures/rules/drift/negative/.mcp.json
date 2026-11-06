@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "fs": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "pkg@1.2.3"
+      ]
+    }
+  }
+}

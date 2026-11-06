@@ -1,0 +1,24 @@
+{
+  "algorithm": "sha256",
+  "components": [
+    {
+      "agents": [
+        "claude-code"
+      ],
+      "file": ".mcp.json",
+      "hash": "5d09ab62966916b021c7eb061127c2163d3e5cf7d1841f549393bac067575f58",
+      "kind": "mcp-server",
+      "name": "fs"
+    },
+    {
+      "agents": [
+        "claude-code"
+      ],
+      "file": "CLAUDE.md",
+      "hash": "e77abdf10267466cdd1a6e4f385573d78b648835c09b8d300744cb8f21814c0c",
+      "kind": "context-file",
+      "name": "CLAUDE.md"
+    }
+  ],
+  "lockfileVersion": 1
+}

@@ -1,6 +1,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { scanInventory } from '../../src/inventory/index.ts';
+import { projectContext } from '../../src/lock/context.ts';
 import { rules, runRules } from '../../src/rules/index.ts';
 import type { Finding } from '../../src/rules/index.ts';
 import { fixtureDir, materialize } from './materialize.ts';
@@ -10,7 +11,7 @@ const line = (finding: Finding) => `${finding.level} | ${finding.file}${finding.
 function findings(path: string, rule: string): Finding[] {
   const { root, cleanup } = materialize(path);
   try {
-    return runRules(scanInventory({ root })).filter((finding) => finding.rule === rule);
+    return runRules(scanInventory({ root }), { context: projectContext(root).context }).filter((finding) => finding.rule === rule);
   } finally {
     cleanup();
   }
@@ -35,6 +36,8 @@ const POSITIVE: Readonly<Record<string, readonly string[]>> = {
   'remote-instructions': ['medium | .claude/skills/updater/SKILL.md:5:8 | updater', 'medium | .claude/skills/updater/scripts/run.py:3:8 | updater'],
   'obfuscated-content': ['high | .claude/skills/helper/bin/tool | helper', 'medium | .claude/skills/helper/scripts/blob.js:1:18 | helper', 'medium | .claude/skills/helper/scripts/min.js:1:1 | helper'],
   'persistence-instruction': ['low | .claude/skills/setup/SKILL.md:5:8 | setup'],
+  drift: ['high | .mcp.json | fs', 'high | AGENTS.md | AGENTS.md', 'high | CLAUDE.md | CLAUDE.md', 'high | GEMINI.md | GEMINI.md'],
+  'skills-lock-mismatch': ['medium | .claude/skills/lint/SKILL.md | lint', 'low | .claude/skills/py/SKILL.md | py', 'info | skills-lock.json | ghost'],
 };
 
 describe('rule fixtures', () => {
@@ -76,6 +79,21 @@ describe('rule fixtures', () => {
     expect(cron?.message).toContain('marks this behaviour as uncertain');
     const [claude] = findings('permission-bypass/positive', 'permission-bypass').filter((finding) => finding.file.startsWith('.claude/'));
     expect(claude?.message).toContain('ignore it in a project file');
+  });
+
+  it('shows what drifted, with the old and new arguments', () => {
+    const messages = findings('drift/positive', 'drift').map((finding) => `${finding.file}: ${finding.message}`);
+    expect(messages).toEqual([
+      '.mcp.json: changed since it was locked: args: ["-y","pkg@1.2.2"] -> ["-y","pkg@1.2.3"]',
+      'AGENTS.md: in agentcurfew.lock, but no longer in the project',
+      'CLAUDE.md: changed since it was locked: the content changed',
+      'GEMINI.md: not in agentcurfew.lock: added since it was locked',
+    ]);
+  });
+
+  it('names the known cause of a false skills-lock.json mismatch', () => {
+    const [py] = findings('skills-lock-mismatch/positive', 'skills-lock-mismatch').filter((finding) => finding.name === 'py');
+    expect(py?.message).toContain('__pycache__');
   });
 
   it('scans a fixture in under a second', () => {

@@ -12,6 +12,12 @@ export interface SkillFile {
   type?: SkillFileType;
   /** The text of a text file, for the rules. Kept out of the output. */
   raw?: string;
+  /** The bytes as read, for checksums. Kept out of the output. */
+  content?: Buffer;
+  /** Reached through a link, the file's own or a folder's. */
+  link?: boolean;
+  /** The mode allows execution; never set on Windows. */
+  executableBit?: boolean;
 }
 
 export interface Component {

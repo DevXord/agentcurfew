@@ -1,0 +1,365 @@
+{
+  "algorithm": "sha256",
+  "components": [
+    {
+      "agents": [
+        "windsurf"
+      ],
+      "file": "tests/fixtures/repos/windsurf-legacy/.windsurf/workflows/release.md",
+      "hash": "8ef0b048ad51a9d2ccaf9177716d7c83159a1d8c22fd37aa2b7d03c11b21b40d",
+      "kind": "command",
+      "name": "release.md"
+    },
+    {
+      "agents": [
+        "claude-code",
+        "copilot-vscode",
+        "cursor"
+      ],
+      "file": "CLAUDE.md",
+      "hash": "2b4b7a5c7abe79b8f0b2b048f5f967466cf13da7784cbeb7fbaae86a1e883aa9",
+      "kind": "context-file",
+      "name": "CLAUDE.md"
+    },
+    {
+      "agents": [
+        "claude-code"
+      ],
+      "file": "tests/fixtures/repos/claude-basic/CLAUDE.md",
+      "hash": "8ef0b048ad51a9d2ccaf9177716d7c83159a1d8c22fd37aa2b7d03c11b21b40d",
+      "kind": "context-file",
+      "name": "CLAUDE.md"
+    },
+    {
+      "agents": [
+        "claude-code",
+        "codex",
+        "copilot-vscode",
+        "cursor",
+        "windsurf"
+      ],
+      "file": "tests/fixtures/repos/codex-toml/AGENTS.md",
+      "hash": "8ef0b048ad51a9d2ccaf9177716d7c83159a1d8c22fd37aa2b7d03c11b21b40d",
+      "kind": "context-file",
+      "name": "AGENTS.md"
+    },
+    {
+      "agents": [
+        "gemini-cli"
+      ],
+      "file": "tests/fixtures/repos/gemini-basic/GEMINI.md",
+      "hash": "8ef0b048ad51a9d2ccaf9177716d7c83159a1d8c22fd37aa2b7d03c11b21b40d",
+      "kind": "context-file",
+      "name": "GEMINI.md"
+    },
+    {
+      "agents": [
+        "claude-code"
+      ],
+      "file": "tests/fixtures/repos/invalid-config/CLAUDE.md",
+      "hash": "8ef0b048ad51a9d2ccaf9177716d7c83159a1d8c22fd37aa2b7d03c11b21b40d",
+      "kind": "context-file",
+      "name": "CLAUDE.md"
+    },
+    {
+      "agents": [
+        "claude-code",
+        "codex",
+        "copilot-vscode",
+        "cursor",
+        "windsurf"
+      ],
+      "file": "tests/fixtures/repos/monorepo/packages/a/AGENTS.md",
+      "hash": "8ef0b048ad51a9d2ccaf9177716d7c83159a1d8c22fd37aa2b7d03c11b21b40d",
+      "kind": "context-file",
+      "name": "AGENTS.md"
+    },
+    {
+      "agents": [
+        "claude-code"
+      ],
+      "file": "tests/fixtures/repos/monorepo/packages/b/CLAUDE.md",
+      "hash": "8ef0b048ad51a9d2ccaf9177716d7c83159a1d8c22fd37aa2b7d03c11b21b40d",
+      "kind": "context-file",
+      "name": "CLAUDE.md"
+    },
+    {
+      "agents": [
+        "gemini-cli"
+      ],
+      "file": "tests/fixtures/repos/monorepo/packages/c/src/deep/GEMINI.md",
+      "hash": "8ef0b048ad51a9d2ccaf9177716d7c83159a1d8c22fd37aa2b7d03c11b21b40d",
+      "kind": "context-file",
+      "name": "GEMINI.md"
+    },
+    {
+      "agents": [
+        "claude-code",
+        "codex",
+        "copilot-vscode",
+        "cursor",
+        "windsurf"
+      ],
+      "file": "tests/fixtures/repos/multi-agent/AGENTS.md",
+      "hash": "8ef0b048ad51a9d2ccaf9177716d7c83159a1d8c22fd37aa2b7d03c11b21b40d",
+      "kind": "context-file",
+      "name": "AGENTS.md"
+    },
+    {
+      "agents": [
+        "claude-code"
+      ],
+      "file": "tests/fixtures/repos/multi-agent/CLAUDE.md",
+      "hash": "8ef0b048ad51a9d2ccaf9177716d7c83159a1d8c22fd37aa2b7d03c11b21b40d",
+      "kind": "context-file",
+      "name": "CLAUDE.md"
+    },
+    {
+      "agents": [
+        "windsurf"
+      ],
+      "file": "tests/fixtures/repos/windsurf-current/.devin/rules/style.md",
+      "hash": "9ee15523725ecd3f6accb2ba135fcef265a5f7dcf8f7faf9260c343a24bcce93",
+      "kind": "context-file",
+      "name": "style.md"
+    },
+    {
+      "agents": [
+        "windsurf"
+      ],
+      "file": "tests/fixtures/repos/windsurf-legacy/.windsurf/rules/style.md",
+      "hash": "9ee15523725ecd3f6accb2ba135fcef265a5f7dcf8f7faf9260c343a24bcce93",
+      "kind": "context-file",
+      "name": "style.md"
+    },
+    {
+      "agents": [
+        "claude-code"
+      ],
+      "file": "tests/fixtures/rules/drift/negative/CLAUDE.md",
+      "hash": "e77abdf10267466cdd1a6e4f385573d78b648835c09b8d300744cb8f21814c0c",
+      "kind": "context-file",
+      "name": "CLAUDE.md"
+    },
+    {
+      "agents": [
+        "claude-code"
+      ],
+      "file": "tests/fixtures/rules/drift/positive/CLAUDE.md",
+      "hash": "e77abdf10267466cdd1a6e4f385573d78b648835c09b8d300744cb8f21814c0c",
+      "kind": "context-file",
+      "name": "CLAUDE.md"
+    },
+    {
+      "agents": [
+        "gemini-cli"
+      ],
+      "file": "tests/fixtures/rules/drift/positive/GEMINI.md",
+      "hash": "d3ac3411180ffdf7de53111b8fd3f840de526fc6e17451202c97c2cf2b6a78d1",
+      "kind": "context-file",
+      "name": "GEMINI.md"
+    },
+    {
+      "agents": [
+        "claude-code"
+      ],
+      "file": "tests/fixtures/rules/hidden-unicode/negative/CLAUDE.md",
+      "hash": "88937748c0800caf22cbbc374d34621f9b1dc2a83cd57b89a687b80555ef20d3",
+      "kind": "context-file",
+      "name": "CLAUDE.md"
+    },
+    {
+      "agents": [
+        "claude-code"
+      ],
+      "file": "tests/fixtures/rules/hidden-unicode/positive/CLAUDE.md",
+      "hash": "a54f88c67c53f5c0b879c139349ae018d49d3fee2bafbf73ffb6aff426cfa978",
+      "kind": "context-file",
+      "name": "CLAUDE.md"
+    },
+    {
+      "agents": [
+        "codex"
+      ],
+      "file": "tests/fixtures/repos/codex-toml/.codex/config.toml",
+      "hash": "799ff85121bb102ea53bbf01adb66823d2fb1ef30e6acfada15c03d2c51e6100",
+      "kind": "hook",
+      "name": "SessionStart#0"
+    },
+    {
+      "agents": [
+        "windsurf"
+      ],
+      "file": "tests/fixtures/repos/windsurf-current/.devin/hooks.v1.json",
+      "hash": "7520b38838221660973a7a7d21d4c2cfb0e20c8ab0cc4671b253111f20488e54",
+      "kind": "hook",
+      "name": "PreToolUse#0"
+    },
+    {
+      "agents": [
+        "codex"
+      ],
+      "file": "tests/fixtures/repos/codex-toml/.codex/config.toml",
+      "hash": "c8dc1f6130079fcf4db4e279e4edebfd60b77213ac0310998df977beac057b5f",
+      "kind": "mcp-server",
+      "name": "docs",
+      "server": {
+        "args": [
+          "-y",
+          "@acme/docs@1.0.0"
+        ],
+        "command": "npx",
+        "env": [
+          "LOG LEVEL"
+        ],
+        "headers": [],
+        "package": {
+          "ecosystem": "npm",
+          "name": "@acme/docs",
+          "version": "1.0.0"
+        },
+        "urls": []
+      }
+    },
+    {
+      "agents": [
+        "codex"
+      ],
+      "file": "tests/fixtures/repos/codex-toml/.codex/config.toml",
+      "hash": "0e5e7c61abc76956544a9c1f4fbe0ba7c2399ea44c4d1ae7fc4b4683920ff421",
+      "kind": "mcp-server",
+      "name": "my server",
+      "server": {
+        "args": [],
+        "command": null,
+        "env": [],
+        "headers": [
+          "X-Team"
+        ],
+        "package": null,
+        "urls": [
+          "https://mcp.example.test/x"
+        ]
+      }
+    },
+    {
+      "agents": [
+        "codex"
+      ],
+      "file": "tests/fixtures/repos/hostile-keys/.codex/config.toml",
+      "hash": "2d886e80f6d0255b2f68a839f93135df807a950e5f9cd7a764bed6c10008881d",
+      "kind": "mcp-server",
+      "name": "__proto__",
+      "server": {
+        "args": [],
+        "command": "node",
+        "env": [],
+        "headers": [],
+        "package": null,
+        "urls": []
+      }
+    },
+    {
+      "agents": [
+        "codex"
+      ],
+      "file": "tests/fixtures/repos/codex-toml/.codex/config.toml",
+      "hash": "112f9f74261331ef91d859af60ec297cdd2cfdbc99811d74a8002f4fcb71fb4a",
+      "kind": "permission",
+      "name": "approval_policy"
+    },
+    {
+      "agents": [
+        "codex"
+      ],
+      "file": "tests/fixtures/repos/codex-toml/.codex/config.toml",
+      "hash": "d5c35dc42880af8ea51f2aed62e8aa32127127a3354052e17726ff172b2e38a5",
+      "kind": "permission",
+      "name": "mcp_servers.docs.default_tools_approval_mode"
+    },
+    {
+      "agents": [
+        "codex"
+      ],
+      "file": "tests/fixtures/repos/codex-toml/.codex/config.toml",
+      "hash": "f8e82631b3a8995daf08b3381ac43c35c61047fc3c91df102904cfb207749a8e",
+      "kind": "permission",
+      "name": "sandbox_mode"
+    },
+    {
+      "agents": [
+        "codex"
+      ],
+      "file": "tests/fixtures/repos/codex-toml/.codex/rules/default.rules",
+      "hash": "59868b817c6020d644c0e47ebd36cf72a87d3eb87655c46e4f4ada79421120af",
+      "kind": "permission",
+      "name": "default.rules"
+    },
+    {
+      "agents": [
+        "codex"
+      ],
+      "file": "tests/fixtures/repos/monorepo/packages/a/.codex/config.toml",
+      "hash": "48c4ee8f1739566a5ab22826f6409654a11b3e7b014f0ec17fc8bef69ac2fba4",
+      "kind": "permission",
+      "name": "approval_policy"
+    },
+    {
+      "agents": [
+        "codex"
+      ],
+      "file": "tests/fixtures/rules/permission-bypass/negative/.codex/config.toml",
+      "hash": "112f9f74261331ef91d859af60ec297cdd2cfdbc99811d74a8002f4fcb71fb4a",
+      "kind": "permission",
+      "name": "approval_policy"
+    },
+    {
+      "agents": [
+        "codex"
+      ],
+      "file": "tests/fixtures/rules/permission-bypass/negative/.codex/config.toml",
+      "hash": "f8e82631b3a8995daf08b3381ac43c35c61047fc3c91df102904cfb207749a8e",
+      "kind": "permission",
+      "name": "sandbox_mode"
+    },
+    {
+      "agents": [
+        "codex"
+      ],
+      "file": "tests/fixtures/rules/permission-bypass/positive/.codex/config.toml",
+      "hash": "48c4ee8f1739566a5ab22826f6409654a11b3e7b014f0ec17fc8bef69ac2fba4",
+      "kind": "permission",
+      "name": "approval_policy"
+    },
+    {
+      "agents": [
+        "codex"
+      ],
+      "file": "tests/fixtures/rules/permission-bypass/positive/.codex/config.toml",
+      "hash": "25dbdb69602e7e7ee8d64540c0d1cb511db652bbaf922a5df402cd12f8dad4ee",
+      "kind": "permission",
+      "name": "sandbox_mode"
+    },
+    {
+      "agents": [
+        "codex",
+        "cursor"
+      ],
+      "file": "tests/fixtures/repos/codex-toml/.agents/skills/fmt/SKILL.md",
+      "hash": "d02cfc532a8dafbd19d5c90a348b2655509d3b3650e9a901866bd0ff9c4ded1f",
+      "kind": "skill",
+      "name": "fmt",
+      "skill": {
+        "executableBits": [],
+        "executables": [],
+        "files": [
+          {
+            "hash": "c69402d6fb56ed14e2ff5e8d2388683c976e9eaa62f03f8e1af7cc7918df8db0",
+            "path": "SKILL.md"
+          }
+        ]
+      }
+    }
+  ],
+  "lockfileVersion": 1
+}

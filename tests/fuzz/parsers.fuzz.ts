@@ -3,6 +3,9 @@ import { describe, it } from 'vitest';
 import { parseFrontmatter } from '../../src/inventory/frontmatter.ts';
 import type { Component } from '../../src/inventory/index.ts';
 import { entryText, lookup, parseConfig, stripJsonc } from '../../src/inventory/parse.ts';
+import { diffLocks } from '../../src/lock/diff.ts';
+import { parseLock } from '../../src/lock/read.ts';
+import { redact } from '../../src/lock/redact.ts';
 import { runRules } from '../../src/rules/index.ts';
 
 const text = fc.oneof(fc.string({ unit: 'binary' }), fc.json(), fc.stringMatching(/^[[\]{}",:=/*\\\n a.#'-]{0,60}$/));
@@ -46,6 +49,19 @@ describe('frontmatter and rules', () => {
           if (finding.message.includes('the rule failed')) throw new Error(`${finding.rule} threw`);
           if (/\p{C}/u.test(finding.message)) throw new Error(`${finding.rule} printed a hidden character`);
         }
+      }),
+      { numRuns: 3000 },
+    );
+  });
+});
+
+describe('lock', () => {
+  it('reads any JSON as a lock or a reason, and redacts without throwing', () => {
+    fc.assert(
+      fc.property(fc.oneof(fc.json(), fc.constant('{"lockfileVersion":1,"algorithm":"sha256","components":[]}')), fc.string({ unit: 'binary' }), (json, word) => {
+        const parsed = parseLock(JSON.parse(json));
+        if ('lock' in parsed) diffLocks(parsed.lock, parsed.lock);
+        redact(word);
       }),
       { numRuns: 3000 },
     );

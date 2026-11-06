@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { knowledgeBase } from '../knowledge/index.ts';
 import type { AgentId, AgentKnowledge, AgentPath, Fact, FileFormat, Scope } from '../knowledge/types.ts';
 import { DEFAULT_LIMITS, ScanFiles } from './files.ts';
-import type { Area, Found } from './files.ts';
+import type { Area, Found, TreeFile } from './files.ts';
 import { parseFrontmatter } from './frontmatter.ts';
 import { entryText, lookup, parseConfig } from './parse.ts';
 import type { Component, ComponentKind, Inventory, ScanOptions, SkillFile, SkillFileType } from './types.ts';
@@ -286,18 +286,20 @@ class Scan {
           if (raw === undefined) continue;
           const folder = found.file.slice(0, found.file.lastIndexOf('/'));
           const parent = { path: found.path.slice(0, -skills.entryFile.length - 1), file: folder, area: found.area };
-          const files = this.files.tree(parent).map(({ found: inner, relative, bytes }) => this.#skillFile(inner, relative, bytes));
+          const files = this.files.tree(parent).map((inner) => this.#skillFile(inner));
           this.#add('skill', agent.id, directory.scope, found.file, baseName(folder), raw, files);
         }
       }
     }
   }
 
-  #skillFile(found: Found, path: string, bytes: number): SkillFile {
-    const content = this.files.readBytes(found);
-    if (content === undefined) return { path, bytes };
+  #skillFile(inner: TreeFile): SkillFile {
+    const { relative: path, bytes } = inner;
+    const flags = { ...(inner.link ? { link: true } : {}), ...(inner.executable ? { executableBit: true } : {}) };
+    const content = this.files.readBytes(inner.found);
+    if (content === undefined) return { path, bytes, ...flags };
     const type = fileType(content);
-    return type === 'text' ? { path, bytes, type, raw: content.toString('utf8') } : { path, bytes, type };
+    return type === 'text' ? { path, bytes, type, raw: content.toString('utf8'), content, ...flags } : { path, bytes, type, content, ...flags };
   }
 
   #collectFiles(agent: AgentKnowledge): void {
