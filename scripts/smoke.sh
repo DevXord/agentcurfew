@@ -69,8 +69,11 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol
   | (cd "$F/repos/claude-basic" && node "$CLI" mcp) > "$WORK/out" || { echo "FAIL: mcp exited with $?"; failures=$((failures + 1)); }
 contains '"name":"check_skill"'
 cp -R "$F/repos/claude-basic" "$WORK/hooked"
-printf '{"tool_name":"Write","tool_input":{"file_path":"%s/CLAUDE.md","content":"# Rules\\n"}}' "$WORK/hooked" \
-  | CLAUDE_PROJECT_DIR="$WORK/hooked" node "$CLI" hook > "$WORK/out" || { echo "FAIL: hook exited with $?"; failures=$((failures + 1)); }
+# Claude Code gives the hook native paths: on Windows, D:/... rather than Git Bash's /tmp/...
+HOOKED="$WORK/hooked"
+if command -v cygpath > /dev/null 2>&1; then HOOKED="$(cygpath -m "$HOOKED")"; fi
+printf '{"tool_name":"Write","tool_input":{"file_path":"%s/CLAUDE.md","content":"# Rules\\n"}}' "$HOOKED" \
+  | CLAUDE_PROJECT_DIR="$HOOKED" node "$CLI" hook > "$WORK/out" || { echo "FAIL: hook exited with $?"; failures=$((failures + 1)); }
 contains '"permissionDecision":"ask"'
 
 if [ "$failures" -gt 0 ]; then
