@@ -171,10 +171,16 @@ describe('help examples', () => {
     const { stdout } = await cli('--help');
     const examples = stdout.split('\n').filter((text) => text.startsWith('  agentcurfew ')).map((text) => text.trim().split(/\s+/).slice(1));
     expect(examples.length).toBeGreaterThan(2);
-    for (const argv of examples) {
-      const args = argv[0] === 'scan' ? [...argv, fixture('empty')] : argv;
-      const { code } = await cli(...args);
-      expect([EXIT_OK, EXIT_FAILURE], argv.join(' ')).toContain(code);
+    // Each runs on a fresh empty project, never on the repository itself, since lock writes a file.
+    const base = mkdtempSync(join(tmpdir(), 'acf-help-'));
+    try {
+      for (const argv of examples) {
+        const args = ['scan', 'lock', 'verify'].includes(argv[0] ?? '') ? [...argv, base] : argv;
+        const { code } = await cli(...args);
+        expect([EXIT_OK, EXIT_FAILURE], argv.join(' ')).toContain(code);
+      }
+    } finally {
+      rmSync(base, { recursive: true, force: true });
     }
   });
 });
