@@ -2,6 +2,16 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-06: Phase 1, knowledge base
+
+- `src/knowledge/`: one module per agent (Claude Code, Cursor, Codex CLI, Gemini CLI, Copilot in VS Code, Windsurf, Cline), plus `shared.ts` for the Agent Skills format and `skills-lock.json`. Each module was researched separately from official docs and source code, and all facts are dated 2026-11-06.
+- 56 agent facts: 41 verified, 10 uncertain, 5 disputed. The open ones are listed at the top of [docs/knowledge.md](knowledge.md).
+- `validate.ts` refuses a fact without an https source and a date; tests run it over every module. `render.ts` and `npm run docs:knowledge` generate `docs/knowledge.md`, and a test fails when that file is out of date.
+- Types changed after the research (D-008), which fixed portable MCP files that a scanner would have missed.
+- Checked by hand against primary sources after the research: the Windsurf redirect, `computedHash`, and the MCP keys of VS Code. The other facts rest on the research runs and were not re-read.
+
+Not done: the knowledge base is not used by any command yet and is not exported from the package. Open questions for review: Q-006 (TOML parser), Q-007 (Windsurf name), Q-001 (alias).
+
 ## 2026-11-06: Phase 0, skeleton
 
 - Moved the brief to [docs/PLAN.md](PLAN.md); added [CLAUDE.md](../CLAUDE.md) (section 7 of the plan, translated to English), [docs/decisions.md](decisions.md) and this changelog.

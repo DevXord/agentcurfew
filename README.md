@@ -2,7 +2,7 @@
 
 > One local, account-less security policy for the files that steer your AI coding agents — skills, MCP servers, hooks, context files, permissions.
 
-**Status:** pre-release (phase 0 of [docs/PLAN.md](docs/PLAN.md) only — the CLI is a scaffold).
+**Status:** pre-release. Phases 0 and 1 of [docs/PLAN.md](docs/PLAN.md) are done: the CLI is a scaffold with no scanning commands yet, and the sourced [knowledge base](docs/knowledge.md) is in place.
 
 ## What it does (when finished)
 

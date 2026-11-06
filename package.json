@@ -36,7 +36,8 @@
     "test": "tsdown && vitest run",
     "fuzz": "vitest run --config vitest.fuzz.config.ts",
     "typecheck": "tsc --noEmit",
-    "check:pkg": "tsdown && publint && attw --pack . --profile esm-only"
+    "check:pkg": "tsdown && publint && attw --pack . --profile esm-only",
+    "docs:knowledge": "node scripts/generate-knowledge.ts"
   },
   "keywords": [
     "security",

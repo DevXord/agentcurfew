@@ -35,8 +35,18 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Date:** 2026-11-06
 - **Decision:** Same entry as in depcurfew's `package.json`; `fsevents` is a macOS-only optional dependency of the test tooling.
 
+## D-008: Knowledge types changed after the research
+- **Date:** 2026-11-06
+- **Decision:** An MCP file may carry its own `serversKey`, because VS Code uses `servers` in `.vscode/mcp.json` and `mcpServers` in `.mcp.json`. `AgentPath.path` may be absolute or start with a variable, as managed and Windows paths need. `AutoRunKnowledge` allows a prompt as what runs, and `'any'` as the trigger value.
+- **Left as they are:** a fact has one `source`, so further URLs sit in its `note`, and those URLs are not checked by the validator. `permissions.bypass` names no file and cannot say "the array contains `*:*`", which phase 3 will need.
+
+## D-009: `computedHash` of skills-lock.json
+- **Date:** 2026-11-06
+- **Finding:** SHA-256 over the UTF-8 path and then the raw bytes of each file, sorted with `localeCompare`, with no separators; `.git`, `node_modules` and symlinks are skipped. Checked by reading `local-lock.ts` at tag v1.7.6.
+- **Consequence for phase 4:** the hash is usually taken at the source, while the installed copy drops `metadata.json`, `__pycache__` and `__pypackages__` and dereferences symlinks. Hashing the installed folder can therefore report drift on an untouched skill, so a mismatch cannot be treated as tampering without more care. The locale-dependent sort can also differ between machines.
+
 ## Q-001: Does `acf` collide with a common tool in PATH?
-- **Status:** open, answered in phase 1 as the plan's first-session prompt asks.
+- **Status:** no collision found on 2026-11-06, not proven. No `bin/acf` in Debian stable or Ubuntu noble, and nothing in Homebrew, Arch, Repology or Chocolatey. Alpine's `acf-core` keeps it off PATH. npm `acf` has no `bin`. Not checked: PyPI `acf` entry points, and npm by binary name, which cannot be searched. The alias stays; decide at phase 9.
 
 ## Q-002: Is the name `agentcurfew` still free on npm?
 - **Status:** free on 2026-11-06 (`npm view agentcurfew` returns E404). Check again right before the first publish.
@@ -46,6 +56,15 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 
 ## Q-004: Is Node 18.3 really the floor?
 - **Status:** open. Taken from depcurfew. The build tool does not support every Node version at build time (`rolldown-plugin-dts` warns on 25.8.1, though it builds), and the output has only been run on 25.8.1. A CI matrix should settle the floor in phase 6 or 9.
+
+## Q-006: Which TOML parser for Codex?
+- **Status:** open, needs the maintainer's approval before phase 2. Codex keeps MCP servers, permissions, hooks and custom agents in TOML with inline tables and quoted keys, so a parser is needed. CLAUDE.md allows one parser with no transitive dependencies, after asking. None has been chosen or added.
+
+## Q-007: Does the Windsurf entry keep its name?
+- **Status:** open, maintainer's choice. Windsurf is now Devin Desktop: `docs.windsurf.com` redirects to `docs.devin.ai` (checked on 2026-11-06), `.devin/` is primary and `.windsurf/` is legacy. The id stays `windsurf` for now, with the name "Windsurf (Devin Desktop)", and the module lists both folders. The plan's agent list predates this.
+
+## Q-008: `yaml` in phase 2?
+- **Status:** open until phase 2 shows whether skill frontmatter needs a full parser. D-004 keeps it out until code imports it.
 
 ## Q-005: TypeScript 7?
 - **Status:** open, maintainer's choice. `tsdown` 0.23.5 declares `^7.0.0` as a supported peer; whether 0.23.2 and the d.ts build work with it was not tested.

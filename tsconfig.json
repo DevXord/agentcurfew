@@ -19,5 +19,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "tests", "tsdown.config.ts", "vitest.config.ts", "vitest.fuzz.config.ts"]
+  "include": ["src", "tests", "scripts", "tsdown.config.ts", "vitest.config.ts", "vitest.fuzz.config.ts"]
 }

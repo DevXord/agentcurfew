@@ -1,0 +1,137 @@
+import { verifiedOn } from './define.ts';
+import type { AgentKnowledge, AgentPath } from './types.ts';
+
+const { verified, uncertain, disputed, evidence } = verifiedOn('2026-11-06');
+
+const DOCS = 'https://learn.chatgpt.com/docs';
+const CONFIG_BASIC = `${DOCS}/config-file/config-basic.md`;
+const CONFIG_ADVANCED = `${DOCS}/config-file/config-advanced.md`;
+const AGENTS_MD = `${DOCS}/agent-configuration/agents-md.md`;
+const APPROVALS = `${DOCS}/agent-approvals-security.md`;
+const SKILLS = `${DOCS}/build-skills.md`;
+const HOOKS = `${DOCS}/hooks.md`;
+const SUBAGENTS = `${DOCS}/agent-configuration/subagents.md`;
+
+const SOURCE = 'https://github.com/openai/codex/blob/55897425e839d943a744c658701445ff732568a0/codex-rs';
+const CONFIG_LOADER = `${SOURCE}/config/src/loader/mod.rs`;
+const MCP_TYPES = `${SOURCE}/config/src/mcp_types.rs`;
+const SKILL_ROOTS = `${SOURCE}/ext/skills/src/host_roots.rs`;
+
+const PROJECT_CONFIG: AgentPath = { path: '**/.codex/config.toml', scope: 'project', format: 'toml' };
+const USER_CONFIG: AgentPath = { path: '~/.codex/config.toml', scope: 'user', format: 'toml' };
+const SYSTEM_CONFIG_UNIX: AgentPath = { path: '/etc/codex/config.toml', scope: 'managed', format: 'toml', platforms: ['linux', 'darwin'] };
+const SYSTEM_CONFIG_WINDOWS: AgentPath = { path: '%ProgramData%/OpenAI/Codex/config.toml', scope: 'managed', format: 'toml', platforms: ['win32'] };
+
+const HOME_NOTE = 'CODEX_HOME moves every ~/.codex path. Machine-wide paths are absolute, which the AgentPath comment does not cover.';
+
+export const codex: AgentKnowledge = {
+  id: 'codex',
+  name: 'OpenAI Codex CLI',
+  precedence: verified(
+    [PROJECT_CONFIG, { path: '~/.codex/*.config.toml', scope: 'user', format: 'toml' }, USER_CONFIG, SYSTEM_CONFIG_UNIX, SYSTEM_CONFIG_WINDOWS],
+    CONFIG_BASIC,
+    `Between CLI flags and the built-in defaults, the closest .codex/config.toml wins, then a --profile file (only when selected), the user file, cloud-managed defaults (no local file), then the system file. Project layers load only for trusted projects. requirements.toml constrains all of them. The Windows path is from ${CONFIG_LOADER}. ${HOME_NOTE}`,
+  ),
+  mcp: verified(
+    {
+      files: [PROJECT_CONFIG, USER_CONFIG, SYSTEM_CONFIG_UNIX, SYSTEM_CONFIG_WINDOWS],
+      serversKey: 'mcp_servers',
+      local: { command: 'command', args: 'args', env: 'env' },
+      remote: { url: 'url', headers: 'http_headers' },
+    },
+    MCP_TYPES,
+    `Project scoping (trusted projects only) is from ${DOCS}/extend/mcp.md. Other fields a scanner must read: env_vars, cwd, env_http_headers, bearer_token_env_var, and http_headers_helper, a command Codex runs to print headers. Plugins can also bundle MCP servers.`,
+  ),
+  hooks: verified(
+    {
+      files: [
+        { path: '**/.codex/hooks.json', scope: 'project', format: 'json' },
+        PROJECT_CONFIG,
+        { path: '~/.codex/hooks.json', scope: 'user', format: 'json' },
+        USER_CONFIG,
+      ],
+      key: 'hooks',
+      events: ['SessionStart', 'SessionEnd', 'SubagentStart', 'SubagentStop', 'PreToolUse', 'PermissionRequest', 'PostToolUse', 'PreModelRequest', 'PostModelRequest', 'PreCompact', 'PostCompact', 'UserPromptSubmit', 'Stop', 'Interrupt'],
+      handlerTypes: ['command', 'mcp_tool'],
+      commandField: 'command',
+    },
+    HOOKS,
+    `Hooks of all layers run together; a higher layer does not replace a lower one. Any active config layer can hold them, so these four files are the documented common ones, not the full list; plugins can bundle hooks too. commandWindows (command_windows in TOML) overrides the command on Windows. prompt and agent handlers are parsed but skipped. Non-managed hooks run only after review, tracked by hash. Separately, notify in config.toml runs a command; project config ignores it (${CONFIG_ADVANCED}).`,
+  ),
+  skills: disputed(
+    'The documentation lists only .agents/skills roots, while the loader also scans .codex/skills next to each project config layer and the deprecated ~/.codex/skills. Scan every path of both variants. Codex follows symlinked skill folders.',
+    evidence(
+      {
+        directories: [
+          { path: '**/.agents/skills', scope: 'project', format: 'markdown-frontmatter' },
+          { path: '~/.agents/skills', scope: 'user', format: 'markdown-frontmatter' },
+          { path: '/etc/codex/skills', scope: 'managed', format: 'markdown-frontmatter', platforms: ['linux', 'darwin'] },
+        ],
+        entryFile: 'SKILL.md',
+      },
+      SKILLS,
+      'Repository roots run from the working directory up to the repository root.',
+    ),
+    evidence(
+      {
+        directories: [
+          { path: '**/.agents/skills', scope: 'project', format: 'markdown-frontmatter' },
+          { path: '**/.codex/skills', scope: 'project', format: 'markdown-frontmatter' },
+          { path: '~/.agents/skills', scope: 'user', format: 'markdown-frontmatter' },
+          { path: '~/.codex/skills', scope: 'user', format: 'markdown-frontmatter' },
+          { path: '/etc/codex/skills', scope: 'managed', format: 'markdown-frontmatter', platforms: ['linux', 'darwin'] },
+          { path: '%ProgramData%/OpenAI/Codex/skills', scope: 'managed', format: 'markdown-frontmatter', platforms: ['win32'] },
+        ],
+        entryFile: 'SKILL.md',
+      },
+      SKILL_ROOTS,
+      'The Windows path follows from the system config folder in the config loader; ~/.codex/skills is marked deprecated in the code.',
+    ),
+  ),
+  contextFiles: verified(
+    [
+      { path: '~/.codex/AGENTS.override.md', scope: 'user', format: 'markdown', loading: 'always' },
+      { path: '~/.codex/AGENTS.md', scope: 'user', format: 'markdown', loading: 'always' },
+      { path: '**/AGENTS.override.md', scope: 'project', format: 'markdown', loading: 'always' },
+      { path: '**/AGENTS.md', scope: 'project', format: 'markdown', loading: 'always' },
+    ],
+    AGENTS_MD,
+    'Read at startup, once per run, for each directory from the project root down to the working directory, so a file outside that path is not read in that run. One file per directory, override first. project_doc_fallback_filenames adds other names, so the list is open-ended and config.toml must be read to find them. project_doc_max_bytes caps the total, 32 KiB by default.',
+  ),
+  permissions: verified(
+    {
+      files: [
+        PROJECT_CONFIG,
+        USER_CONFIG,
+        { path: '**/.codex/rules/*.rules', scope: 'project', format: 'text' },
+        { path: '~/.codex/rules/*.rules', scope: 'user', format: 'text' },
+        { path: '/etc/codex/requirements.toml', scope: 'managed', format: 'toml', platforms: ['linux', 'darwin'] },
+        { path: '%ProgramData%/OpenAI/Codex/requirements.toml', scope: 'managed', format: 'toml', platforms: ['win32'] },
+      ],
+      keys: ['approval_policy', 'sandbox_mode', 'default_permissions', 'permissions', 'sandbox_workspace_write.network_access', 'sandbox_workspace_write.writable_roots', 'mcp_servers.<id>.default_tools_approval_mode', 'mcp_servers.<id>.tools.<tool>.approval_mode'],
+      bypass: [
+        { key: 'approval_policy', value: 'never' },
+        { key: 'sandbox_mode', value: 'danger-full-access' },
+        { key: 'default_permissions', value: ':danger-full-access' },
+      ],
+    },
+    APPROVALS,
+    `.rules files are Starlark, with prefix_rule decisions of allow, prompt or forbidden (${DOCS}/agent-configuration/rules.md). The :danger-full-access built-in is from ${DOCS}/permissions.md. None of the bypass keys is on PROJECT_LOCAL_CONFIG_DENYLIST in ${CONFIG_LOADER}, so a trusted project file appears able to set them; this is read from the code and was not tested by running Codex.`,
+  ),
+  autoRun: uncertain(
+    null,
+    CONFIG_ADVANCED,
+    'No page describes a command that starts when a folder is opened, but none rules it out either. The closest behaviour is inside a session: SessionStart hooks and stdio MCP servers, both covered by the hooks and mcp facts, and subject to project trust.',
+  ),
+  extensions: verified(
+    {
+      subagents: [
+        { path: '.codex/agents/*.toml', scope: 'project', format: 'toml' },
+        { path: '~/.codex/agents/*.toml', scope: 'user', format: 'toml' },
+      ],
+      commands: [{ path: '~/.codex/prompts/*.md', scope: 'user', format: 'markdown-frontmatter' }],
+    },
+    SUBAGENTS,
+    `Custom prompts are deprecated in favour of skills and live only in the user folder, top level only (${DOCS}/custom-prompts.md). Custom agents can also be named through agents.<name>.config_file in config.toml.`,
+  ),
+};
