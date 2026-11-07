@@ -193,7 +193,8 @@ describe('where a write lands', () => {
       expect(writeTarget(join(root, '.CLAUDE/Settings.json'), root, home, true)).toBe(join(realpathSync.native(root), '.claude/settings.json'));
       expect(writeTarget(join(root, '.CLAUDE/settings.json'), root, home, false)).toBe(join(realpathSync.native(root), '.CLAUDE/settings.json'));
       expect(checkWrite(join(root, '.CLAUDE/settings.json'), bypass, root, undefined, home, true)?.decision).toBe('deny');
-      expect(checkWrite(join(root, '.CLAUDE/settings.json'), bypass, root, undefined, home, false)).toBeUndefined();
+      // Windows ignores case in every path comparison, so only a file system that does not can tell these apart.
+      if (process.platform !== 'win32') expect(checkWrite(join(root, '.CLAUDE/settings.json'), bypass, root, undefined, home, false)).toBeUndefined();
       // A folder that does not exist yet is checked as the knowledge base spells it.
       const folded = checkWrite(join(root, '.Cursor/mcp.json'), '{}', root, undefined, home, true);
       expect(folded?.reasons.join('')).toContain('.cursor/mcp.json steers');
