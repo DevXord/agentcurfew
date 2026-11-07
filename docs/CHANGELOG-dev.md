@@ -2,6 +2,12 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-07: Release commit for 1.0.0
+
+- The maintainer asked for the release commit: `package.json` and `package-lock.json` hold 1.0.0, `CHANGELOG.md` has the 1.0.0 notes, and README no longer says the package is unpublished. The tag and the publish are the maintainer's, by docs/RELEASING.md. `npm view agentcurfew` answered E404 on 2026-11-07, so the name is still free (Q-002).
+- The action installs the version of its commit from npm, which 1.0.0 is not yet, so its own test now builds from source with the new input `build-from-source`.
+- Q-012 is written up for depcurfew's session in docs/handoff-depcurfew.md.
+
 ## 2026-11-07: Windsurf deprecations, TypeScript stays
 
 - The maintainer opened the session's network, so docs.devin.ai could be read at last (Q-011). The Windsurf (Devin Desktop) knowledge now lists `.windsurfrules`, `.windsurf/rules/*.md`, `.windsurf/global_rules.md`, `.windsurf/skills` and `.windsurf/workflows` (with the Windsurf system workflow directories) as deprecated, each with the page and quote; `doctor` warns about them. The notes on hooks and workflows cite the Cascade reference, which says Cascade no longer starts conversations.

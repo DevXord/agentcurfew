@@ -209,7 +209,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Decision of the maintainer (Q-014):** Node 20 is dropped as well, since it ended on 2026-04-30 by the Node.js release schedule. `engines` is `>=22.23.0`, the oldest line CI tests, at the release it tests (22.23.4 on 2026-11-07), following the rule of D-032; the smoke test runs on Node 22, 24 and 26, and the test suite on 22 and 24. Node 22 is in maintenance until 2027-04-30.
 
 ## Q-012: For the depcurfew session
-- **Status:** open, to raise in depcurfew's own session; agentcurfew does not change depcurfew.
+- **Status:** handed over on 2026-11-07, as the maintainer chose: [handoff-depcurfew.md](handoff-depcurfew.md) is the note to pass to depcurfew's own session; agentcurfew does not change depcurfew.
 - `popularPackages` and `popularPythonPackages` are not exported, so agentcurfew cannot check similar names of MCP server packages offline without copying them.
 - The default directory of the local OSV.dev data is not exported, so `LocalOsvData` cannot be pointed at the data `depcurfew osv update` writes without copying that logic.
 - npm 11.21.1 honours `min-release-age-exclude[]=depcurfew` for `npm install` but not for `npm exec`/`npx` (D-022), which `depcurfew apply` may want to know.
@@ -221,7 +221,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Recommendation:** drop the `acf` alias for 1.0.0 and keep only `agentcurfew`; adding an alias later is easy, removing one after release breaks scripts. If it stays, the docs should say that `agentcurfew` is the reliable name.
 
 ## Q-002: Is the name `agentcurfew` still free on npm?
-- **Status:** free on 2026-11-06, checked again in phase 9 (`npm view agentcurfew` returns E404). Check once more right before the first publish (docs/RELEASING.md).
+- **Status:** free on 2026-11-06, checked again in phase 9 and on 2026-11-07 for the release commit (`npm view agentcurfew` returns E404). Check once more right before the first publish (docs/RELEASING.md).
 
 ## Q-003: Separate `@agentcurfew/mcp` package?
 - **Status:** answered by D-025: no; the server needs no SDK and lives in the main package.

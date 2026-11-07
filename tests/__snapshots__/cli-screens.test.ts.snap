@@ -439,7 +439,7 @@ exports[`screens > scan 4`] = `
 exports[`screens > welcome and help 1`] = `
 "$ agentcurfew 
 [exit 0]
-agentcurfew 0.0.0: inventory, lock and check what steers your AI coding agents.
+agentcurfew 1.0.0: inventory, lock and check what steers your AI coding agents.
 
 Common commands:
   agentcurfew scan    Check what steers agents in a project against the rules

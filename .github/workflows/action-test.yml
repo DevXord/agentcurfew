@@ -1,6 +1,7 @@
 name: action-test
 
-# Runs the action of this repository on its own fixtures. It reads only; nothing is uploaded.
+# Runs the action of this repository on its own fixtures. It reads only; nothing is uploaded. It builds agentcurfew from
+# this commit, since the version in package.json may not be on npm yet.
 on:
   push:
     branches: [main-wopcok]
@@ -22,6 +23,7 @@ jobs:
         uses: ./
         continue-on-error: true
         with:
+          build-from-source: 'true'
           directory: tests/fixtures/rules/plain-http-mcp/positive
           sarif-file: findings.sarif
 
@@ -29,6 +31,7 @@ jobs:
         name: scan passes an empty project
         uses: ./
         with:
+          build-from-source: 'true'
           directory: tests/fixtures/repos/empty
           sarif-file: clean.sarif
 
@@ -37,6 +40,7 @@ jobs:
         uses: ./
         continue-on-error: true
         with:
+          build-from-source: 'true'
           command: verify
           directory: tests/fixtures/repos/empty
 
@@ -44,6 +48,7 @@ jobs:
         name: doctor passes a working configuration
         uses: ./
         with:
+          build-from-source: 'true'
           command: doctor
           directory: tests/fixtures/repos/claude-basic
 

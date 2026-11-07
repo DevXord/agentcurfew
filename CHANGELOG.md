@@ -4,9 +4,9 @@ All notable changes to agentcurfew are written here for its users. The developme
 
 ## Unreleased
 
-The first release will be 1.0.0. Nothing has been published yet; the notes below are a draft for it.
+Nothing yet.
 
-### 1.0.0 (draft)
+## 1.0.0
 
 The first release. agentcurfew inventories, locks and checks the files that steer AI coding agents (Claude Code, Cursor, Codex CLI, Gemini CLI, Copilot in VS Code, Windsurf and Cline) without running any of them and without using the network.
 

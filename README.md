@@ -2,8 +2,6 @@
 
 > One local, account-less security policy for the files that steer your AI coding agents: skills, MCP servers, hooks, context files and permissions.
 
-**Status:** not published yet. The first release will be 1.0.0.
-
 AI coding agents (Claude Code, Cursor, Codex CLI, Gemini CLI, Copilot in VS Code, Windsurf, Cline) read files from your repository and your machine that decide how they behave: `SKILL.md` files with bundled scripts, MCP server configs, hooks, context files such as `AGENTS.md` and `CLAUDE.md`, and permission settings. Whoever can change those files can steer the agent, so they are a supply chain of their own.
 
 agentcurfew:
@@ -25,8 +23,6 @@ Every fact about an agent (paths, formats, precedence) comes from its official d
 4. One deterministic lockfile for every agent and every kind of component.
 
 ## Install
-
-Once 1.0.0 is published:
 
 ```bash
 npm install --save-dev agentcurfew
@@ -84,7 +80,7 @@ steps:
       fail-on: high
 ```
 
-Inputs: `command`, `directory`, `fail-on`, `sarif-file` and `upload-sarif` (needs `security-events: write`). Output: `exit-code`. A released commit runs the matching version of agentcurfew from npm; until the first release the action builds agentcurfew from its own source. How releases are made: [docs/RELEASING.md](docs/RELEASING.md).
+Inputs: `command`, `directory`, `fail-on`, `sarif-file`, `upload-sarif` (needs `security-events: write`) and `build-from-source` (for tests of the action itself). Output: `exit-code`. A released commit runs the matching version of agentcurfew from npm. How releases are made: [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Development
 

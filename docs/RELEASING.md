@@ -2,7 +2,7 @@
 
 agentcurfew is published from a version tag by `.github/workflows/release.yml`, with no npm token stored anywhere: the publish job authenticates with OIDC (npm trusted publishing), npm adds provenance, and the release passes two gates that need the maintainer: the GitHub environment `npm` and npm's staged publishing, approved with 2FA.
 
-The first release is **1.0.0**, once phases 7 and 8 of [PLAN.md](PLAN.md) are done. Until then the version stays `0.0.0`, which the workflow refuses to publish.
+The first release is **1.0.0**: `package.json` holds that version since 2026-11-07, and the commit that sets it is the one to tag. The workflow refuses to publish `0.0.0`.
 
 Facts below come from npm's documentation sources (`npm/documentation`, `content/packages-and-modules/securing-your-code/trusted-publishers.mdx` and `staged-publishing.mdx`), read on 2026-11-06. Check them again before the first release: they change.
 
