@@ -172,7 +172,6 @@ export function helpText(): string {
     'agentcurfew: inventory, lock and check what steers your AI coding agents.',
     '',
     'Usage: agentcurfew <command> [options]',
-    '       acf <command> [options]',
     '',
     'Commands:',
     ...table(COMMANDS.map((command) => [command.name, command.summary])),

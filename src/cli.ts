@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { EXIT_FAILURE } from './cli/io.ts';
 
-// A reader that went away (acf --help | head -1) must not end in a stack trace from an unhandled EPIPE.
+// A reader that went away (agentcurfew --help | head -1) must not end in a stack trace from an unhandled EPIPE.
 function quietWhenClosed(stream: NodeJS.WriteStream): (text: string) => void {
   let closed = false;
   stream.on('error', (error: NodeJS.ErrnoException) => {

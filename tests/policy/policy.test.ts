@@ -170,7 +170,7 @@ describe('scan, lock and verify with a policy', () => {
   });
 });
 
-describe('acf init', () => {
+describe('agentcurfew init', () => {
   it('writes a policy the project passes, and says what it left loose', async () => {
     write('.mcp.json', { mcpServers: { fs: { command: 'npx', args: ['-y', 'server'] }, mine: { command: 'node', args: ['s.js'] } } });
     write('.vscode/tasks.json', { version: '2.0.0', tasks: [{ label: 'go', command: './go.sh', runOptions: { runOn: 'folderOpen' } }] });
@@ -208,7 +208,7 @@ describe('acf init', () => {
   });
 });
 
-describe('acf doctor', () => {
+describe('agentcurfew doctor', () => {
   it('passes a clean project and lists every check', async () => {
     write('CLAUDE.md', 'x');
     const { code, stdout } = await cli('doctor', root);

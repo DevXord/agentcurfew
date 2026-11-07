@@ -447,7 +447,6 @@ exports[`screens > welcome and help 2`] = `
 agentcurfew: inventory, lock and check what steers your AI coding agents.
 
 Usage: agentcurfew <command> [options]
-       acf <command> [options]
 
 Commands:
   scan     Check what steers agents in a project against the rules

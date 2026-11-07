@@ -4,7 +4,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 
 ## D-001: Project layout mirrors depcurfew
 - **Date:** 2026-11-06
-- **Decision:** ESM-only TypeScript, `tsdown`, Vitest, `publint`, `@arethetypeswrong/cli`, two binaries (`agentcurfew`, `acf`), per-agent knowledge modules in `src/knowledge/`, docs in `docs/`.
+- **Decision:** ESM-only TypeScript, `tsdown`, Vitest, `publint`, `@arethetypeswrong/cli`, two binaries (`agentcurfew`, `acf`; `acf` dropped by D-030), per-agent knowledge modules in `src/knowledge/`, docs in `docs/`.
 - **Why:** Contributors already know the depcurfew shape, and the two projects stay visibly a family.
 
 ## D-002: Argument parser is `node:util` `parseArgs`
@@ -15,6 +15,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 ## D-003: CLI alias `acf`
 - **Date:** 2026-11-06
 - **Decision:** Ship `agentcurfew` and the short alias `acf`, as depcurfew does with `dcf`, subject to the check in Q-001.
+- **Superseded** by D-030: the alias was dropped before 1.0.0.
 
 ## D-004: No runtime dependencies yet
 - **Date:** 2026-11-06
@@ -74,14 +75,14 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Model:** a rule has an id, a level, OWASP references, a description, a fix, an example, the component kinds it reads, and, when it matches patterns, a note on false alarms. `check` returns hits whose message must already be safe to print; the engine also bounds and cleans every message. A hit may raise or lower the level, for example a setting the agent ignores in a project file is `low`.
 - **Engine:** pure and deterministic (sorted by file, line, column, rule), at most 20 hits per rule and component plus one summary finding, a rule that throws becomes an `info` finding, and a hook that is also an auto-run component is reported once per rule.
 - **Facts stay in the knowledge base:** which settings bypass prompts and whether a project file may set them (`fromProject`), which allow-list entries mean every shell command (`allowAllShell`), the skill field that grants tools (`grantsField`), events that start hooks on their own (`autoStartEvents`) and further remote URL fields (`otherUrls`) are new knowledge fields. Formats of credentials are facts about their issuers, not agents, and live in `src/rules/secrets.ts`, each with its source (Q-010).
-- **Exit code:** `acf scan` exits with 1 when a finding is at `--fail-on` or above, `high` by default, as the maintainer chose; `none` turns it off. Inventory problems do not change the exit code. `--fail-on` with `--inventory` is a usage error.
+- **Exit code:** `agentcurfew scan` exits with 1 when a finding is at `--fail-on` or above, `high` by default, as the maintainer chose; `none` turns it off. Inventory problems do not change the exit code. `--fail-on` with `--inventory` is a usage error.
 - **JSON:** `scan --json` is schema version 2: the inventory's fields plus `failOn` and `findings`. `scan --inventory --json` stays at version 1.
 - **Fixtures:** each rule has `tests/fixtures/rules/<id>/positive` and `negative`. Hidden characters and secret-shaped values are written `{U+XXXX}` and `{{secret:name}}` and expanded only in a temporary copy, so that the repository holds no invisible text and nothing a secret scanner would take for a live token.
 - **Not in phase 3:** drift (phase 4, lockfile) and out-of-policy (phase 5, policy) are listed as planned in docs/rules.md.
 
 ## D-014: agentcurfew.lock
 - **Date:** 2026-11-06
-- **Decisions of the maintainer:** CRLF and lone CR become LF in text before hashing, binary files are hashed as they are; MCP servers are written with command, arguments and addresses, secrets replaced by `<redacted>`; every kind of project component is locked, user and machine files never; `acf lock` writes even when the scan has serious findings, and warns; `acf scan` reports drift when a lock exists.
+- **Decisions of the maintainer:** CRLF and lone CR become LF in text before hashing, binary files are hashed as they are; MCP servers are written with command, arguments and addresses, secrets replaced by `<redacted>`; every kind of project component is locked, user and machine files never; `agentcurfew lock` writes even when the scan has serious findings, and warns; `agentcurfew scan` reports drift when a lock exists.
 - **Format:** JSON with keys sorted at every level, 2-space indent and a final newline, no time stamps or absolute paths. `lockfileVersion` 1, `algorithm` sha256, then the components in the inventory's order (kind, file, name). A component has `hash` (hex) and `agents`; the agents are for people only and not compared, because they follow the knowledge base, so an update of agentcurfew does not make drift.
 - **What is hashed:** a file component (context file, command, subagent, a hook that is a file) by its normalized text; an entry (MCP server, hook, auto-run, permission) by its JSON with sorted keys, so reordering keys is not a change; a skill by the list of its files' paths and hashes, sorted by bytes, written as JSON so that no path can run into the next.
 - **MCP servers:** also `command`, `args` and `urls` after redaction, the names of `env` and `headers` (never their values) and the package or image the launcher fetches (`npm`, `pypi`, `oci`, from the same parser as `unpinned-mcp-server`). The hash covers the full entry, so a changed secret is drift, reported as "another field changed" with nothing of the value.
@@ -157,7 +158,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 
 ## D-025: MCP server
 - **Date:** 2026-11-06
-- **Decision of the maintainer:** a server of our own, without the SDK, in the main package as `acf mcp`, so the runtime dependencies stay `smol-toml` and `yaml`; the official client `@modelcontextprotocol/client` 2.4.0 (2026-10-23, installed with the pinned npm, so its dependencies passed the cooldown) is a dev dependency for the tests. Q-003 is answered: no separate package.
+- **Decision of the maintainer:** a server of our own, without the SDK, in the main package as `agentcurfew mcp`, so the runtime dependencies stay `smol-toml` and `yaml`; the official client `@modelcontextprotocol/client` 2.4.0 (2026-10-23, installed with the pinned npm, so its dependencies passed the cooldown) is a dev dependency for the tests. Q-003 is answered: no separate package.
 - **Two eras:** MCP 2026-07-28 is the latest revision; it drops `initialize`, `notifications/initialized` and `ping`, and requires `server/discover` and the version in each request's `_meta`. 2025-11-25 is what many clients still speak. The server answers both: `initialize` puts a connection in the 2025 era (versions 2025-11-25 and 2025-06-18), otherwise every request must carry a supported 2026 version or gets -32022 with the list. Shapes were taken from the specification's `schema.ts` and examples on GitHub (modelcontextprotocol.io was not reachable from the session). The tests connect the official client in its default legacy mode and in auto mode, which negotiates 2026-07-28.
 - **Paths (decision of the maintainer):** the folder the server runs in, `--root` folders and, under 2025-11-25, the client's roots from `roots/list`; links are resolved before the check.
 - **Safety:** lines over 1 MB and JSON deeper than 64 levels are refused, error messages carry nothing from the input, secrets in findings are masked as everywhere, and nothing but MCP messages goes to stdout.
@@ -172,7 +173,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 
 ## D-027: Installing the hook
 - **Date:** 2026-11-06
-- **Decision of the maintainer:** `acf init --hook` writes to `.claude/settings.json`, next to depcurfew's hook.
+- **Decision of the maintainer:** `agentcurfew init --hook` writes to `.claude/settings.json`, next to depcurfew's hook.
 - **Entry:** `command: "node"` with `args`, as depcurfew's README writes its own hook, so no shell reads the path; `${CLAUDE_PROJECT_DIR}` points at `node_modules/agentcurfew/dist/cli.js`; timeout 30 s. No `onFailure: "block"`: with agentcurfew not installed it would block every write and command. `doctor` reports that case instead (`agentcurfew-hook-missing`).
 - **Keeping other hooks:** every other key and hook entry is kept as it was (a test uses depcurfew's recommended entry); a second run adds nothing; settings with comments, other shapes and links are refused with the entry to add by hand.
 
@@ -189,6 +190,10 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Checks:** `depcurfew-hook-missing` (the project has `depcurfew.json` and no depcurfew hook in its Claude Code settings) and `depcurfew-hook-broken` (the hook runs a `node_modules/depcurfew/dist/cli.js` that does not exist; an error with `onFailure: "block"`, since depcurfew's README says that then blocks every command, otherwise a warning). The hook is recognised as `depcurfew … check … --hook`, in `command` or `args`. Source: depcurfew's README on GitHub.
 - **This repository (decision of the maintainer):** `doctor .` found that the repository had `depcurfew.json` and no depcurfew hook, so `.claude/settings.json` now holds depcurfew's hook as its README writes it (`onFailure: "block"`), agentcurfew's own hook (running `dist/cli.js`, since agentcurfew is the project here, not a package in `node_modules`), and a SessionStart hook that runs `npm ci --ignore-scripts` and the build when they are missing. That hook is an auto-run, which the repository's policy accepts by an exception with its reason; `agentcurfew.lock` was updated.
 
+## D-030: No `acf` alias
+- **Date:** 2026-11-07
+- **Decision of the maintainer:** the package ships one binary, `agentcurfew`. Other packages on npm and PyPI ship an `acf` binary (Q-001), so the alias could run another tool or be shadowed by one; an alias can be added later, but removing one after a release would break scripts. The help text no longer names it, and a test checks that.
+
 ## Q-012: For the depcurfew session
 - **Status:** open, to raise in depcurfew's own session; agentcurfew does not change depcurfew.
 - `popularPackages` and `popularPythonPackages` are not exported, so agentcurfew cannot check similar names of MCP server packages offline without copying them.
@@ -197,7 +202,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - Its hook, active in this repository's sessions, judges `npx <bin>` by the registry's newest version even when the binary is the project's own, pinned dev dependency: `npx vitest` was denied for vitest 5.1.0 (4 days old) while the project pins an older one, `npx tsdown` likewise, and `npx tsc` got a warning. The workaround here is `npm test`, `npm run build` and `npm run typecheck`. A local binary in `node_modules/.bin` could be checked against its installed version instead.
 
 ## Q-001: Does `acf` collide with a common tool in PATH?
-- **Status:** open, maintainer's choice before 1.0.0. No `bin/acf` in Debian stable or Ubuntu noble, and nothing in Homebrew, Arch, Repology or Chocolatey; Alpine's `acf-core` keeps it off PATH.
+- **Status:** answered on 2026-11-07 by D-030: the alias is dropped. No `bin/acf` in Debian stable or Ubuntu noble, and nothing in Homebrew, Arch, Repology or Chocolatey; Alpine's `acf-core` keeps it off PATH.
 - **Found on 2026-11-06 (research run, from npm and PyPI listings):** several packages ship a binary named `acf`: `@autocodeflow/cli` and `agentic-control-framework` on npm, and `ai-code-forge` on PyPI. The npm package named `acf` is taken (no `bin`). Whichever is installed last wins the name in PATH, so `acf` may run another tool, and another tool's `acf` may run when a user means agentcurfew.
 - **Recommendation:** drop the `acf` alias for 1.0.0 and keep only `agentcurfew`; adding an alias later is easy, removing one after release breaks scripts. If it stays, the docs should say that `agentcurfew` is the reliable name.
 

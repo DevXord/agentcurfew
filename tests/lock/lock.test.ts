@@ -45,7 +45,7 @@ beforeEach(() => {
 
 afterEach(() => rmSync(base, { recursive: true, force: true }));
 
-describe('acf lock', () => {
+describe('agentcurfew lock', () => {
   it('writes the same file twice, and leaves it alone when nothing changed', async () => {
     copy('claude-basic');
     const first = await cli('lock', root);
@@ -152,7 +152,7 @@ describe('acf lock', () => {
   });
 });
 
-describe('acf verify', () => {
+describe('agentcurfew verify', () => {
   beforeEach(async () => {
     copy('claude-basic');
     await cli('lock', root);
@@ -201,7 +201,7 @@ describe('acf verify', () => {
     expect(output).toMatchObject({ schemaVersion: 1, ok: false, changes: [{ type: 'changed', file: 'CLAUDE.md' }] });
   });
 
-  it('is reported by acf scan as drift', async () => {
+  it('is reported by agentcurfew scan as drift', async () => {
     write('CLAUDE.md', 'changed');
     const { code, stdout } = await cli('scan', root);
     expect(code).toBe(EXIT_FAILURE);

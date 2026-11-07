@@ -14,8 +14,7 @@
   },
   "type": "module",
   "bin": {
-    "agentcurfew": "dist/cli.js",
-    "acf": "dist/cli.js"
+    "agentcurfew": "dist/cli.js"
   },
   "exports": {
     ".": {

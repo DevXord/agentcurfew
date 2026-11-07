@@ -30,7 +30,7 @@ describe('agentcurfew CLI', () => {
     expect(code).toBe(EXIT_OK);
     expect(stderr).toBe('');
     expect(stdout).toContain('Usage: agentcurfew');
-    expect(stdout).toContain('acf');
+    expect(stdout).not.toMatch(/\bacf\b/);
     expect(stdout).toContain('--version');
   });
 

@@ -24,7 +24,7 @@ async function cli(...argv: string[]): Promise<{ code: number; stdout: string; s
   return { code, stdout, stderr };
 }
 
-describe('acf scan --inventory', () => {
+describe('agentcurfew scan --inventory', () => {
   it('prints a versioned JSON list', async () => {
     const { code, stdout, stderr } = await cli('scan', fixture('portable-mcp'), '--inventory', '--json');
     expect(code).toBe(EXIT_OK);
@@ -91,7 +91,7 @@ describe('acf scan --inventory', () => {
   });
 });
 
-describe('acf scan', () => {
+describe('agentcurfew scan', () => {
   it('passes a project with nothing to report', async () => {
     const { code, stdout } = await cli('scan', fixture('empty'));
     expect(code).toBe(EXIT_OK);
@@ -150,7 +150,7 @@ describe('acf scan', () => {
   });
 });
 
-describe('acf explain', () => {
+describe('agentcurfew explain', () => {
   it('explains a rule', async () => {
     const { code, stdout } = await cli('explain', 'unpinned-mcp-server');
     expect(code).toBe(EXIT_OK);

@@ -2,6 +2,10 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-07: No `acf` alias
+
+- The maintainer dropped the `acf` alias (D-030, answering Q-001): the package ships only the `agentcurfew` binary, the help text no longer names `acf`, and a test checks that.
+
 ## 2026-11-07: Before 1.0.0, a bug review
 
 A read-only review of the whole code base for hostile input found eleven problems; each was reproduced, fixed with a test, and one more was found while measuring.
