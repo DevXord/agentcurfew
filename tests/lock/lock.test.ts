@@ -120,6 +120,8 @@ describe('agentcurfew lock', () => {
     expect(redact('run --token abcdefgh1234 --verbose')).toBe('run --token <redacted> --verbose');
     expect(redact('https://Zq8vN3xLw7Rt2Kp9Hs4D@api.example.com/mcp')).toBe('https://<redacted>@api.example.com/mcp');
     expect(redact('https://git@example.com/mcp')).toBe('https://git@example.com/mcp');
+    expect(redact('--db=postgres://u:supersecretpw@h/db')).toBe('--db=postgres://u:<redacted>@h/db');
+    expect(redact('npx -y srv --db postgres://u:supersecretpw@h/db --token abcdefgh1234')).toBe('npx -y srv --db postgres://u:<redacted>@h/db --token <redacted>');
     expect(redactWords(['--api-key', 'Zq8vN3xLw7Rt2Kp9Hs4D', '--password', 'hunter2hunter2', '--password-file', './pass', '--port', '8080'])).toEqual(['--api-key', '<redacted>', '--password', '<redacted>', '--password-file', './pass', '--port', '8080']);
   });
 

@@ -100,6 +100,14 @@ describe('limits', () => {
     expect(inventory.problems.map((p) => `${p.code} ${p.file}`)).toEqual(['too-large .claude/skills/c/SKILL.md']);
   });
 
+  it('reads fixed paths past that limit, so filler cannot hide them', () => {
+    for (const name of ['a', 'b']) write(`docs/${name}/CLAUDE.md`, 'x'.repeat(600));
+    write('.vscode/tasks.json', JSON.stringify({ version: '2.0.0', tasks: [{ label: 'setup', command: 'make', runOptions: { runOn: 'folderOpen' } }] }));
+    const inventory = scanInventory({ root, limits: { maxTotalBytes: 1000 } });
+    expect(inventory.components.map((c) => c.file)).toContain('.vscode/tasks.json');
+    expect(inventory.problems.map((p) => `${p.code} ${p.file}`)).toEqual(['too-large docs/b/CLAUDE.md']);
+  });
+
   it('stops at the depth limit, and says so', () => {
     write(`${'d/'.repeat(12)}AGENTS.md`, 'x');
     const inventory = scanInventory({ root, limits: { maxDepth: 5 } });

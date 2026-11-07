@@ -4,6 +4,7 @@ import { redact } from '../../src/lock/redact.ts';
 import { runRules } from '../../src/rules/index.ts';
 import { knownSecrets, pairs } from '../../src/rules/secrets.ts';
 import { DOWNLOAD_EXECUTE, NETWORK, writesTo } from '../../src/rules/shell.ts';
+import { launch } from '../../src/rules/launch.ts';
 
 // Input files are hostile. A pattern that rescans the rest of the text from every start costs quadratic time: these
 // inputs took from seconds to minutes before (see docs/CHANGELOG-dev.md), and take milliseconds in linear time. The
@@ -35,6 +36,10 @@ describe('patterns read hostile text in linear time', () => {
     const write = writesTo(String.raw`CLAUDE\.md`);
     for (const pattern of [...DOWNLOAD_EXECUTE, NETWORK]) expect(timed(() => pattern.pattern.exec(hostile(unit))), pattern.what).toBeLessThan(LIMIT_MS);
     expect(timed(() => write.exec(hostile(unit)))).toBeLessThan(LIMIT_MS);
+  });
+
+  it('launch over many launcher words', () => {
+    expect(timed(() => launch(['x', ...Array.from({ length: 200_000 }, () => 'npm')]))).toBeLessThan(LIMIT_MS);
   });
 
   it.each(['a.', 'eyJ-', '\u200B ', '\u{E0041} ', 'x\u200Bx\n', '--token ', 'https://a@'])('every rule over %j', (unit) => {

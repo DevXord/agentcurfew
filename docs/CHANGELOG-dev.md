@@ -2,6 +2,18 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-07: A second review, of the hardening itself
+
+A fresh read-only review of the fixes above found eleven more problems and a latent one; all were reproduced and fixed with tests.
+
+- **The read budget hid files (high).** Filler of 64 × 2 MB `CLAUDE.md` files used up the 128 MB budget before `.vscode/tasks.json` and `.cursor/mcp.json` were read, so `scan` passed, and the hook asked instead of denying. Fixed paths of the knowledge base (no wildcard) and the text of a write no longer count against the budget; only walked trees and globs do. The hook now denies whenever the scan with the new text has a problem on the file or a folder above it, also one the old file had.
+- **Links the hook did not follow (high).** A write to the file an agent file links to, a write through a link whose target does not exist yet, and `..` after a linked folder were not checked. `physicalPath` reads every link on the way as the file system does, and each project path of the knowledge base is resolved up to its first wildcard and compared with where the write lands.
+- **Unchecked new text (medium).** JSON nested deeper than the parser goes is valid for an agent but was only asked about; a `.claude` that links out of the project gave "nothing new". Both are denied now. A new folder spelled in another case on Windows or macOS is checked as the knowledge base spells it, not only asked about.
+- **More wrappers (medium).** `nice -n 5`, `timeout 60`, `time -p`, `exec -a x`, `stdbuf -oL`, `bash -c -- '…'`, `pwsh -Com` and `npx -p skills skills add` hid installs and launchers; after an unknown wrapper, `launch()` and the hook look from the first launcher word, so such a server is no longer taken for a local command. `cmd /c` scripts keep their backslashes. Both searches are capped, so a padded command stays linear.
+- **Secrets (medium).** Any value starting with `/` was taken for a file path, which hid base64 secrets; now only `./`, `../`, `~/` and drive paths, or keys that name a file, path, address, variable or type, are exempt, which also ends false positives such as `--auth-server-url https://…` and `--api-key-env OPENAI_API_KEY`. Credentials in an address inside a longer word (`--db=postgres://u:pw@h/db`) are redacted in the lock. `ghs_` tokens are matched with any three dotted parts again, in linear time. The shapes are compiled once.
+- `Locator` counted a column too many after an index between the halves of a surrogate pair; no rule produced one yet.
+- 447 tests and 10 fuzz properties pass, with typecheck, `check:pkg`, the smoke test and the self-check.
+
 ## 2026-11-07: No `acf` alias
 
 - The maintainer dropped the `acf` alias (D-030, answering Q-001): the package ships only the `agentcurfew` binary, the help text no longer names `acf`, and a test checks that.

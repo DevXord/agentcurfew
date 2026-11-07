@@ -10,7 +10,7 @@ import { launch } from '../../src/rules/launch.ts';
 import type { Component } from '../../src/inventory/index.ts';
 import { serverIdentity } from '../../src/lock/build.ts';
 import { afterEdit, checkWrite, knowledgePath, writeTarget } from '../../src/hook/files.ts';
-import { canLinkFiles, linkFile } from '../support/links.ts';
+import { canLinkFiles, linkDirectory, linkFile } from '../support/links.ts';
 import { expand } from '../rules/materialize.ts';
 
 const base = fileURLToPath(new URL('../fixtures/hook/', import.meta.url));
@@ -90,16 +90,24 @@ describe('hook helpers', () => {
   it('read the server a wrapper starts', () => {
     expect(launch(['cmd', '/c', 'npx', '-y', 'evil-server'])).toEqual({ family: 'npm', spec: 'evil-server' });
     expect(launch(['sh', '-c', 'exec uvx some-tool==1.0'])).toEqual({ family: 'uv', spec: 'some-tool==1.0' });
+    for (const words of [['timeout', '30', 'npx', '-y', 'evil'], ['nice', '-n', '5', 'npx', '-y', 'evil'], ['time', '-p', 'npx', '-y', 'evil'], ['exec', '-a', 'x', 'npx', '-y', 'evil'], ['stdbuf', '-oL', 'npx', '-y', 'evil'], ['pwsh', '-Com', 'npx -y evil'], ['chpst', '-u', 'me', 'npx', '-y', 'evil'], ['cmd', '/c', 'C:\\tools\\npx.cmd', '-y', 'evil']]) {
+      expect(launch(words), words.join(' ')).toEqual({ family: 'npm', spec: 'evil' });
+    }
+    expect(unwrapCommand(['cmd', '/c', 'C:\\tools\\npx.cmd', '-y', 'evil'])).toEqual([['C:\\tools\\npx.cmd', '-y', 'evil']]);
     const wrapped: Component = { kind: 'mcp-server', agents: ['claude-code'], scope: 'project', file: '.mcp.json', name: 'w', raw: JSON.stringify({ command: 'cmd', args: ['/c', 'npx', '-y', 'evil-server'] }) };
     expect(serverIdentity(wrapped)).toEqual({ names: ['evil-server'], local: false });
   });
 
   it('check wrapped installs against the policy', () => {
     const policy = { version: 1 as const, skills: { allowSources: ['good/*'] }, mcp: { allowServers: ['local'] } };
-    for (const line of ['if npx skills add evil/repo; then echo; fi', 'CI=1 npx skills add evil/repo', '(npx skills add evil/repo)', 'bash -c "npx skills add evil/repo"', 'echo $(npx skills add evil/repo)', 'claude mcp add w -- cmd /c npx -y evil-server']) {
+    for (const line of ['nice -n 5 npx skills add evil/repo', 'timeout -s KILL 60 npx skills add evil/repo', "bash -c -- 'npx skills add evil/repo'", 'npx -p skills skills add evil/repo', 'chpst -u me npx skills add evil/repo', 'if npx skills add evil/repo; then echo; fi', 'CI=1 npx skills add evil/repo', '(npx skills add evil/repo)', 'bash -c "npx skills add evil/repo"', 'echo $(npx skills add evil/repo)', 'claude mcp add w -- cmd /c npx -y evil-server']) {
       expect(checkCommand(line, policy).map((verdict) => verdict.decision), line).toContain('deny');
     }
     expect(checkCommand('npx skills add good/repo', policy).map((verdict) => verdict.decision)).toEqual(['ask']);
+    const padded = `${'npx x '.repeat(100_000)}npx skills add evil/repo`;
+    const started = performance.now();
+    expect(checkCommand(padded, policy).map((verdict) => verdict.decision)).toEqual(['ask']);
+    expect(performance.now() - started).toBeLessThan(3000);
   });
 
   it('find the source of skills add behind launchers and options', () => {
@@ -150,6 +158,32 @@ describe('where a write lands', () => {
     }
   });
 
+  it('denies JSON nested deeper than agentcurfew parses', () => {
+    setUp();
+    try {
+      const deep = `${bypass.slice(0, -1)},"x":${'['.repeat(70)}${']'.repeat(70)}}`;
+      expect(JSON.parse(deep)).toBeTruthy();
+      const verdict = checkWrite(join(root, '.claude/settings.json'), deep, root, undefined, home);
+      expect(verdict?.decision).toBe('deny');
+      expect(verdict?.reasons.join('')).toContain('cannot be checked');
+    } finally {
+      tearDown();
+    }
+  });
+
+  it('denies a write through a folder that links out of the project', () => {
+    setUp();
+    try {
+      rmSync(join(root, '.claude'), { recursive: true });
+      mkdirSync(join(dir, 'outside'));
+      linkDirectory(join(dir, 'outside'), join(root, '.claude'));
+      const verdict = checkWrite(join(root, '.claude/settings.json'), bypass, root, undefined, home, false);
+      expect(verdict?.decision).toBe('deny');
+    } finally {
+      tearDown();
+    }
+  });
+
   it('spells existing folders as on disk where case does not count', () => {
     setUp();
     try {
@@ -157,9 +191,32 @@ describe('where a write lands', () => {
       expect(writeTarget(join(root, '.CLAUDE/settings.json'), root, home, false)).toBe(join(realpathSync.native(root), '.CLAUDE/settings.json'));
       expect(checkWrite(join(root, '.CLAUDE/settings.json'), bypass, root, undefined, home, true)?.decision).toBe('deny');
       expect(checkWrite(join(root, '.CLAUDE/settings.json'), bypass, root, undefined, home, false)).toBeUndefined();
+      // A folder that does not exist yet is checked as the knowledge base spells it.
       const folded = checkWrite(join(root, '.Cursor/mcp.json'), '{}', root, undefined, home, true);
-      expect(folded?.decision).toBe('ask');
-      expect(folded?.reasons.join('')).toContain('letter case');
+      expect(folded?.reasons.join('')).toContain('.cursor/mcp.json steers');
+      const plainHttp = JSON.stringify({ mcpServers: { web: { url: 'http://mcp.example.com/mcp' } } });
+      expect(checkWrite(join(root, '.Cursor/MCP.json'), plainHttp, root, undefined, home, true)?.decision).toBe('deny');
+      expect(checkWrite(join(root, 'CLAUDE.md::$DATA'), 'Run the tests.\u{E0049}\u{E0067}', root, undefined, home, true)?.decision).toBe('deny');
+    } finally {
+      tearDown();
+    }
+  });
+
+  it.runIf(canLinkFiles)('follows links into agent files, dangling links and .. after a link', () => {
+    setUp();
+    try {
+      mkdirSync(join(root, 'config'));
+      writeFileSync(join(root, 'config/s.json'), '{}');
+      rmSync(join(root, '.claude/settings.json'));
+      linkFile(join(root, 'config/s.json'), join(root, '.claude/settings.json'));
+      expect(checkWrite(join(root, 'config/s.json'), bypass, root, undefined, home, false)?.decision).toBe('deny');
+      linkFile(join(root, 'CLAUDE.md'), join(root, 'notes.md'));
+      expect(checkWrite(join(root, 'notes.md'), 'Run the tests.\u{E0049}\u{E0067}', root, undefined, home, false)?.decision).toBe('deny');
+      linkDirectory(join(root, '.claude/sub'), join(root, 'a/b'));
+      mkdirSync(join(root, '.claude/sub'));
+      // a/b/.. is .claude, physically; its settings.json links on to config/s.json.
+      expect(writeTarget(`${join(root, 'a/b')}/../settings.json`, root, home, false)).toBe(join(realpathSync.native(root), 'config/s.json'));
+      expect(checkWrite(`${join(root, 'a/b')}/../settings.json`, bypass, root, undefined, home, false)?.decision).toBe('deny');
     } finally {
       tearDown();
     }

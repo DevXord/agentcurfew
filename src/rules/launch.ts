@@ -46,9 +46,21 @@ export function launch(words: readonly string[]): Launch | undefined {
   for (const inner of unwrapCommand(words)) {
     const started = launchOne(inner);
     if (started !== undefined) return started;
+    // A wrapper agentcurfew does not know, such as chpst or a script of its own, may still pass its arguments to a
+    // launcher: read from the first launcher word on, so that the server is not taken for a local command.
+    // At most 32 tries: each reads the rest of the words, and a padded command must not cost quadratic time.
+    let tries = 0;
+    for (let index = 1; index < inner.length && tries < 32; index++) {
+      if (!LAUNCHERS.has(program(inner[index] ?? ''))) continue;
+      tries++;
+      const later = launchOne(inner.slice(index));
+      if (later !== undefined) return later;
+    }
   }
   return undefined;
 }
+
+const LAUNCHERS = new Set(['npx', 'bunx', 'pnpx', 'npm', 'pnpm', 'yarn', 'bun', 'uvx', 'uv', 'pipx', 'docker', 'podman']);
 
 function launchOne(words: readonly string[]): Launch | undefined {
   const name = program(words[0] ?? '');

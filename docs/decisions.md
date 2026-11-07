@@ -241,3 +241,9 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 
 ## Q-005: TypeScript 7?
 - **Status:** open, maintainer's choice. `tsdown` 0.23.5 declares `^7.0.0` as a supported peer; whether 0.23.2 and the d.ts build work with it was not tested.
+
+## Q-013: Should a file that could not be read fail `scan`?
+- **Status:** open, maintainer's choice. Today inventory problems (`too-large`, `too-deep`, `unreadable`, `unparsable`, `outside-project`, `too-many-entries`) are listed but never change the exit code (decision of phase 3).
+- **Why it matters:** a hostile repository can pad a walked tree, such as many large `CLAUDE.md` files or a skill folder, so that a later skill or rule file is past the 128 MB read budget, or make a file larger than 2 MB, and `scan` then passes without checking it. Fixed config paths are always read (2026-11-07), so this only hides walked and globbed files; the hook already denies such writes.
+- **Options:** (a) keep it as it is; (b) exit with 1 when a file of the knowledge base could not be read (`too-large`, `too-deep`, `unreadable`); (c) the same through a policy setting, off by default.
+- **Recommendation:** (b), since a file that was not checked should not pass in CI; `unparsable` and `outside-project` could stay warnings.

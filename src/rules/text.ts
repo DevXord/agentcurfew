@@ -11,7 +11,8 @@ function codePoints(text: string, from: number, to: number): number {
   let count = 0;
   for (let index = from; index < to; index++) {
     const unit = text.charCodeAt(index);
-    if (unit < 0xdc00 || unit > 0xdfff || index === from || !isHigh(text.charCodeAt(index - 1))) count++;
+    // The second half of a pair is not counted, also when the count starts between the halves.
+    if (unit < 0xdc00 || unit > 0xdfff || index === 0 || !isHigh(text.charCodeAt(index - 1))) count++;
   }
   return count;
 }

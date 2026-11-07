@@ -1,6 +1,6 @@
-import { readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { lstatSync, readdirSync, readFileSync, readlinkSync, realpathSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, parse, relative, resolve, sep } from 'node:path';
 import { analyzeProject } from '../analyze.ts';
 import { knownPaths } from '../doctor/paths.ts';
 import { DEFAULT_LIMITS } from '../inventory/files.ts';
@@ -60,14 +60,64 @@ function below(base: string, absolute: string, ignoreCase: boolean): string[] | 
   return absolute.split(sep).slice(-inside.split(sep).length);
 }
 
+const MAX_LINKS = 40;
+const SEPARATORS = sep === '\\' ? /[\\/]+/ : /\/+/;
+
 /**
- * Where a write lands: each folder and file that exists is spelled as it is on disk, and links are followed, so that a
- * write to docs/x.json that links to .claude/settings.json, or to .CLAUDE/settings.json on Windows or macOS, is seen
- * as a write to .claude/settings.json. Only the project and the home directory are walked; nothing is changed.
+ * The path a write to an absolute path lands on, as the file system resolves it: every link on the way is read, the
+ * last one too even when its target does not exist yet (the write creates it), and .. is applied after the link before
+ * it, so a/link/../x lands next to the link's target. Nothing is created or followed out of curiosity: links are read
+ * with readlink only.
+ */
+export function physicalPath(path: string): string {
+  const top = parse(path).root;
+  let current = top;
+  const pending = path.slice(top.length).split(SEPARATORS).filter((part) => part !== '');
+  let links = 0;
+  while (pending.length > 0) {
+    const name = pending.shift() as string;
+    if (name === '.') continue;
+    if (name === '..') {
+      current = dirname(current);
+      continue;
+    }
+    const next = join(current, name);
+    let link = false;
+    try {
+      link = lstatSync(next).isSymbolicLink();
+    } catch {
+      // Not there yet: the rest is created as written.
+    }
+    if (link && links < MAX_LINKS) {
+      links++;
+      let target: string;
+      try {
+        target = readlinkSync(next);
+      } catch {
+        current = next;
+        continue;
+      }
+      const targetTop = isAbsolute(target) ? parse(target).root : '';
+      if (targetTop !== '') current = targetTop;
+      pending.unshift(...target.slice(targetTop.length).split(SEPARATORS).filter((part) => part !== ''));
+      continue;
+    }
+    current = next;
+  }
+  return current;
+}
+
+/**
+ * Where a write lands: links are followed as the file system does (physicalPath), and each folder and file that exists
+ * is spelled as it is on disk, so that a write to docs/x.json that links to .claude/settings.json, or to
+ * .CLAUDE/settings.json on Windows or macOS, is seen as a write to .claude/settings.json. Only the project and the home
+ * directory are listed; nothing is changed. An NTFS ::$DATA suffix names the file itself and is dropped.
  */
 export function writeTarget(file: string, root: string, home: string = homedir(), ignoreCase: boolean = CASE_INSENSITIVE): string {
-  const absolute = isAbsolute(file) ? resolve(file) : resolve(root, file);
-  for (const base of [root, home]) {
+  const plain = file.replace(/:+\$DATA$/i, '');
+  // Not resolve(): it would apply .. before the links are read.
+  const absolute = physicalPath(isAbsolute(plain) ? plain : `${root}${sep}${plain}`);
+  for (const base of [real(root), real(home), root, home]) {
     const segments = below(base, absolute, ignoreCase);
     if (segments === undefined) continue;
     let current = real(base);
@@ -86,7 +136,43 @@ export function writeTarget(file: string, root: string, home: string = homedir()
     }
     return join(real(current), ...segments.slice(index));
   }
-  return absolute;
+  return real(absolute);
+}
+
+/**
+ * The path of the knowledge base that a landed file is reached by, when that path runs through a link: a write to
+ * config/s.json where .claude/settings.json links to it is a write to .claude/settings.json. Each project path is
+ * resolved up to its first wildcard, and the rest is matched as a glob.
+ */
+function linkedKnowledgePath(landed: string, root: string, ignoreCase: boolean): string | undefined {
+  const fold = (text: string): string => (ignoreCase ? text.toLowerCase() : text);
+  const patterns = [...OWN_FILES, ...knownPaths(knowledgeBase).filter((known) => known.entry.scope === 'project').map((known) => known.entry.path)];
+  for (const pattern of patterns) {
+    const parts = pattern.split('/');
+    const wild = parts.findIndex((part) => /[*?]/.test(part));
+    const prefix = (wild === -1 ? parts : parts.slice(0, wild)).join('/');
+    if (prefix === '') continue;
+    const resolved = real(physicalPath(`${root}${sep}${prefix.split('/').join(sep)}`));
+    const inside = relative(fold(resolved), fold(landed));
+    if (inside.startsWith('..') || isAbsolute(inside)) continue;
+    const rest = inside === '' ? [] : landed.split(sep).slice(-inside.split(sep).length);
+    const candidate = [prefix, ...rest].join('/');
+    if (globMatch(pattern, candidate)) return candidate;
+  }
+  return undefined;
+}
+
+/** A path spelled in the letter case of the knowledge base, where a pattern matches it ignoring case and has no **. */
+function knowledgeCase(path: string): string | undefined {
+  for (const pattern of [...OWN_FILES, ...knownPaths(knowledgeBase).filter((known) => known.entry.scope === 'project').map((known) => known.entry.path)]) {
+    if (pattern.includes('**') || !globMatch(pattern.toLowerCase(), path.toLowerCase())) continue;
+    const parts = path.split('/');
+    const literal = pattern.split('/');
+    // A pattern that names a folder also matches everything below it; segments past the pattern keep their case.
+    const spelled = parts.map((part, index) => (literal[index] !== undefined && !/[*?]/.test(literal[index]) ? literal[index] : part)).join('/');
+    if (agentsOfFile(spelled).length > 0) return spelled;
+  }
+  return undefined;
 }
 
 function key(finding: Finding): string {
@@ -114,17 +200,19 @@ export function afterEdit(current: string | undefined, oldText: string, newText:
  */
 export function checkWrite(file: string, newText: string | { why: string }, root: string, now?: Date, home: string = homedir(), ignoreCase: boolean = CASE_INSENSITIVE): Verdict | undefined {
   // The file the write lands on, through links and letter case, when that is a file that steers an agent; else the path as given.
-  const landed = knowledgePath(writeTarget(file, root, home, ignoreCase), real(root), real(home));
-  const given = knowledgePath(file, root, home);
-  const path = landed !== undefined && agentsOfFile(landed).length > 0 ? landed : given;
+  const target = writeTarget(file, root, home, ignoreCase);
+  const realRoot = real(root);
+  const candidates = [knowledgePath(target, realRoot, real(home)), linkedKnowledgePath(target, realRoot, ignoreCase), knowledgePath(file.replace(/:+\$DATA$/i, ''), root, home)];
+  let path = candidates.find((candidate) => candidate !== undefined && agentsOfFile(candidate).length > 0) ?? candidates.find((candidate) => candidate !== undefined);
   if (path === undefined) return undefined;
-  const agents = agentsOfFile(path);
-  if (agents.length === 0) {
-    // A folder that does not exist yet, spelled in another case, as .CLAUDE/skills/x/SKILL.md: the agent may read it.
-    const folded = ignoreCase ? agentsOfFile(path, true) : [];
-    if (folded.length === 0) return undefined;
-    return { decision: 'ask', reasons: [`agentcurfew: ${quote(path, 120)} differs only in letter case from a file that steers ${folded.join(', ')}, and this file system ignores case, so the change could not be checked.`] };
+  if (agentsOfFile(path).length === 0 && ignoreCase) {
+    // A folder that does not exist yet, spelled in another case, as .CLAUDE/skills/x/SKILL.md: check it as the agent reads it.
+    const spelled = knowledgeCase(path);
+    if (spelled === undefined && agentsOfFile(path, true).length > 0) return { decision: 'ask', reasons: [`agentcurfew: ${quote(path, 120)} differs only in letter case from a file that steers ${agentsOfFile(path, true).join(', ')}, and this file system ignores case, so the change could not be checked.`] };
+    path = spelled ?? path;
   }
+  const agents = agentsOfFile(path);
+  if (agents.length === 0) return undefined;
   const what = `${quote(path, 120)} steers ${agents.join(', ')}`;
   if (typeof newText !== 'string') return { decision: 'ask', reasons: [`agentcurfew: ${what}, and the change could not be checked: ${newText.why}.`] };
   // Text past the scanner's limit would be skipped, and the hook would see nothing in it: padding must not turn a deny into an ask.
@@ -141,15 +229,17 @@ export function checkWrite(file: string, newText: string | { why: string }, root
   const options = now === undefined ? {} : { now };
   const before = analyzeProject(root, options);
   const after = analyzeProject(root, { ...options, overlay: new Map([[path, newText]]) });
-  const known = new Set(before.inventory.problems.map((problem) => `${problem.code}\0${problem.file}`));
-  const problem = after.inventory.problems.find((item) => item.file === path && !known.has(`${item.code}\0${item.file}`));
-  if (problem !== undefined && problem.code !== 'unparsable') return { decision: 'deny', reasons: [`agentcurfew: ${what}, and agentcurfew could not read the new text (${problem.code}), so it cannot be checked.`] };
+  // Any place the scanner could not read on the way to the new text means the text was not checked: too large, too
+  // deep, a link out of the project in a folder above it, or text agentcurfew cannot parse (an agent may still load it,
+  // for example JSON nested deeper than the parser goes). It counts even when the old file had the same problem.
+  const problem = after.inventory.problems.find((item) => item.file === path || path.startsWith(`${item.file}/`));
+  if (problem !== undefined) return { decision: 'deny', reasons: [`agentcurfew: ${what}, and agentcurfew could not read the new text (${problem.code}${problem.file === path ? '' : ` at ${quote(problem.file, 80)}`}), so it cannot be checked.`] };
   const seen = new Set(before.findings.map(key));
   const added = after.findings.filter((finding) => !IGNORED_RULES.has(finding.rule) && concerns(finding, path) && !seen.has(key(finding)));
   const serious = added.filter((finding) => atLeast(finding.level, 'high') || finding.rule === 'out-of-policy');
   const describe = (finding: Finding) => `${finding.rule} (${finding.level}) in ${quote(finding.file, 80)}: ${finding.message}`;
   if (serious.length > 0) return { decision: 'deny', reasons: [`agentcurfew: ${what}, and the change would add: ${serious.map(describe).join('; ')}.`] };
-  const minor = problem !== undefined ? ' agentcurfew could not parse the new text, so the rules did not check it.' : added.length > 0 ? ` It would add: ${added.map(describe).join('; ')}.` : ' The rules found nothing new in it.';
+  const minor = added.length > 0 ? ` It would add: ${added.map(describe).join('; ')}.` : ' The rules found nothing new in it.';
   return { decision: 'ask', reasons: [`agentcurfew: ${what}.${minor}`] };
 }
 

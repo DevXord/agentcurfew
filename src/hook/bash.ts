@@ -28,9 +28,17 @@ export function skillsSource(words: readonly string[]): string | undefined {
   const launcher = LAUNCHERS.find((prefix) => prefix.every((part, index) => words[index] === part));
   if (launcher === undefined) return undefined;
   let index = launcher.length;
-  while (words[index]?.startsWith('-')) index++;
+  // npx -p skills skills add: the package comes with -p, and the word after the options is its command.
+  let fromOption: string | undefined;
+  while (words[index]?.startsWith('-')) {
+    const [option, inline] = (words[index] as string).split('=', 2) as [string, string | undefined];
+    const takesValue = (option === '-p' || option === '--package') && inline === undefined;
+    if (option === '-p' || option === '--package') fromOption = inline ?? words[index + 1];
+    index += takesValue ? 2 : 1;
+  }
   const name = words[index] ?? '';
-  if (name !== installer.packageName && !name.startsWith(`${installer.packageName}@`)) return undefined;
+  const isInstaller = (word: string | undefined) => word !== undefined && (word === installer.packageName || word.startsWith(`${installer.packageName}@`));
+  if (!isInstaller(name) && !(isInstaller(fromOption) && name === installer.packageName)) return undefined;
   if (words[index + 1] === '--') index++;
   if (words[index + 1] !== installer.addCommand) return undefined;
   const rest = words.slice(index + 2);
@@ -112,16 +120,37 @@ function checkMcpAdd(added: NonNullable<ReturnType<typeof addedServer>>, policy:
 }
 
 let writePattern: Matcher | undefined;
+const MAX_STARTS = 32;
+let starters: ReadonlySet<string> | undefined;
+
+/** The words an install command can begin with: the launchers of skills add and the agents' mcp add commands. */
+function firstWords(): ReadonlySet<string> {
+  starters ??= new Set([...LAUNCHERS.map((launcher) => launcher[0] as string), ...mcpAddFacts().flatMap(({ mcpAdd }) => [mcpAdd.command[0], mcpAdd.jsonCommand[0]]).filter((word): word is string => word !== undefined)]);
+  return starters;
+}
 
 /** A Bash command line: skills and MCP servers being added, and shell writes to the files that steer agents. */
 export function checkCommand(line: string, policy: Policy | undefined): Verdict[] {
   const verdicts: Verdict[] = [];
   // Each command with its wrappers taken off: CI=1 npx skills add, (npx skills add) and bash -c "npx skills add" are checked alike.
+  // A wrapper agentcurfew does not know may still run the install with the words after it, so every word that can begin
+  // one is tried; at most MAX_STARTS of them, since each try reads the rest of the command.
+  const first = firstWords();
+  let tries = 0;
   for (const words of commands(line).flatMap((command) => unwrapCommand(command))) {
-    const source = skillsSource(words);
-    if (source !== undefined) verdicts.push(checkSkillsAdd(source, policy));
-    const added = addedServer(words);
-    if (added !== undefined) verdicts.push(checkMcpAdd(added, policy));
+    for (let start = 0; start < words.length; start++) {
+      if (start > 0 && !first.has(words[start] ?? '')) continue;
+      if (++tries > MAX_STARTS) {
+        verdicts.push({ decision: 'ask', reasons: ['agentcurfew: this command line is too long and repetitive to check for installs of skills and MCP servers.'] });
+        return verdicts;
+      }
+      const rest = words.slice(start);
+      const source = skillsSource(rest);
+      const added = source === undefined ? addedServer(rest) : undefined;
+      if (source !== undefined) verdicts.push(checkSkillsAdd(source, policy));
+      if (added !== undefined) verdicts.push(checkMcpAdd(added, policy));
+      if (source !== undefined || added !== undefined) break;
+    }
   }
   writePattern ??= writesTo(`(?:${agentFilePattern(knowledgeBase)}|agentcurfew\\.policy\\.json|agentcurfew\\.lock|skills-lock\\.json)`);
   if (writePattern.test(line)) verdicts.push({ decision: 'ask', reasons: ['agentcurfew: this command writes to a file that steers an agent, and its new content cannot be checked before it runs.'] });

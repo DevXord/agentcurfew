@@ -6,7 +6,7 @@ import type { Rule } from '../../src/rules/index.ts';
 import { maskSecret, quote } from '../../src/rules/mask.ts';
 import { toolList } from '../../src/rules/rules/broad-shell-permission.ts';
 import { knownSecrets, namedSecret, pairs } from '../../src/rules/secrets.ts';
-import { position } from '../../src/rules/text.ts';
+import { at, position } from '../../src/rules/text.ts';
 import { knowledgeBase } from '../../src/knowledge/index.ts';
 
 const component = (raw: string, extra: Partial<Component> = {}): Component => ({ kind: 'context-file', agents: ['claude-code'], scope: 'project', file: 'CLAUDE.md', name: 'CLAUDE.md', raw, ...extra });
@@ -20,6 +20,19 @@ describe('rule helpers', () => {
 
   it('count columns in code points', () => {
     expect(position('ab\n😀x', 5)).toEqual({ line: 2, column: 2 });
+    // A second index after one between the halves of a pair counts on correctly.
+    const source = { text: 'a\u{1F600}bcd', whole: true };
+    expect(at(source, 2)).toEqual({ line: 1, column: 3 });
+    expect(at(source, 5)).toEqual({ line: 1, column: 5 });
+  });
+
+  it('take what names or points at a secret for no secret', () => {
+    expect(namedSecret('AWS_SECRET_ACCESS_KEY', '/wJalrXUtnFEMIK7MDENGbPxRfiCYEXAMPLEKEY')).toBe('/wJa… (39 characters)');
+    for (const [key, value] of [['token-file', '/run/secrets/token'] as const, ['auth-server-url', 'https://auth.example.com'], ['api-key-env', 'OPENAI_API_KEY'], ['cookie-jar', 'cookies.txt'], ['session-dir', 'sessions/default'], ['auth-type', 'oauth-client'], ['auth-provider', 'github-oauth'], ['password', '~/.config/pass']]) {
+      expect(namedSecret(key, value), `${key} ${value}`).toBeUndefined();
+    }
+    expect(knownSecrets(`gh${'s'}_123456_abcdefgh.ijklmnop.qrstuvwx`).map((match) => match.what)).toEqual(['GitHub token']);
+    expect(knownSecrets(`token=gh${'s'}_99_aaaa.bbbb.cccc`).map((match) => match.what)).toEqual(['GitHub token']);
   });
 
   it('split tool lists the way Claude Code reads allowed-tools', () => {

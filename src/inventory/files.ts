@@ -19,6 +19,8 @@ export interface Found {
   /** The path as reported. */
   file: string;
   area: Area;
+  /** Read without counting against maxTotalBytes: a fixed path of the knowledge base. */
+  exempt?: boolean;
 }
 
 type Kind = 'file' | 'directory';
@@ -229,9 +231,11 @@ export class ScanFiles {
   }
 
   /** Whether a file of this size may be read, within the limit for one file and the limit for the scan; counts it if so. */
-  #fits(size: number): boolean {
+  #fits(size: number, exempt: boolean): boolean {
     const total = this.#limits.maxTotalBytes ?? DEFAULT_LIMITS.maxTotalBytes ?? Infinity;
-    if (size > this.#limits.maxFileBytes || this.#bytes + size > total) return false;
+    if (size > this.#limits.maxFileBytes) return false;
+    if (exempt) return true;
+    if (this.#bytes + size > total) return false;
     this.#bytes += size;
     return true;
   }
@@ -253,13 +257,14 @@ export class ScanFiles {
   #readOnce(found: Found): Buffer | ProblemCode {
     const overlaid = this.#overlay.get(found.path);
     if (overlaid !== undefined) {
-      if (!this.#fits(overlaid.length)) {
+      // The text a write would bring is always read: the hook must not lose it to the budget.
+      if (!this.#fits(overlaid.length, true)) {
         return 'too-large';
       }
       return overlaid;
     }
     try {
-      if (!this.#fits(statSync(found.path).size)) {
+      if (!this.#fits(statSync(found.path).size, found.exempt === true)) {
         return 'too-large';
       }
       return readFileSync(found.path);

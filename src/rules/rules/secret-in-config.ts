@@ -1,5 +1,5 @@
 import { mcpEntry } from '../mcp.ts';
-import { flagSecrets, knownSecrets, namedSecret, pairs, userNameSecret } from '../secrets.ts';
+import { addresses, flagSecrets, knownSecrets, namedSecret, pairs, userNameSecret } from '../secrets.ts';
 import { at, entryValue, isWholeFile, strings, texts } from '../text.ts';
 import type { Rule, RuleHit } from '../types.ts';
 
@@ -57,9 +57,7 @@ export const secretInConfig: Rule = {
         const masked = namedSecret(pair.key.replace(/^-+/, ''), pair.value);
         if (masked !== undefined) add(`${pair.key.replace(/\p{C}/gu, '?')} is given a literal value: ${masked}`);
       }
-      // From the start of a run of scheme characters only: \b[a-z][a-z0-9+.-]*: would rescan a.a.a.a... from every letter.
-      for (const match of line.matchAll(/(?<![a-z0-9+.-])[0-9+.-]*[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/gi)) {
-        const url = match[0].replace(/^[0-9+.-]+/, '');
+      for (const { url } of addresses(line)) {
         // The server's own address is reported above.
         if (entry?.urls.includes(url) === true) continue;
         const problem = urlCredentials(url);

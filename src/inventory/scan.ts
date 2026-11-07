@@ -104,7 +104,9 @@ class Scan {
     const found: Found[] = [];
     for (const match of located === undefined ? [] : this.files.match(located.area, located.segments, walk)) {
       if (!walk || !this.files.isDirectory(match)) {
-        found.push(match);
+        // A path without wildcards names one file per agent, so the files read this way are few: they do not count
+        // against the read budget, and filler elsewhere cannot hide them.
+        found.push(located?.segments.some((segment) => segment.includes('*')) === false ? { ...match, exempt: true } : match);
         continue;
       }
       const extension = EXTENSIONS[entry.format];

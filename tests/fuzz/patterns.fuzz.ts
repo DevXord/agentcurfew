@@ -15,6 +15,7 @@ const OLD: Record<string, RegExp> = {
   'runs an encoded PowerShell command': /\b(?:pwsh|powershell)(?:\.exe)?\b[^\n]*[^\S\n]-(?:e|ec|enc|encodedcommand)[^\S\n]+[A-Za-z0-9+/=]{16,}/i,
 };
 const OLD_JWT = /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
+const OLD_GHS = /\bghs_\d+_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
 const OLD_SK = /\bsk-(?!ant-)(?=[A-Za-z_-]*\d)[A-Za-z0-9_-]{20,}/g;
 const OLD_COPY = (target: string) => new RegExp(String.raw`\b(?:cp|mv|ln|copy|move|Set-Content|Add-Content|Out-File)\b[^;&|\n]*[^\S\n]["']?(?:[^\s"'|;&<>]*/)?${target}["']?(?=$|[\s;&|)])`, 'i');
 
@@ -41,14 +42,14 @@ describe('linear patterns', () => {
     );
   });
 
-  it('find the JSON Web Tokens and sk- keys the old expressions found', () => {
+  it('find the JSON Web Tokens, ghs_ tokens and sk- keys the old expressions found', () => {
     const text = pieces(['eyJ', 'abcdefgh', '12', '.', '-', '_', ' ', 'sk-', 'ant-', 'x', 'ghs_1_']);
     fc.assert(
       fc.property(text, (input) => {
         const found = knownSecrets(input);
         const at = (what: string) => found.filter((match) => match.what === what).map((match) => match.index);
         const old = (pattern: RegExp) => [...input.matchAll(pattern)].map((match) => match.index);
-        return JSON.stringify(at('JSON Web Token')) === JSON.stringify(old(OLD_JWT)) && JSON.stringify(at('sk- API key (OpenAI and others)')) === JSON.stringify(old(OLD_SK));
+        return JSON.stringify(at('JSON Web Token')) === JSON.stringify(old(OLD_JWT)) && JSON.stringify(at('GitHub token')) === JSON.stringify(old(OLD_GHS)) && JSON.stringify(at('sk- API key (OpenAI and others)')) === JSON.stringify(old(OLD_SK));
       }),
       { numRuns: 5000 },
     );
