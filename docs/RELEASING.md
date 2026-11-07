@@ -8,7 +8,7 @@ Facts below come from npm's documentation sources (`npm/documentation`, `content
 
 ## Once, before the first release
 
-1. **Name.** Check that `agentcurfew` is still free: `npm view agentcurfew` must answer E404 (it did on 2026-11-06). Check that no common tool installs a binary called `acf` (Q-001); if one does, drop the `acf` entry from `bin` in `package.json`.
+1. **Name.** Check that `agentcurfew` is still free: `npm view agentcurfew` must answer E404 (it did on 2026-11-06).
 2. **npm account.** Sign in to npmjs.com with two-factor authentication on.
 3. **Trusted publisher.** In the package settings on npmjs.com, add a trusted publisher: GitHub Actions, organization or user `DevXord`, repository `agentcurfew`, workflow `release.yml`, environment `npm`. A new configuration must see a successful publish within 2 days, or it expires: add it on the day of the release.
    - The documentation does not say whether this works for a package that does not exist yet. If npmjs.com offers no settings for a package that was never published, stop and decide with Claude: the alternative is a first publish of the same tag with a granular token that can publish only this package and expires within a day, stored as a secret of the environment `npm` and deleted right after; the workflow would need `NODE_AUTH_TOKEN` for that one run.

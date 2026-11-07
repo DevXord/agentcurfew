@@ -96,7 +96,7 @@ describe('hook helpers', () => {
 
   it('check wrapped installs against the policy', () => {
     const policy = { version: 1 as const, skills: { allowSources: ['good/*'] }, mcp: { allowServers: ['local'] } };
-    for (const line of ['CI=1 npx skills add evil/repo', '(npx skills add evil/repo)', 'bash -c "npx skills add evil/repo"', 'echo $(npx skills add evil/repo)', 'claude mcp add w -- cmd /c npx -y evil-server']) {
+    for (const line of ['if npx skills add evil/repo; then echo; fi', 'CI=1 npx skills add evil/repo', '(npx skills add evil/repo)', 'bash -c "npx skills add evil/repo"', 'echo $(npx skills add evil/repo)', 'claude mcp add w -- cmd /c npx -y evil-server']) {
       expect(checkCommand(line, policy).map((verdict) => verdict.decision), line).toContain('deny');
     }
     expect(checkCommand('npx skills add good/repo', policy).map((verdict) => verdict.decision)).toEqual(['ask']);

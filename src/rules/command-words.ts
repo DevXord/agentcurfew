@@ -49,7 +49,7 @@ export function commands(line: string): string[][] {
 }
 
 // Words that run the rest of the command line as a command of its own.
-const PREFIXES = new Set(['exec', 'command', 'nohup', 'time', 'nice', '!', '{', 'then', 'do', 'else']);
+const PREFIXES = new Set(['exec', 'command', 'nohup', 'time', 'nice', '!', '{', 'if', 'elif', 'while', 'until', 'then', 'do', 'else']);
 const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'fish', 'ash']);
 const SUDO_VALUES = new Set(['-u', '--user', '-g', '--group', '-C', '--close-from', '-D', '--chdir', '-h', '--host', '-p', '--prompt', '-r', '--role', '-t', '--type', '-T', '--command-timeout', '-U', '--other-user']);
 const ENV_VALUES = new Set(['-u', '--unset', '-C', '--chdir']);
