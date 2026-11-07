@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="agentcurfew">
+  <defs><mask id="bite"><rect width="64" height="64" fill="#fff"/><circle cx="55.5" cy="37.5" r="7.5" fill="#000"/></mask></defs>
+  <rect width="64" height="64" rx="14" fill="#6d28d9"/>
+  <path d="M30 9L49 19.5V41.5L30 52L21.5 47.3L10.5 53.5L14.8 43.6L11 41.5V19.5Z" fill="#fff" stroke="#fff" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M14 21L30 12.2L46 21L30 29.8Z" fill="#ede5fd"/>
+  <ellipse cx="22.5" cy="37" rx="3" ry="4.3" fill="#6d28d9"/>
+  <ellipse cx="33.5" cy="37" rx="3" ry="4.3" fill="#6d28d9"/>
+  <path d="M52 5.5Q52.63 9.37 56.5 10Q52.63 10.63 52 14.5Q51.37 10.63 47.5 10Q51.37 9.37 52 5.5Z" fill="#fbbf24"/>
+  <circle cx="46" cy="46" r="13.75" fill="#6d28d9"/>
+  <circle cx="46" cy="46" r="12" fill="#fbbf24" mask="url(#bite)"/>
+  <path d="M44 40.5V47L48.5 50" fill="none" stroke="#6d28d9" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

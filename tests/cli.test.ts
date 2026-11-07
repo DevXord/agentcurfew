@@ -17,18 +17,28 @@ async function cli(...argv: string[]): Promise<{ code: number; stdout: string; s
 }
 
 describe('agentcurfew CLI', () => {
-  it.each([[[]], [['--help']], [['-h']], [['help']]])('prints help for %j', async (argv) => {
+  it('greets with the common commands when run without arguments', async () => {
+    const { code, stdout, stderr } = await cli();
+    expect(code).toBe(EXIT_OK);
+    expect(stderr).toBe('');
+    expect(stdout).toContain('Common commands:');
+    expect(stdout).toContain('agentcurfew help');
+  });
+
+  it.each([[['--help']], [['-h']], [['help']]])('prints help for %j', async (argv) => {
     const { code, stdout, stderr } = await cli(...argv);
     expect(code).toBe(EXIT_OK);
     expect(stderr).toBe('');
     expect(stdout).toContain('Usage: agentcurfew');
-    expect(stdout).toContain('acf');
+    expect(stdout).not.toMatch(/\bacf\b/);
     expect(stdout).toContain('--version');
   });
 
-  it('does not offer commands that do not exist yet as working', async () => {
+  it('lists the MCP server and the hook as commands', async () => {
     const { stdout } = await cli('--help');
-    expect(stdout).toMatch(/planned/i);
+    expect(stdout).toMatch(/^ {2}mcp /m);
+    expect(stdout).toMatch(/^ {2}hook /m);
+    expect(stdout).not.toMatch(/planned/i);
   });
 
   it.each([['--version'], ['-v']])('prints the version of package.json for %s', async (flag) => {
@@ -46,14 +56,24 @@ describe('agentcurfew CLI', () => {
     expect(stdout).toBe('');
     expect(stderr).toContain('frobnicate');
     expect(stderr).toContain('command line');
-    expect(stderr).toContain('agentcurfew --help');
+    expect(stderr).toContain('fix: run agentcurfew help');
+  });
+
+  it('suggests the closest command and option', async () => {
+    expect((await cli('scna')).stderr).toContain('fix: did you mean scan?');
+    const option = await cli('scan', '--jsn');
+    expect(option.code).toBe(EXIT_USAGE);
+    expect(option.stderr).toContain('unknown option for scan: --jsn');
+    expect(option.stderr).toContain('fix: did you mean --json? run agentcurfew help scan to see its options');
+    expect((await cli('explain', 'hiden-unicode')).stderr).toContain('fix: did you mean hidden-unicode?');
+    expect((await cli('help', 'doctr')).stderr).toContain('did you mean doctor?');
   });
 
   it('rejects an unknown option the same way', async () => {
     const { code, stderr } = await cli('--frobnicate');
     expect(code).toBe(EXIT_USAGE);
     expect(stderr).toContain('--frobnicate');
-    expect(stderr).toContain('agentcurfew --help');
+    expect(stderr).toContain('fix: run agentcurfew help');
   });
 
   it('does not echo control characters from the command line', async () => {

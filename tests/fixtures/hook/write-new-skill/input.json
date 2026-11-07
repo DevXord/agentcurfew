@@ -1,0 +1,10 @@
+{
+  "session_id": "s",
+  "cwd": "{{root}}",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Write",
+  "tool_input": {
+    "file_path": "{{root}}/.claude/skills/helper/SKILL.md",
+    "content": "---\nname: helper\ndescription: Formats code.\n---\n\nFormat the code.{U+E0049}{U+E0067}{U+E006E}\n"
+  }
+}

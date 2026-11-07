@@ -1,0 +1,124 @@
+name: ci
+
+on:
+  push:
+    branches: [main, main-wopcok]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Installs use the npm that package.json pins: Node 22 ships npm 10, which ignores min-release-age in .npmrc (Q-009).
+env:
+  NPM: npx --yes npm@11.21.1
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - run: $NPM ci --ignore-scripts --no-audit --no-fund
+      - run: npm test
+      - run: npm run fuzz
+      - run: npm run typecheck
+      - run: npm run check:pkg
+
+  # Paths, links and execute bits differ on Windows and macOS, and agentcurfew reads files of every platform.
+  test-os:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: $NPM ci --ignore-scripts --no-audit --no-fund
+      - run: npm test
+      - run: npm run fuzz
+      - run: scripts/smoke.sh dist/cli.js
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: $NPM ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      # What a user gets: the bundle, package.json and the runtime dependencies from the lockfile, nothing else.
+      - name: Assemble the runtime
+        run: |
+          mkdir runtime
+          cp -R dist package.json package-lock.json .npmrc runtime/
+          cd runtime && $NPM ci --omit=dev --ignore-scripts --no-audit --no-fund
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: runtime
+          path: runtime
+          include-hidden-files: true
+          retention-days: 3
+
+  runtime:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24', '26']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: runtime
+          path: runtime
+      - run: scripts/smoke.sh runtime/dist/cli.js
+
+  self-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: $NPM ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      - name: agentcurfew on itself
+        run: |
+          node dist/cli.js scan .
+          node dist/cli.js verify .
+          node dist/cli.js doctor .
+      # depcurfew is a dev dependency (D-028), excluded from the cooldown in depcurfew.json (D-022).
+      - name: depcurfew doctor
+        run: node node_modules/depcurfew/dist/cli.js doctor

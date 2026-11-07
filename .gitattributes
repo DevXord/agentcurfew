@@ -1,0 +1,4 @@
+# Check every file out with the bytes that are in the repository: no CRLF on Windows.
+# Fixtures carry checksums (skills-lock.json computedHash, the SARIF schema's SHA-256),
+# and the scanner itself normalizes line endings where it should.
+* -text

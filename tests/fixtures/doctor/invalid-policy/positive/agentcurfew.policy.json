@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "mcp": {
+    "allowServers": [
+      "a",
+      3
+    ]
+  },
+  "unknown": true,
+  "exceptions": [
+    {
+      "rule": "Bad Rule",
+      "path": "x",
+      "reason": "because",
+      "until": "2026-02-30"
+    }
+  ]
+}

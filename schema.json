@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://unpkg.com/agentcurfew/schema.json",
+  "title": "agentcurfew policy",
+  "description": "agentcurfew.policy.json: what the components that steer AI coding agents in a project may be.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version"],
+  "properties": {
+    "$schema": { "type": "string", "description": "The address of this schema, for editors." },
+    "version": { "type": "integer", "enum": [1], "description": "Version of the policy format." },
+    "failOn": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low", "none"],
+      "description": "Default --fail-on of agentcurfew scan: the lowest level that makes it exit with 1. The flag wins over it."
+    },
+    "skills": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Rules for skills.",
+      "properties": {
+        "allowSources": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Where skills may come from: the source field of skills-lock.json, matched as a glob (* within a segment, ** across segments). local allows skills that skills-lock.json does not list. When set, any other skill is out of policy."
+        },
+        "allowExecutables": {
+          "type": "boolean",
+          "description": "false makes a skill that bundles programs or scripts out of policy."
+        }
+      }
+    },
+    "mcp": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Rules for MCP servers.",
+      "properties": {
+        "requirePinnedVersions": {
+          "type": "boolean",
+          "description": "true raises unpinned-mcp-server to high; false lowers it to info."
+        },
+        "allowServers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Which servers may be configured: the package or image a launcher fetches, or the server's address, matched as a glob. local allows servers started from a local command. When set, any other server is out of policy."
+        },
+        "denyPlainHttp": {
+          "type": "boolean",
+          "description": "true keeps plain-http-mcp at high; false lowers it to info."
+        }
+      }
+    },
+    "hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Rules for hooks and automatic tasks.",
+      "properties": {
+        "allowNetwork": {
+          "type": "boolean",
+          "description": "false raises hooks that open a network connection to high; true lowers them to info. Downloads that are run stay high either way."
+        },
+        "allowAutoRunOnOpen": {
+          "type": "boolean",
+          "description": "false raises auto-run-on-open to high; true lowers it to info."
+        }
+      }
+    },
+    "contextFiles": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Rules for context files and other text the agent reads.",
+      "properties": {
+        "denyHiddenUnicode": {
+          "type": "boolean",
+          "description": "true keeps hidden-unicode as it is; false lowers it to info."
+        }
+      }
+    },
+    "exclude": {
+      "type": "array",
+      "description": "Paths that are not scanned, locked or verified at all.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "reason"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1, "description": "A glob relative to the project, with / separators." },
+          "reason": { "type": "string", "minLength": 3, "description": "Why the path is left out." }
+        }
+      }
+    },
+    "exceptions": {
+      "type": "array",
+      "description": "Findings that are accepted, each with a reason, until a date when one is given.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule", "path", "reason"],
+        "properties": {
+          "rule": { "type": "string", "enum": ["hidden-unicode","unpinned-mcp-server","plain-http-mcp","secret-in-config","dangerous-hook-command","auto-run-on-open","permission-bypass","broad-shell-permission","remote-instructions","obfuscated-content","persistence-instruction","drift","skills-lock-mismatch","out-of-policy","mcp-package"], "description": "The id of the rule; agentcurfew explain lists what each finds." },
+          "path": { "type": "string", "minLength": 1, "description": "A glob of the files the exception covers." },
+          "reason": { "type": "string", "minLength": 3, "description": "Why the finding is accepted." },
+          "until": { "type": "string", "format": "date", "description": "YYYY-MM-DD: from the day after, the finding is reported again." }
+        }
+      }
+    },
+    "doctor": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Settings of agentcurfew doctor.",
+      "properties": {
+        "failOn": {
+          "type": "string",
+          "enum": ["error", "warning", "info", "none"],
+          "description": "The lowest level that makes agentcurfew doctor exit with 1; warning by default."
+        }
+      }
+    }
+  }
+}

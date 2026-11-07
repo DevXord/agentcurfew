@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "remote": {
+      "url": "https://mcp.example.com/sse"
+    },
+    "dev": {
+      "url": "http://localhost:3000/mcp"
+    },
+    "loop": {
+      "url": "http://127.0.0.1:8080/mcp"
+    }
+  }
+}

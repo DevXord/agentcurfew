@@ -1,0 +1,43 @@
+{
+  "mcpServers": {
+    "fs": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem@2026.1.14",
+        "."
+      ]
+    },
+    "git": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-git==2.1.0"
+      ]
+    },
+    "gh": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "ghcr.io/github/github-mcp-server@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ]
+    },
+    "local": {
+      "command": "node",
+      "args": [
+        "./server.js"
+      ]
+    },
+    "path": {
+      "command": "npx",
+      "args": [
+        "./tools/server"
+      ]
+    },
+    "remote": {
+      "type": "http",
+      "url": "https://mcp.example.com/mcp"
+    }
+  }
+}

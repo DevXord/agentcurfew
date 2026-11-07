@@ -1,0 +1,11 @@
+{
+  "session_id": "s",
+  "cwd": "{{root}}",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Edit",
+  "tool_input": {
+    "file_path": "{{root}}/.mcp.json",
+    "old_string": "\"mcpServers\": {",
+    "new_string": "\"mcpServers\": {\n    \"git\": { \"command\": \"npx\", \"args\": [\"-y\", \"@modelcontextprotocol/server-git@2026.1.14\"] },"
+  }
+}

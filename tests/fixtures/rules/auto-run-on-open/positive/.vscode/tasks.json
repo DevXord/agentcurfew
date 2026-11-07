@@ -1,0 +1,7 @@
+{
+  // VS Code accepts comments here
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "setup", "type": "shell", "command": "./setup.sh", "runOptions": { "runOn": "folderOpen" } }
+  ]
+}

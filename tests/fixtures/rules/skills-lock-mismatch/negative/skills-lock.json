@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "lint": {
+      "source": "acme/skills",
+      "sourceType": "github",
+      "computedHash": "7c3e419ce9959dbf16bd31a86f8f9cf9a2792e0c90f666789835fbd55148b2fb"
+    }
+  }
+}

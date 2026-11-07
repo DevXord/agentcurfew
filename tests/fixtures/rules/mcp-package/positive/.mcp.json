@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "from-git": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "github:someone/mcp-server"
+      ]
+    },
+    "tarball": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "https://example.com/mcp-server-1.0.0.tgz"
+      ]
+    }
+  }
+}

@@ -2,8 +2,10 @@ import { verifiedOn } from './define.ts';
 import type { AgentKnowledge, AgentPath, ContextFile, FileFormat } from './types.ts';
 
 const { verified, uncertain } = verifiedOn('2026-11-06');
+// Facts changed after the source audit of 2026-11-07, read again that day.
+const later = verifiedOn('2026-11-07');
 
-const MCP = 'https://cursor.com/docs/context/mcp';
+const MCP = 'https://cursor.com/docs/mcp';
 const HOOKS = 'https://cursor.com/docs/hooks';
 const THIRD_PARTY_HOOKS = 'https://cursor.com/docs/reference/third-party-hooks';
 const SKILLS = 'https://cursor.com/docs/skills';
@@ -41,6 +43,7 @@ const CONTEXT_FILES: readonly ContextFile[] = [
   { ...project('**/AGENTS.md', 'markdown'), loading: 'conditional' },
   { ...project('CLAUDE.md', 'markdown'), loading: 'always' },
   { ...project('.cursorrules', 'text'), loading: 'always' },
+  { ...user('~/.cursor/rules/**/*.md*', 'markdown-frontmatter'), loading: 'conditional' },
 ];
 
 export const cursor: AgentKnowledge = {
@@ -90,6 +93,7 @@ export const cursor: AgentKnowledge = {
       ],
       handlerTypes: ['command', 'prompt'],
       commandField: 'command',
+      autoStartEvents: ['workspaceOpen'],
     },
     HOOKS,
     `Files are in priority order (${THIRD_PARTY_HOOKS}). The .claude files use Claude Code event names and load only while Include Third-Party Plugins, Skills, and Other Configs is on, which is the default. workspaceOpen fires when Cursor opens a workspace, so a hook on it starts with no prompt to the agent. Project hooks need a trusted workspace, but workspace trust is off by default (${AGENT_SECURITY}) and off means all workspaces are automatically trusted (${WORKSPACE_TRUST}); reading these together, a committed .cursor/hooks.json runs without a trust prompt by default. That conclusion is an inference and was not tested.`,
@@ -111,16 +115,16 @@ export const cursor: AgentKnowledge = {
     SKILLS,
     'The ** covers the project root too: a .cursor/skills or .agents/skills folder anywhere in a repository is picked up and applies to files inside that folder. Skills may bundle scripts/, references/ and assets/. name must match the parent folder.',
   ),
-  contextFiles: verified(
+  contextFiles: later.verified(
     CONTEXT_FILES,
     RULES_HELP,
-    `Paths in .cursor/rules, the root AGENTS.md, CLAUDE.md and the legacy .cursorrules are from this page. CLAUDE.md is always applied, regardless of alwaysApply. Nested AGENTS.md files and the ignoring of a plain .md in .cursor/rules ("Project rules must use the .mdc extension") are from ${RULES}. An .mdc rule is always loaded with alwaysApply: true, and otherwise by glob, by its description or by @-mention. .cursorrules "is legacy and will be deprecated"; its removal was not announced in what was read, and the always value comes from the migration advice to set it to Always Apply. User rules live in the app and team rules in the dashboard, so neither is a file.`,
+    `Paths in .cursor/rules, the root AGENTS.md, CLAUDE.md and the legacy .cursorrules are from this page. CLAUDE.md is always applied, regardless of alwaysApply. Nested AGENTS.md files and the ignoring of a plain .md in .cursor/rules ("Project rules must use the .mdc extension") are from ${RULES}. An .mdc rule is always loaded with alwaysApply: true, and otherwise by glob, by its description or by @-mention. .cursorrules "is legacy and will be deprecated"; its removal was not announced in what was read, and the always value comes from the migration advice to set it to Always Apply. User rules also live as files in ~/.cursor/rules (Windows: %USERPROFILE%\\.cursor\\rules), which "stay on the machine and do not sync" (read on 2026-11-07); the page names no extension, so .md and .mdc are read. Team rules live in the dashboard and are no file.`,
   ),
-  permissions: verified(
+  permissions: later.verified(
     {
       files: [
-        project('.cursor/permissions.json', 'json'),
-        user('~/.cursor/permissions.json', 'json'),
+        project('.cursor/permissions.json', 'jsonc'),
+        user('~/.cursor/permissions.json', 'jsonc'),
         project('.cursor/cli.json', 'json'),
         user('~/.cursor/cli-config.json', 'json'),
         project('.cursor/sandbox.json', 'json'),
@@ -142,15 +146,20 @@ export const cursor: AgentKnowledge = {
         'networkPolicy.default',
         'networkPolicy.allow',
         'networkPolicy.deny',
+        'sandbox.mode',
+        'sandbox.networkAccess',
+        'sandbox.readBoundary',
       ],
       bypass: [
         { key: 'mcpAllowlist', value: '*:*' },
         { key: 'type', value: 'insecure_none' },
         { key: 'networkPolicy.default', value: 'allow' },
+        { key: 'permissions.allow', value: 'Mcp(*:*)' },
+        { key: 'permissions.allow', value: 'WebFetch(*)' },
       ],
     },
     PERMISSIONS,
-    `Keys by file: permissions.json has mcpAllowlist, terminalAllowlist and autoRun; cli.json and cli-config.json have permissions.allow and permissions.deny (${CLI_PERMISSIONS}), where deny wins; only cli-config.json has approvalMode (allowlist, auto-review, unrestricted), since a project may set only permissions (${CLI_CONFIG}); sandbox.json has the rest (${SANDBOX}). The bypass entries mean: mcpAllowlist containing *:* covers every MCP tool of every server; type insecure_none in sandbox.json turns the sandbox off; networkPolicy.default allow permits all traffic. approvalMode unrestricted is left out because the page does not say it skips prompts, though it can only be set outside the repository anyway. The run mode itself is chosen in the app or the team dashboard, and no file is documented to select it (${RUN_MODES}). permissions.json works only while Run Mode is on, is ignored when a team configuration exists, and its autoRun lists are guidance for a classifier, not enforcement. CURSOR_CONFIG_DIR and XDG_CONFIG_HOME move cli-config.json.`,
+    `Keys by file: permissions.json has mcpAllowlist, terminalAllowlist and autoRun; cli.json and cli-config.json have permissions.allow and permissions.deny (${CLI_PERMISSIONS}), where deny wins; only cli-config.json has approvalMode (allowlist, auto-review, unrestricted), since a project may set only permissions (${CLI_CONFIG}); sandbox.json has the rest (${SANDBOX}). permissions.json is JSONC. The bypass entries mean: mcpAllowlist containing *:* covers every MCP tool of every server; in cli.json, Mcp(*:*) allows all MCP tools and WebFetch(*) fetches from any domain, both "use with caution" (read on 2026-11-07); cli-config.json can also set sandbox.mode, sandbox.networkAccess and sandbox.readBoundary; type insecure_none in sandbox.json turns the sandbox off; networkPolicy.default allow permits all traffic. approvalMode unrestricted is left out because the page does not say it skips prompts, though it can only be set outside the repository anyway. The run mode itself is chosen in the app or the team dashboard, and no file is documented to select it (${RUN_MODES}). permissions.json works only while Run Mode is on, is ignored when a team configuration exists, and its autoRun lists are guidance for a classifier, not enforcement. CURSOR_CONFIG_DIR and XDG_CONFIG_HOME move cli-config.json.`,
   ),
   autoRun: uncertain(
     {
@@ -178,4 +187,11 @@ export const cursor: AgentKnowledge = {
     SUBAGENTS,
     `Subagents are verified on this page: project wins over user for one name, and .cursor wins over .claude and .codex. Commands are the uncertain part: the project path comes only from a 2025 changelog (${COMMANDS_CHANGELOG}), and no current documentation page for them was found. Cursor's skills migration text confirms user-level commands exist, but their path was not read on an official page, so ~/.cursor/commands is left out. Commands may have frontmatter; the plugin reference documents that for plugins only.`,
   ),
+  deprecations: [
+    verified(
+      { paths: ['.cursorrules'], replacement: 'rules in .cursor/rules/*.mdc' },
+      RULES_HELP,
+      'The page says .cursorrules "is legacy and will be deprecated"; it is still read.',
+    ),
+  ],
 };

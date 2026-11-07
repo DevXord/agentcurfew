@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "defaultMode": "default",
+    "allow": [
+      "Bash(pwd)"
+    ]
+  }
+}

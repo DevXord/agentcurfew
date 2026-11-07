@@ -3,7 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { EXIT_FAILURE, EXIT_OK, EXIT_USAGE, INVENTORY_SCHEMA_VERSION, run } from '../src/index.ts';
+import { EXIT_FAILURE, EXIT_OK, EXIT_USAGE, INVENTORY_SCHEMA_VERSION, run, SCAN_SCHEMA_VERSION } from '../src/index.ts';
+import { materialize } from './rules/materialize.ts';
+import { COMMANDS } from '../src/cli/commands.ts';
 
 const fixture = (name: string) => fileURLToPath(new URL(`fixtures/repos/${name}`, import.meta.url));
 const SECRET = 'not-a-real-secret-0123456789';
@@ -22,7 +24,7 @@ async function cli(...argv: string[]): Promise<{ code: number; stdout: string; s
   return { code, stdout, stderr };
 }
 
-describe('acf scan --inventory', () => {
+describe('agentcurfew scan --inventory', () => {
   it('prints a versioned JSON list', async () => {
     const { code, stdout, stderr } = await cli('scan', fixture('portable-mcp'), '--inventory', '--json');
     expect(code).toBe(EXIT_OK);
@@ -62,23 +64,17 @@ describe('acf scan --inventory', () => {
   it('shows hidden characters in names only as escapes', async () => {
     const base = mkdtempSync(join(tmpdir(), 'acf-'));
     mkdirSync(join(base, '.cursor'));
-    writeFileSync(join(base, '.mcp.json'), JSON.stringify({ mcpServers: { 'evil‮\u{e0041}\u001b[31m': { command: 'node' } } }));
+    writeFileSync(join(base, '.mcp.json'), JSON.stringify({ mcpServers: { 'evil\u202E\u{e0041}\u001b[31m': { command: 'node' } } }));
     const text = await cli('scan', base, '--inventory');
     const json = await cli('scan', base, '--inventory', '--json');
     rmSync(base, { recursive: true, force: true });
-    for (const output of [text.stdout, json.stdout]) expect(output).not.toMatch(/[‮\u001b]|\u{e0041}/u);
-    expect((JSON.parse(json.stdout) as { components: { name: string }[] }).components[0]?.name).toBe('evil‮\u{e0041}\u001b[31m');
-  });
-
-  it('needs --inventory while there are no rules', async () => {
-    const { code, stderr } = await cli('scan', fixture('empty'));
-    expect(code).toBe(EXIT_USAGE);
-    expect(stderr).toContain('--inventory');
+    for (const output of [text.stdout, json.stdout]) expect(output).not.toMatch(/[\u202E\u001b]|\u{e0041}/u);
+    expect((JSON.parse(json.stdout) as { components: { name: string }[] }).components[0]?.name).toBe('evil\u202E\u{e0041}\u001b[31m');
   });
 
   it('says so when the directory does not exist', async () => {
     const { code, stderr } = await cli('scan', fixture('no-such-fixture'), '--inventory');
-    expect(code).toBe(EXIT_FAILURE);
+    expect(code).toBe(EXIT_USAGE);
     expect(stderr).toContain('not a directory');
     expect(stderr).toContain('fix:');
   });
@@ -92,5 +88,122 @@ describe('acf scan --inventory', () => {
     const { code, stdout } = await cli('scan', '--help');
     expect(code).toBe(EXIT_OK);
     expect(stdout).toContain('--inventory');
+  });
+});
+
+describe('agentcurfew scan', () => {
+  it('passes a project with nothing to report', async () => {
+    const { code, stdout } = await cli('scan', fixture('empty'));
+    expect(code).toBe(EXIT_OK);
+    expect(stdout).toBe('0 components scanned, 0 findings\n');
+  });
+
+  it('fails at high by default, and --fail-on moves the threshold', async () => {
+    const { root, cleanup } = materialize('hidden-unicode/positive');
+    try {
+      const plain = await cli('scan', root);
+      expect(plain.code).toBe(EXIT_FAILURE);
+      expect(plain.stdout).toContain('CRITICAL  hidden-unicode  CLAUDE.md:3:15');
+      expect(plain.stdout).toContain('U+E0049');
+      expect(plain.stdout).toContain('more: agentcurfew explain hidden-unicode');
+      expect(plain.stdout).toContain('Failed: 4 findings at level high or above (change with --fail-on).');
+      expect(plain.stdout).not.toMatch(/\u{e0049}|\u202e|\u200b/u);
+      expect((await cli('scan', root, '--fail-on', 'none')).code).toBe(EXIT_OK);
+      expect((await cli('scan', root, '--fail-on', 'critical')).code).toBe(EXIT_FAILURE);
+    } finally {
+      cleanup();
+    }
+    const { root: low, cleanup: done } = materialize('persistence-instruction/positive');
+    try {
+      expect((await cli('scan', low)).code).toBe(EXIT_OK);
+      expect((await cli('scan', low, '--fail-on', 'low')).code).toBe(EXIT_FAILURE);
+    } finally {
+      done();
+    }
+  });
+
+  it('prints findings as versioned JSON without file contents or secrets', async () => {
+    const { root, cleanup } = materialize('secret-in-config/positive');
+    try {
+      const { code, stdout } = await cli('scan', root, '--json');
+      expect(code).toBe(EXIT_FAILURE);
+      const output = JSON.parse(stdout) as { schemaVersion: number; failOn: string; findings: { rule: string }[]; components: object[] };
+      expect(output.schemaVersion).toBe(SCAN_SCHEMA_VERSION);
+      expect(output.failOn).toBe('high');
+      expect(output.findings.some((finding) => finding.rule === 'secret-in-config')).toBe(true);
+      expect(stdout).not.toMatch(/Ab1Ab1|Q7Q7Q7|efgh12345678|plain-value/);
+      expect(stdout).not.toContain('"raw"');
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('masks the secrets of the inventory fixture too', async () => {
+    const { stdout, stderr } = await cli('scan', fixture('secrets'));
+    expect(stdout).toContain('secret-in-config');
+    expect(stdout + stderr).not.toContain(SECRET);
+  });
+
+  it('fails when a file could not be read, so it was not checked (Q-013)', async () => {
+    const base = mkdtempSync(join(tmpdir(), 'acf-unchecked-'));
+    try {
+      writeFileSync(join(base, 'CLAUDE.md'), `# Rules\n${' '.repeat(2 * 1024 * 1024)}`);
+      writeFileSync(join(base, '.mcp.json'), '{ not json');
+      const result = await cli('scan', base);
+      expect(result.code).toBe(EXIT_FAILURE);
+      expect(result.stdout).toContain('too-large: CLAUDE.md');
+      expect(result.stdout).toContain('Failed: 1 file could not be read, so it was not checked');
+      expect((await cli('scan', base, '--fail-on', 'none')).code).toBe(EXIT_OK);
+      const sarif = JSON.parse((await cli('scan', base, '--sarif')).stdout) as { runs: { invocations?: { executionSuccessful: boolean; toolExecutionNotifications: { level: string; locations: { physicalLocation: { artifactLocation: { uri: string } } }[] }[] }[] }[] };
+      expect(sarif.runs[0]?.invocations?.[0]?.executionSuccessful).toBe(false);
+      expect(sarif.runs[0]?.invocations?.[0]?.toolExecutionNotifications.map((note) => note.locations[0]?.physicalLocation.artifactLocation.uri)).toEqual(['CLAUDE.md']);
+      // A file that is not valid JSON stays a warning.
+      rmSync(join(base, 'CLAUDE.md'));
+      expect((await cli('scan', base)).code).toBe(EXIT_OK);
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a wrong --fail-on and --fail-on with --inventory', async () => {
+    expect((await cli('scan', fixture('empty'), '--fail-on', 'severe')).code).toBe(EXIT_USAGE);
+    expect((await cli('scan', fixture('empty'), '--fail-on', 'low', '--inventory')).code).toBe(EXIT_USAGE);
+  });
+});
+
+describe('agentcurfew explain', () => {
+  it('explains a rule', async () => {
+    const { code, stdout } = await cli('explain', 'unpinned-mcp-server');
+    expect(code).toBe(EXIT_OK);
+    expect(stdout).toContain('unpinned-mcp-server: MCP server without a fixed version');
+    expect(stdout).toContain('OWASP Agentic Skills Top 10: AST02 Supply Chain Compromise, AST07 Update Drift');
+    expect(stdout).toContain('Fix: ');
+  });
+
+  it('lists the rules when the id is unknown', async () => {
+    const { code, stderr } = await cli('explain', 'no-such-rule');
+    expect(code).toBe(EXIT_USAGE);
+    expect(stderr).toContain('fix: use one of hidden-unicode,');
+    expect((await cli('explain')).code).toBe(EXIT_USAGE);
+  });
+});
+
+describe('help examples', () => {
+  it.each(COMMANDS.map((command) => command.name))('of %s all run', async (name) => {
+    const { stdout } = await cli(name, '--help');
+    expect(stdout).toContain(`Usage: agentcurfew ${name}`);
+    const examples = stdout.split('\n').filter((text) => text.startsWith('  agentcurfew ')).map((text) => text.trim().split(/\s+/).slice(1));
+    expect(examples.length).toBeGreaterThan(0);
+    // Each runs on a fresh empty project, never on the repository itself, since lock writes a file.
+    const base = mkdtempSync(join(tmpdir(), 'acf-help-'));
+    try {
+      for (const argv of examples) {
+        const args = ['scan', 'lock', 'verify', 'init', 'doctor'].includes(argv[0] ?? '') ? [...argv, base] : argv;
+        const { code } = await cli(...args);
+        expect([EXIT_OK, EXIT_FAILURE], argv.join(' ')).toContain(code);
+      }
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
   });
 });

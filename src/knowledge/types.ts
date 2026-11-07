@@ -50,7 +50,10 @@ export interface AgentPath {
 }
 
 export interface McpFile extends AgentPath {
-  /** The table of servers in this file, when it differs from McpKnowledge.serversKey. */
+  /**
+   * The table of servers in this file, when it differs from McpKnowledge.serversKey. A segment <project> stands for the
+   * key that names the scanned project by its absolute path.
+   */
   serversKey?: string;
 }
 
@@ -61,7 +64,7 @@ export interface McpKnowledge {
   /** Field names of a server started locally; null when the agent has no local servers. */
   local: { command: string; args: string; env: string } | null;
   /** Field names of a remote server; null when the agent has no remote servers. */
-  remote: { url: string; headers: string | null } | null;
+  remote: { url: string; headers: string | null; /** Further fields that hold the address in other transports. */ otherUrls?: readonly string[] } | null;
 }
 
 export interface HookFile extends AgentPath {
@@ -78,12 +81,16 @@ export interface HooksKnowledge {
   handlerTypes: readonly string[];
   /** The field that holds the shell command of a command handler. */
   commandField: string | null;
+  /** Events that fire with no action by the user or the agent, such as opening a workspace; their hooks are also auto-run. */
+  autoStartEvents?: readonly string[];
 }
 
 export interface SkillsKnowledge {
   directories: readonly AgentPath[];
   /** The file that defines a skill inside its folder, e.g. SKILL.md. */
   entryFile: string;
+  /** The frontmatter field that grants tools without a prompt, read with the agent's allowAllShell entries. */
+  grantsField?: string;
 }
 
 export interface ContextFile extends AgentPath {
@@ -91,12 +98,27 @@ export interface ContextFile extends AgentPath {
   loading: 'always' | 'conditional';
 }
 
+export interface BypassSetting {
+  key: string;
+  /** Matches the value itself, or an item of a list; '*' matches any non-empty string or list, as in a list of approved servers. */
+  value: string | boolean;
+  /**
+   * What the agent does with it in a project file: ignored (only user or managed files count), needs-trust (only once
+   * the folder is trusted). Absent when the source says nothing more.
+   */
+  fromProject?: 'ignored' | 'needs-trust';
+  /** What it approves, when that is less than every prompt, such as file edits; reported at medium instead of high. */
+  approves?: string;
+}
+
 export interface PermissionsKnowledge {
   files: readonly AgentPath[];
   /** Keys in those files that grant or deny, dotted. */
   keys: readonly string[];
   /** Settings that turn prompts off, as written in those files; empty when they cannot be set from a file. */
-  bypass: readonly { key: string; value: string | boolean }[];
+  bypass: readonly BypassSetting[];
+  /** Entries of a list under `key` that allow every shell command at once, e.g. Bash in permissions.allow. */
+  allowAllShell?: readonly { key: string; value: string }[];
 }
 
 /**
@@ -120,6 +142,47 @@ export interface ExtensionsKnowledge {
   commands: readonly AgentPath[];
 }
 
+/** A file or setting the agent still reads, or used to, that its source calls legacy or deprecated. */
+export interface Deprecation {
+  /** Files, as AgentPath writes them: the old file itself, or the files that hold the old key. */
+  paths: readonly string[];
+  /** A dotted key inside those files; absent when the file itself is what is old. */
+  key?: string;
+  replacement: string;
+}
+
+/** A hook that runs before a tool and can allow, deny or ask: what it reads on stdin and how it answers. */
+export interface ToolHookKnowledge {
+  /** The event, e.g. PreToolUse, and where its handlers sit in the settings, as a dotted key. */
+  event: string;
+  settingsKey: string;
+  /** The field of the stdin JSON with the tool's name, and the one with its input. */
+  toolNameField: string;
+  toolInputField: string;
+  /** Tools by name, with the fields of their input that matter. */
+  tools: Readonly<Record<string, { command?: string; path?: string; content?: string; oldText?: string; newText?: string; replaceAll?: string }>>;
+  /** Where the answer goes in the stdout JSON, dotted, the field with the reason, and the one that names the event. */
+  decisionField: string;
+  eventNameField: string;
+  reasonField: string;
+  /** Every decision, from the one that wins over the others to the one that loses. */
+  decisions: readonly string[];
+  /** The variable that holds the project root in a hook command. */
+  projectDirVariable: string;
+}
+
+/** A command of the agent's own CLI that adds an MCP server. */
+export interface McpAddKnowledge {
+  /** The words that start it, e.g. ["claude", "mcp", "add"]. */
+  command: readonly string[];
+  /** The same with a JSON definition, e.g. ["claude", "mcp", "add-json"]. */
+  jsonCommand: readonly string[];
+  /** The word after which the server's own command line starts. */
+  separator: string;
+  /** Options that take a value, so that the value is not taken for the name. */
+  valueOptions: readonly string[];
+}
+
 export interface AgentKnowledge {
   id: AgentId;
   name: string;
@@ -132,6 +195,11 @@ export interface AgentKnowledge {
   permissions: Fact<PermissionsKnowledge | null>;
   autoRun: Fact<AutoRunKnowledge | null>;
   extensions: Fact<ExtensionsKnowledge | null>;
+  /** A hook before each tool call that can block it; absent when the agent has none or it is not researched. */
+  toolHook?: Fact<ToolHookKnowledge>;
+  mcpAdd?: Fact<McpAddKnowledge>;
+  /** One fact per deprecation, each with its own source; absent when none is known. */
+  deprecations?: readonly Fact<Deprecation>[];
 }
 
 /** The Agent Skills format, shared by several agents. */
@@ -155,7 +223,17 @@ export interface SkillsLockKnowledge {
   hashAlgorithm: string;
 }
 
+/** The add command of the Vercel skills installer. */
+export interface SkillsInstallerKnowledge {
+  /** The package run by a launcher, and its subcommand: npx skills add <source>. */
+  packageName: string;
+  addCommand: string;
+  /** Options that take a value. */
+  valueOptions: readonly string[];
+}
+
 export interface SharedKnowledge {
   skillFormat: Fact<SkillFormatKnowledge>;
   skillsLock: Fact<SkillsLockKnowledge>;
+  skillsInstaller: Fact<SkillsInstallerKnowledge>;
 }

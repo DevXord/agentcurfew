@@ -2,9 +2,11 @@ import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'no
 import { join, sep } from 'node:path';
 import type { InventoryProblem, Limits, ProblemCode } from './types.ts';
 
-export const DEFAULT_LIMITS: Limits = { maxFileBytes: 2 * 1024 * 1024, maxDepth: 32, maxEntries: 200_000 };
+// maxTotalBytes keeps memory bounded: a skill folder can hold thousands of copies of one 2 MB file, which git stores once.
+export const DEFAULT_LIMITS: Limits = { maxFileBytes: 2 * 1024 * 1024, maxDepth: 32, maxEntries: 200_000, maxTotalBytes: 128 * 1024 * 1024 };
 
 const SKIPPED_IN_SEARCH = new Set(['node_modules', '.git']);
+const IGNORES_CASE = process.platform === 'win32' || process.platform === 'darwin';
 
 /** A directory tree the scanner may read: links that leave `base` are not followed. */
 export interface Area {
@@ -18,9 +20,27 @@ export interface Found {
   /** The path as reported. */
   file: string;
   area: Area;
+  /** Read without counting against maxTotalBytes: a fixed path of the knowledge base. */
+  exempt?: boolean;
 }
 
 type Kind = 'file' | 'directory';
+
+interface Entry {
+  kind: Kind;
+  real: string;
+  bytes: number;
+  link: boolean;
+  executable: boolean;
+}
+
+export interface TreeFile {
+  found: Found;
+  relative: string;
+  bytes: number;
+  link: boolean;
+  executable: boolean;
+}
 
 function joinLabel(label: string, name: string): string {
   return label === '' ? name : `${label}/${name}`;
@@ -35,10 +55,17 @@ export class ScanFiles {
   readonly #limits: Limits;
   readonly #problems = new Map<string, InventoryProblem>();
   readonly #listings = new Map<string, readonly string[]>();
+  // The same names as sets, lower-cased where the file system ignores case, to skip names a folder does not hold.
+  readonly #named = new Map<string, ReadonlySet<string>>();
   #entries = 0;
+  #bytes = 0;
 
-  constructor(limits: Limits) {
+  readonly #overlay: ReadonlyMap<string, Buffer>;
+
+  /** `overlay` maps absolute paths to the bytes they are read as; see ScanOptions.overlay. */
+  constructor(limits: Limits, overlay: ReadonlyMap<string, Buffer> = new Map()) {
     this.#limits = limits;
+    this.#overlay = overlay;
   }
 
   get problems(): readonly InventoryProblem[] {
@@ -53,11 +80,19 @@ export class ScanFiles {
     const cached = this.#listings.get(path);
     if (cached !== undefined) return cached;
     let names: string[] = [];
+    // An overlaid file shows up in every folder above it, also in folders that do not exist yet: a write of
+    // .claude/skills/new/SKILL.md creates the folder new.
+    const overlaid = new Set<string>();
+    for (const key of this.#overlay.keys()) {
+      if (key.startsWith(path + sep)) overlaid.add(key.slice(path.length + 1).split(sep)[0] ?? '');
+    }
+    overlaid.delete('');
     try {
       names = readdirSync(path).sort();
     } catch {
-      this.report('unreadable', file === '' ? '.' : file);
+      if (overlaid.size === 0) this.report('unreadable', file === '' ? '.' : file);
     }
+    for (const name of overlaid) if (!names.includes(name)) names = [...names, name].sort();
     const room = this.#limits.maxEntries - this.#entries;
     if (names.length > room) {
       this.report('too-many-entries', file === '' ? '.' : file);
@@ -65,26 +100,54 @@ export class ScanFiles {
     }
     this.#entries += names.length;
     this.#listings.set(path, names);
+    this.#named.set(path, new Set(IGNORES_CASE ? names.map((name) => name.toLowerCase()) : names));
     return names;
   }
 
   /** What is at a path, seen through a link only when it stays inside the area. */
-  #kind(area: Area, path: string, file: string): { kind: Kind; real: string; bytes: number } | undefined {
+  // Every ** pattern of the knowledge base walks the same tree, so what is at a path is looked up once per scan.
+  readonly #kinds = new Map<string, Entry | undefined>();
+
+  #kind(area: Area, path: string, file: string): Entry | undefined {
+    const key = `${area.base}\0${path}`;
+    if (this.#kinds.has(key)) {
+      const known = this.#kinds.get(key);
+      if (known === undefined && this.#outside.has(key)) this.report('outside-project', file);
+      return known;
+    }
+    const entry = this.#lookup(area, path, file);
+    this.#kinds.set(key, entry);
+    return entry;
+  }
+
+  readonly #outside = new Set<string>();
+
+  #lookup(area: Area, path: string, file: string): Entry | undefined {
+    const overlaid = this.#overlay.get(path);
+    if (overlaid !== undefined) return { kind: 'file', real: path, bytes: overlaid.length, link: false, executable: false };
+    if ([...this.#overlay.keys()].some((key) => key.startsWith(path + sep))) {
+      try {
+        if (lstatSync(path).isDirectory()) return { kind: 'directory', real: path, bytes: 0, link: false, executable: false };
+      } catch {
+        return { kind: 'directory', real: path, bytes: 0, link: false, executable: false };
+      }
+    }
     try {
       const link = lstatSync(path);
       if (!link.isSymbolicLink()) {
-        if (link.isFile()) return { kind: 'file', real: path, bytes: link.size };
-        if (link.isDirectory()) return { kind: 'directory', real: path, bytes: 0 };
+        if (link.isFile()) return { kind: 'file', real: path, bytes: link.size, link: false, executable: (link.mode & 0o111) !== 0 };
+        if (link.isDirectory()) return { kind: 'directory', real: path, bytes: 0, link: false, executable: false };
         return undefined;
       }
       const real = realpathSync.native(path);
       if (real !== area.base && !real.startsWith(area.base + sep)) {
         this.report('outside-project', file);
+        this.#outside.add(`${area.base}\0${path}`);
         return undefined;
       }
       const target = statSync(real);
-      if (target.isFile()) return { kind: 'file', real, bytes: target.size };
-      if (target.isDirectory()) return { kind: 'directory', real, bytes: 0 };
+      if (target.isFile()) return { kind: 'file', real, bytes: target.size, link: true, executable: (target.mode & 0o111) !== 0 };
+      if (target.isDirectory()) return { kind: 'directory', real, bytes: 0, link: true, executable: false };
       return undefined;
     } catch {
       return undefined;
@@ -92,6 +155,25 @@ export class ScanFiles {
   }
 
   /** Every file and directory that a pattern of /-separated segments names below `dir`. */
+  // The folders below each folder, found once per scan: every ** pattern of every agent walks the same tree.
+  readonly #children = new Map<string, readonly { path: string; file: string; real: string }[]>();
+
+  #subfolders(area: Area, dir: string, label: string): readonly { path: string; file: string; real: string }[] {
+    const key = `${area.base}\0${dir}`;
+    const known = this.#children.get(key);
+    if (known !== undefined) return known;
+    const children: { path: string; file: string; real: string }[] = [];
+    for (const name of this.#list(dir, label)) {
+      if (SKIPPED_IN_SEARCH.has(name)) continue;
+      const path = join(dir, name);
+      const file = joinLabel(label, name);
+      const entry = this.#kind(area, path, file);
+      if (entry?.kind === 'directory') children.push({ path, file, real: entry.real });
+    }
+    this.#children.set(key, children);
+    return children;
+  }
+
   match(area: Area, segments: readonly string[], directories: boolean): Found[] {
     const found: Found[] = [];
     const seen = new Set<string>([area.base]);
@@ -104,19 +186,19 @@ export class ScanFiles {
       if (segment === undefined) return;
       if (segment === '**') {
         visit(dir, label, after, depth);
-        for (const name of this.#list(dir, label)) {
-          if (SKIPPED_IN_SEARCH.has(name)) continue;
-          const path = join(dir, name);
-          const file = joinLabel(label, name);
-          const entry = this.#kind(area, path, file);
-          if (entry?.kind !== 'directory' || seen.has(entry.real)) continue;
-          seen.add(entry.real);
-          visit(path, file, rest, depth + 1);
+        for (const child of this.#subfolders(area, dir, label)) {
+          if (seen.has(child.real)) continue;
+          seen.add(child.real);
+          visit(child.path, child.file, rest, depth + 1);
         }
         return;
       }
       const names = segment.includes('*') ? this.#list(dir, label).filter((name) => globPattern(segment).test(name)) : [segment];
+      // A folder already listed (every folder a ** pattern walks) tells without a system call that a name is not there:
+      // a **/CLAUDE.md pattern would otherwise look up every agent file name in every folder of a large tree.
+      const listed = this.#named.get(dir);
       for (const name of names) {
+        if (listed !== undefined && !segment.includes('*') && !listed.has(IGNORES_CASE ? name.toLowerCase() : name)) continue;
         const path = join(dir, name);
         const file = joinLabel(label, name);
         const entry = this.#kind(area, path, file);
@@ -136,11 +218,14 @@ export class ScanFiles {
     return this.#kind(found.area, found.path, found.file)?.kind === 'directory';
   }
 
-  /** Every file below a directory, with paths relative to it and their sizes. */
-  tree(found: Found): { found: Found; relative: string; bytes: number }[] {
-    const files: { found: Found; relative: string; bytes: number }[] = [];
+  /**
+   * Every file below a directory, with paths relative to it, sizes, whether a link was crossed to reach it (the file or a
+   * folder above it) and whether its mode allows execution (always false on Windows, which has no such bit).
+   */
+  tree(found: Found): TreeFile[] {
+    const files: TreeFile[] = [];
     const seen = new Set<string>();
-    const visit = (dir: string, label: string, relative: string, depth: number): void => {
+    const visit = (dir: string, label: string, relative: string, depth: number, linked = false): void => {
       if (depth > this.#limits.maxDepth) {
         this.report('too-deep', label);
         return;
@@ -152,28 +237,62 @@ export class ScanFiles {
         if (entry === undefined) continue;
         const inner = relative === '' ? name : `${relative}/${name}`;
         if (entry.kind === 'file') {
-          files.push({ found: { path, file, area: found.area }, relative: inner, bytes: entry.bytes });
+          files.push({ found: { path, file, area: found.area }, relative: inner, bytes: entry.bytes, link: linked || entry.link, executable: entry.executable });
         } else if (!seen.has(entry.real)) {
           seen.add(entry.real);
-          visit(path, file, inner, depth + 1);
+          visit(path, file, inner, depth + 1, linked || entry.link);
         }
       }
     };
     seen.add(found.path);
     visit(found.path, found.file, '', 0);
-    return files.sort((a, b) => (a.relative < b.relative ? -1 : 1));
+    return files.sort((a, b) => (a.relative < b.relative ? -1 : a.relative > b.relative ? 1 : 0));
   }
 
   read(found: Found): string | undefined {
-    try {
-      if (statSync(found.path).size > this.#limits.maxFileBytes) {
-        this.report('too-large', found.file);
-        return undefined;
+    return this.readBytes(found)?.toString('utf8');
+  }
+
+  /** Whether a file of this size may be read, within the limit for one file and the limit for the scan; counts it if so. */
+  #fits(size: number, exempt: boolean): boolean {
+    const total = this.#limits.maxTotalBytes ?? DEFAULT_LIMITS.maxTotalBytes ?? Infinity;
+    if (size > this.#limits.maxFileBytes) return false;
+    if (exempt) return true;
+    if (this.#bytes + size > total) return false;
+    this.#bytes += size;
+    return true;
+  }
+
+  // Several agents read the same files, so each is read once per scan; that also counts its bytes once.
+  readonly #read = new Map<string, Buffer | ProblemCode>();
+
+  readBytes(found: Found): Buffer | undefined {
+    let result = this.#read.get(found.path);
+    if (result === undefined) {
+      result = this.#readOnce(found);
+      this.#read.set(found.path, result);
+    }
+    if (typeof result !== 'string') return result;
+    this.report(result, found.file);
+    return undefined;
+  }
+
+  #readOnce(found: Found): Buffer | ProblemCode {
+    const overlaid = this.#overlay.get(found.path);
+    if (overlaid !== undefined) {
+      // The text a write would bring is always read: the hook must not lose it to the budget.
+      if (!this.#fits(overlaid.length, true)) {
+        return 'too-large';
       }
-      return readFileSync(found.path, 'utf8');
+      return overlaid;
+    }
+    try {
+      if (!this.#fits(statSync(found.path).size, found.exempt === true)) {
+        return 'too-large';
+      }
+      return readFileSync(found.path);
     } catch {
-      this.report('unreadable', found.file);
-      return undefined;
+      return 'unreadable';
     }
   }
 }

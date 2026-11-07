@@ -4,7 +4,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 
 ## D-001: Project layout mirrors depcurfew
 - **Date:** 2026-11-06
-- **Decision:** ESM-only TypeScript, `tsdown`, Vitest, `publint`, `@arethetypeswrong/cli`, two binaries (`agentcurfew`, `acf`), per-agent knowledge modules in `src/knowledge/`, docs in `docs/`.
+- **Decision:** ESM-only TypeScript, `tsdown`, Vitest, `publint`, `@arethetypeswrong/cli`, two binaries (`agentcurfew`, `acf`; `acf` dropped by D-030), per-agent knowledge modules in `src/knowledge/`, docs in `docs/`.
 - **Why:** Contributors already know the depcurfew shape, and the two projects stay visibly a family.
 
 ## D-002: Argument parser is `node:util` `parseArgs`
@@ -15,6 +15,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 ## D-003: CLI alias `acf`
 - **Date:** 2026-11-06
 - **Decision:** Ship `agentcurfew` and the short alias `acf`, as depcurfew does with `dcf`, subject to the check in Q-001.
+- **Superseded** by D-030: the alias was dropped before 1.0.0.
 
 ## D-004: No runtime dependencies yet
 - **Date:** 2026-11-06
@@ -43,6 +44,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 ## D-009: `computedHash` of skills-lock.json
 - **Date:** 2026-11-06
 - **Finding:** SHA-256 over the UTF-8 path and then the raw bytes of each file, sorted with `localeCompare`, with no separators; `.git`, `node_modules` and symlinks are skipped. Checked by reading `local-lock.ts` at tag v1.7.6.
+- **Rechecked in phase 4:** `local-lock.ts` at v1.7.6, still the latest version on 2026-11-06, matches the description: hex digest, `.git` and `node_modules` skipped, links neither followed nor hashed, `localeCompare`, version 1 only. D-015 says how agentcurfew uses it.
 - **Consequence for phase 4:** the hash is usually taken at the source, while the installed copy drops `metadata.json`, `__pycache__` and `__pypackages__` and dereferences symlinks. Hashing the installed folder can therefore report drift on an untouched skill, so a mismatch cannot be treated as tampering without more care. The locale-dependent sort can also differ between machines.
 
 ## D-010: TOML parser is `smol-toml`
@@ -58,28 +60,233 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Decision:** A component is one entry per kind, file and name, with a list of the agents that read it, because one file such as `AGENTS.md` steers several agents and the plan's "agent" field would otherwise repeat it. Every variant of a disputed fact and every uncertain fact is scanned, so a doubt about an agent widens the inventory and never hides something.
 - **Output:** `raw` stays in memory for the rules. `--json` prints `bytes` in its place, and problems name a file and a code but no parser message, because either could carry a secret. Control and invisible characters in names are written as `\u` escapes.
 - **Hooks that start on their own** appear twice, as `hook` and as `auto-run`, so that the phase 3 rules can read each kind alone.
-- **Known gaps, for phase 3:** hooks in skill and subagent frontmatter are not split out, since that needs YAML (their whole text is inventoried). Gemini policy TOML files yield no component, because their keys are not in `permissions.keys`. Cursor's `workspaceOpen` is listed as a hook only. Local-scope servers in `~/.claude.json` under `projects` are not read. A parse failure lists nothing from that file; it is a problem in the output, with exit code 0 until rules exist.
+- **Known gaps, closed in phase 3:** hooks in skill and subagent frontmatter are now listed one by one (D-012). Gemini policy TOML files yield a `rule` permission. Cursor's `workspaceOpen` is also an auto-run, through `autoStartEvents`. Local-scope servers in `~/.claude.json` are read for the scanned project only, through `projects.<project>.mcpServers`. A parse failure still lists nothing from that file and is a problem in the output; it does not change the exit code.
+- **Skill files:** since phase 3 each file of a skill folder also carries a type from its first bytes (text, executable, media, binary) and, for text, its content, for the rules. Neither is printed.
+
+## D-012: YAML parser is `yaml`
+- **Date:** 2026-11-06
+- **Decision:** `yaml` 2.9.1, approved by the maintainer (Q-008), as an exact pin. It is used only for the frontmatter of Markdown files: hooks of skills and subagents, `allowed-tools`, and Cline cron specs.
+- **Why:** No dependencies and no install scripts, released 2026-09-11 (past the 7-day cooldown), registry signatures, ISC licence, and it is the YAML parser most of the ecosystem uses. A reader of our own would miss YAML the agents accept.
+- **Settings:** core schema (no custom or `!!js` tags: they are read as plain values), merge keys off, at most 50 aliases, unique keys, strict, and `logLevel: 'error'`, because `'silent'` also stops `parse` from throwing, so duplicate keys passed in a first try. Results go through the same 64-level depth check as JSON.
+- **Tested on hostile input (Node 22.23.4, Linux):** `__proto__` and `constructor` keys stay data and pollute nothing. An alias bomb throws (ReferenceError). Nesting of 1000 levels throws `RESOURCE_EXHAUSTION` instead of overflowing the stack. But the cost grows faster than the size: 200,000 keys took over 30 s, aliases in 256 KB took 9.5 s, and a 12 MB input of deep block nesting ran V8 out of memory. Hence a limit of 32 KB per frontmatter block, where the worst case found took about 0.17 s; a larger block is reported as `too-large` and not parsed.
+
+## D-013: Rules and findings
+- **Date:** 2026-11-06
+- **Model:** a rule has an id, a level, OWASP references, a description, a fix, an example, the component kinds it reads, and, when it matches patterns, a note on false alarms. `check` returns hits whose message must already be safe to print; the engine also bounds and cleans every message. A hit may raise or lower the level, for example a setting the agent ignores in a project file is `low`.
+- **Engine:** pure and deterministic (sorted by file, line, column, rule), at most 20 hits per rule and component plus one summary finding, a rule that throws becomes an `info` finding, and a hook that is also an auto-run component is reported once per rule.
+- **Facts stay in the knowledge base:** which settings bypass prompts and whether a project file may set them (`fromProject`), which allow-list entries mean every shell command (`allowAllShell`), the skill field that grants tools (`grantsField`), events that start hooks on their own (`autoStartEvents`) and further remote URL fields (`otherUrls`) are new knowledge fields. Formats of credentials are facts about their issuers, not agents, and live in `src/rules/secrets.ts`, each with its source (Q-010).
+- **Exit code:** `agentcurfew scan` exits with 1 when a finding is at `--fail-on` or above, `high` by default, as the maintainer chose; `none` turns it off. Inventory problems did not change the exit code; since D-031, a file that could not be read does. `--fail-on` with `--inventory` is a usage error.
+- **JSON:** `scan --json` is schema version 2: the inventory's fields plus `failOn` and `findings`. `scan --inventory --json` stays at version 1.
+- **Fixtures:** each rule has `tests/fixtures/rules/<id>/positive` and `negative`. Hidden characters and secret-shaped values are written `{U+XXXX}` and `{{secret:name}}` and expanded only in a temporary copy, so that the repository holds no invisible text and nothing a secret scanner would take for a live token.
+- **Not in phase 3:** drift (phase 4, lockfile) and out-of-policy (phase 5, policy) are listed as planned in docs/rules.md.
+
+## D-014: agentcurfew.lock
+- **Date:** 2026-11-06
+- **Decisions of the maintainer:** CRLF and lone CR become LF in text before hashing, binary files are hashed as they are; MCP servers are written with command, arguments and addresses, secrets replaced by `<redacted>`; every kind of project component is locked, user and machine files never; `agentcurfew lock` writes even when the scan has serious findings, and warns; `agentcurfew scan` reports drift when a lock exists.
+- **Format:** JSON with keys sorted at every level, 2-space indent and a final newline, no time stamps or absolute paths. `lockfileVersion` 1, `algorithm` sha256, then the components in the inventory's order (kind, file, name). A component has `hash` (hex) and `agents`; the agents are for people only and not compared, because they follow the knowledge base, so an update of agentcurfew does not make drift.
+- **What is hashed:** a file component (context file, command, subagent, a hook that is a file) by its normalized text; an entry (MCP server, hook, auto-run, permission) by its JSON with sorted keys, so reordering keys is not a change; a skill by the list of its files' paths and hashes, sorted by bytes, written as JSON so that no path can run into the next.
+- **MCP servers:** also `command`, `args` and `urls` after redaction, the names of `env` and `headers` (never their values) and the package or image the launcher fetches (`npm`, `pypi`, `oci`, from the same parser as `unpinned-mcp-server`). The hash covers the full entry, so a changed secret is drift, reported as "another field changed" with nothing of the value.
+- **Executables of a skill:** programs by their first bytes, files that start with `#!` and scripts by extension in `executables`, the same on every platform; files whose mode allows execution in `executableBits`. Windows has no execute bit, so there `verify` does not compare it and `lock` keeps the bits of the old lock for files still present. Tested on Linux only.
+- **Untrusted:** the lock is read like any other file: size limit, links refused, shape checked field by field; a reason names the first problem and quotes nothing from the file. `lock` does not write through a link.
+- **Exit codes:** `verify` 0 when the project matches, 1 on drift or when the lock is missing or unusable, 2 on a usage error.
+
+## D-015: skills-lock.json
+- **Date:** 2026-11-06
+- **Decision of the maintainer:** a mismatch is a warning that never fails `verify`: the rule `skills-lock-mismatch` is medium, low when the folder shows a known cause of a false mismatch (links, `__pycache__` or `__pypackages__`, `metadata.json`), and info for an entry with no installed skill or a file that cannot be read.
+- **How:** `computedHash` is recomputed over each installed project skill of the same name, following the knowledge base (raw bytes, no normalization, unlike agentcurfew's own hashes); a match in any copy is enough. The test computes the expected hash with an independent implementation in the fixture, with paths whose `localeCompare` order differs from byte order.
+- **Limits:** the hash depends on the locale of the machine that sorts, and is usually taken at the source, so a mismatch is never treated as proof of tampering.
+
+## D-016: Policy
+- **Date:** 2026-11-06
+- **Decisions of the maintainer:** exceptions are `{rule, path, reason, until?}` with a required reason, and a finding comes back the day after `until`; `exclude` is separate, with a reason too; a skill missing from `skills-lock.json` is `out-of-policy` at medium (source unknown), a skill from a source not listed is high, and `local` allows hand-made skills and servers started from a local command; settings may raise a rule to high and lower it to info, and the finding names the setting; `init` does not replace a policy without `--force`; this repository has its own policy, which leaves out `tests/fixtures/**`.
+- **Schema without a dependency:** `schema.json` (draft-07, in the package, `$id` `https://unpkg.com/agentcurfew/schema.json`) is the only description of the fields. The validator reads it, implements exactly the keywords it uses (a test fails on any other), and names the path of each problem (`policy.mcp.allowServers[1]: expected a string, got a number`). `docs/policy.md` is generated from it. The JSON is imported with an import attribute and bundled by tsdown, so the built CLI does not read the file at run time.
+- **Order of work:** inventory, then `exclude` (left out of rules, lock and verify alike), then the rules with the policy in their context, then the levels of the settings, then the exceptions. A policy that breaks the schema stops `scan`, `lock` and `verify` with exit code 1 and a pointer to `doctor`; nothing of it is applied.
+- **Settings and levels:** `mcp.requirePinnedVersions` (unpinned-mcp-server high or info), `mcp.denyPlainHttp` (plain-http-mcp unchanged or info), `hooks.allowNetwork` (only the network hits of dangerous-hook-command, high or info; downloads that are run stay high), `hooks.allowAutoRunOnOpen` (auto-run-on-open high or info), `contextFiles.denyHiddenUnicode` (hidden-unicode unchanged or info). `failOn` is the default of `scan --fail-on`.
+- **init:** proposes a policy the project passes as it is: the sources and servers it has, and the strict value of each setting unless a current finding breaks it, in which case the loose value is written and listed so that it can be tightened.
+- **JSON:** `scan --json` is schema version 3 (`suppressed` with the reason, `policy` and `tag` on findings).
+
+## D-017: doctor
+- **Date:** 2026-11-06
+- **Decision of the maintainer:** exit code 1 from `warning`, moved by `doctor.failOn` or `--fail-on`. Levels are error (it does not work), warning (it probably does not) and info.
+- **Checks:** `invalid-policy`, `unparsable-config`, `misnamed-file`, `wrong-servers-key`, `missing-mcp-type`, `local-overrides-project`, `conflicting-mcp-server`, `deprecated-format`, `stale-policy-entry`. Each finding names an https source: the fact of the knowledge base it rests on, the JSON, TOML or YAML specification, or the schema. Each check has a positive and a negative fixture; `docs/doctor.md` is generated from the checks.
+- **Deprecations are knowledge:** `AgentKnowledge.deprecations` is a list of facts, each with its own source: `.cursorrules` (Cursor), `tools.exclude` and, from code only, `httpUrl` (Gemini CLI), `~/.codex/prompts` and, from code only, `~/.codex/skills` (Codex). A deprecation known from code only is reported as info.
+- **Limits:** `misnamed-file` looks only in folders the knowledge base names with a fixed path, and matches names by case, extension variants and an edit distance of at most 2. `local-overrides-project` compares single values only, since some agents merge lists across files, and needs a verified precedence fact. Which of two conflicting MCP definitions wins is not claimed.
+
+## D-018: ajv for tests only
+- **Date:** 2026-11-06
+- **Decision of the maintainer:** `ajv` 8.20.0 (released 2026-04-24) as an exact dev dependency, installed with the pinned npm 11.21.1. Its dependencies `fast-deep-equal`, `fast-uri` 3.1.9 (2026-10-19), `json-schema-traverse` and `require-from-string` are past the 7-day cooldown. It is not in the package and no runtime code imports it.
+- **Why not our validator:** the SARIF schema uses `$ref`, `oneOf`, `anyOf` and more; a validator written for it would test our own reading of the schema with our own code. The policy keeps its own small validator (D-016), since that runs in the CLI.
+- **The SARIF schema** is stored in `tests/fixtures/sarif/` with its source and SHA-256 (`SOURCE.md`), so tests use no network. It is draft-04, whose only keyword in use that draft-07 lacks is the top-level `id`; the tests rename it to `$id`. Formats `uri`, `uri-reference` and `date-time` are checked by small functions in the test, instead of `ajv-formats`.
+
+## D-019: CLI for people
+- **Date:** 2026-11-06
+- **One table of commands** (`src/cli/commands.ts`) gives the welcome screen, `help`, `help <command>`, `<command> --help`, the options passed to `parseArgs` and the suggestions, so help cannot list an option a command does not take. A test runs every example of every command on an empty project; screens are recorded as Vitest snapshots.
+- **Errors** always have three lines: what, `in:` and `fix:`; a test checks this for each kind of mistake. Suggestions use an edit distance of at least 2 (so swapped letters are found) for commands, options, rules and `help <command>`.
+- **Colors** (decision of the maintainer): only the labels of levels and results, only on a terminal; `NO_COLOR` with any value turns them off and wins over `FORCE_COLOR`, which turns them on. The label's text is always printed, and nothing from a scanned file is colored. JSON and SARIF never have color.
+
+## D-020: SARIF
+- **Date:** 2026-11-06
+- **Output:** `scan --sarif` on stdout, not combined with `--json` or `--inventory`; levels and `security-severity` as in `docs/cli-json.md`; fingerprints without line numbers; accepted findings as suppressions; deterministic.
+- **doctor has no SARIF:** its findings are configuration that does not work, not security alerts, and Code Scanning would mix the two.
+- **Paths** are relative to the scanned directory, so an upload to Code Scanning maps them only when that directory is the repository root.
+
+## D-021: GitHub Action
+- **Date:** 2026-11-06
+- **Decisions of the maintainer:** a composite action that builds agentcurfew from its own source until the first npm release, then runs `npx agentcurfew@<version>` (phase 9); a test workflow on this branch.
+- **Pins:** `actions/setup-node` v7.1.0 (`949feb2…`, commit of 2026-10-07), `actions/checkout` v6.0.3 (`df4cb1c…`, 2026-06-02), `github/codeql-action/upload-sarif` v4.39.1 (`9b32540…`, 2026-10-21). v4.39.2 and v4.39.3 were 2 and 3 days old, under the 7-day cooldown. SHAs were read with `git ls-remote` (peeled tags) and dates from the commits.
+- **Inputs** reach the shell only through environment variables, never through `${{ }}` inside a script. `npm ci --ignore-scripts` builds from the lockfile. Upload to Code Scanning is off by default, since it needs `security-events: write` and Code Scanning enabled.
+- **Test:** `.github/workflows/action-test.yml` (read-only permissions) runs the action from `./` on fixtures: scan with a finding (exit 1, SARIF with the finding), scan of an empty project (exit 0), verify without a lock (exit 1), doctor on a working configuration (exit 0).
+
+## D-022: CI
+- **Date:** 2026-11-06
+- **Decision of the maintainer:** the first release is 1.0.0 with phases 7 and 8 done, so phase 9 builds the release machinery now and publishes nothing; the version stays 0.0.0, which the release workflow refuses.
+- **Workflow `ci.yml`** (push to `main` and `main-wopcok`, pull requests, read-only): tests, fuzz, typecheck and `check:pkg` on Node 22 and 24; a build on Node 24 that assembles what a user gets (bundle, `package.json`, runtime dependencies from the lockfile) and runs `scripts/smoke.sh` on it under Node 22, 24 and 26 (Q-004, D-032, D-033); and a self-check: `scan`, `verify` and `doctor` of agentcurfew on its own repository, which now has its own `agentcurfew.lock`, and `depcurfew doctor`.
+- **npm 11.21.1 everywhere** installs run, through `npx npm@11.21.1`, since the npm of Node 22 ignores `min-release-age` (Q-009).
+- **depcurfew and the cooldown (decision of the maintainer):** every release of depcurfew was younger than 7 days on 2026-11-06, so `depcurfew.json` excludes `depcurfew` from the cooldown, as a sibling project with the same maintainer, and CI pins 1.5.2. `depcurfew apply` wrote `min-release-age-exclude[]=depcurfew`. npm 11.21.1 honors it for `npm install` but not for `npm exec`/`npx`, which still refused the version, so CI installs depcurfew with `npm install --no-save`. That gap is worth a look in depcurfew, which this session does not change.
+- **Pins:** besides those of D-021, `actions/upload-artifact` v7.0.2 (`cf430e0…`) and `actions/download-artifact` v8.0.2 (`9000827…`), both commits of 2026-10-07. A first draft carried SHAs written from memory; they were wrong and were replaced by SHAs read with `git ls-remote`.
+
+## D-023: Release
+- **Date:** 2026-11-06
+- **Decision of the maintainer:** two gates: the GitHub environment `npm` with a required reviewer, then npm staged publishing approved with 2FA. Trusted publishing (OIDC), no token.
+- **Workflow `release.yml`** (tags `v*`): `build` checks that the tag equals `v` + the version and that the version is not 0.0.0, runs the tests, packs the tarball and records its SHA-256; `publish` (environment `npm`, `id-token: write` only there) checks the SHA-256 and runs `npm stage publish` on that tarball, so what goes out is what was tested. npm 11.21.1 meets the documented minimums (11.5.1 for trusted publishing, 11.15.0 for staged publishing) on Node 24 (minimum 22.14.0).
+- **Not settled:** whether a trusted publisher can be set before the first publish of a new package, whether `npm stage publish` takes a tarball and keeps provenance. `docs/RELEASING.md` lists the manual steps and the fallback, which needs the maintainer's decision.
+
+## D-024: The action after the release
+- **Date:** 2026-11-06
+- **Decision of the maintainer:** a released version of the action runs agentcurfew from npm, pinned to the version in its own `package.json`; the unreleased 0.0.0 builds from source as before.
+- **How:** `npm install agentcurfew@<version> --ignore-scripts` into a folder under `$RUNNER_TEMP`, outside the workspace, so that a `.npmrc` with `min-release-age` (the user's, or this repository's) does not refuse a fresh release; `npm install` rather than `npx`, which gives the path of the CLI and is the command the cooldown exclusion was seen to work with.
+
+## D-025: MCP server
+- **Date:** 2026-11-06
+- **Decision of the maintainer:** a server of our own, without the SDK, in the main package as `agentcurfew mcp`, so the runtime dependencies stay `smol-toml` and `yaml`; the official client `@modelcontextprotocol/client` 2.4.0 (2026-10-23, installed with the pinned npm, so its dependencies passed the cooldown) is a dev dependency for the tests. Q-003 is answered: no separate package.
+- **Two eras:** MCP 2026-07-28 is the latest revision; it drops `initialize`, `notifications/initialized` and `ping`, and requires `server/discover` and the version in each request's `_meta`. 2025-11-25 is what many clients still speak. The server answers both: `initialize` puts a connection in the 2025 era (versions 2025-11-25 and 2025-06-18), otherwise every request must carry a supported 2026 version or gets -32022 with the list. Shapes were taken from the specification's `schema.ts` and examples on GitHub (modelcontextprotocol.io was not reachable from the session). The tests connect the official client in its default legacy mode and in auto mode, which negotiates 2026-07-28.
+- **Paths (decision of the maintainer):** the folder the server runs in, `--root` folders and, under 2025-11-25, the client's roots from `roots/list`; links are resolved before the check.
+- **Safety:** lines over 1 MB and JSON deeper than 64 levels are refused, error messages carry nothing from the input, secrets in findings are masked as everywhere, and nothing but MCP messages goes to stdout.
+
+## D-026: The hook
+- **Date:** 2026-11-06
+- **Decisions of the maintainer:** writes to files that steer agents ask; they are denied when the new text brings a finding at high or above or out of the policy; `skills add` and `claude mcp add` are denied outside the policy and asked about otherwise.
+- **Facts in the knowledge base:** the PreToolUse input and output of Claude Code (`toolHook`), including `hookEventName`, which `hookSpecificOutput` requires, the precedence `deny > defer > ask > allow` and parallel hooks; `claude mcp add` (`mcpAdd`); `npx skills add` (`shared.skillsInstaller`). There is no MultiEdit tool, and NotebookEdit's fields are not documented, so the matcher is `Bash|Write|Edit`.
+- **How a write is judged:** the new text (Write's content, or Edit applied to the current file, with `replace_all`) is scanned as an overlay (`ScanOptions.overlay`, read only, never written); findings that are new for that file, after the policy, decide. Drift and `skills-lock-mismatch` are left out, since every write would raise them. A policy file is validated directly, since the policy is read from disk.
+- **Silence, never allow:** a call the hook has nothing to say about gets no output and exit code 0, so Claude Code's own permissions and other hooks decide. On an internal error during a write to an agent file it asks; elsewhere it stays silent and says so on stderr. It never exits with 2.
+- **Shell commands** are split into simple commands on `;`, `&&`, `||`, `|` and newlines outside quotes; the source of `skills add` is the word after `add`, or the last plain word when options with several values come first. Shell writes cannot be checked before they run, so they ask.
+
+## D-027: Installing the hook
+- **Date:** 2026-11-06
+- **Decision of the maintainer:** `agentcurfew init --hook` writes to `.claude/settings.json`, next to depcurfew's hook.
+- **Entry:** `command: "node"` with `args`, as depcurfew's README writes its own hook, so no shell reads the path; `${CLAUDE_PROJECT_DIR}` points at `node_modules/agentcurfew/dist/cli.js`; timeout 30 s. No `onFailure: "block"`: with agentcurfew not installed it would block every write and command. `doctor` reports that case instead (`agentcurfew-hook-missing`).
+- **Keeping other hooks:** every other key and hook entry is kept as it was (a test uses depcurfew's recommended entry); a second run adds nothing; settings with comments, other shapes and links are refused with the entry to add by hand.
+
+## D-028: depcurfew, offline
+- **Date:** 2026-11-06
+- **Decisions of the maintainer:** only offline; the missing parts of depcurfew's API go to its own session (Q-012); depcurfew 1.5.2 as an exact dev dependency and an optional peer `>=1.5.2 <2`; an error of depcurfew is high, a warning medium, in the new rule `mcp-package` (AST02).
+- **API used:** `getVersion`, `loadPolicy`, `checkSpecs` and `PopularNames`, the public exports of depcurfew 1.5.2 (`dist/index.d.ts`, README section Library), loaded with a dynamic `import()` that the bundle keeps external; a test checks that no code of depcurfew is bundled and that no other file of `src` calls depcurfew or holds package checks of its own.
+- **Offline:** `checkSpecs` gets a `fetch` that refuses every request and an empty `PopularNames`. Measured on 1.5.2: with `depcurfew.json`, git, tarball and local sources give `forbidden-source` and bad specs `invalid-spec` without any request; every registry package gives `unverified`, only because the registry cannot be reached, and is dropped. Only `forbidden-source`, `invalid-spec`, `unchecked-source` and `insecure-registry` are reported. Without `depcurfew.json`, `loadPolicy` throws, so nothing is checked. The value is therefore narrow: the full check of a server's package stays `npx depcurfew check <package>`.
+- **Asynchronous:** depcurfew's checks are asynchronous and the rules are not, so `analyzeProjectAsync` gathers the reports first and the rule reads them from its context. `scan`, `lock` and the MCP tools use it; the hook does not, since installs are depcurfew's hook.
+- **Specs:** npm launchers pass their spec as written; `uvx`, `uv tool run` and `pipx run` become `pypi:` specs, with `name@version` written `name==version`; images are not packages here.
+
+## D-029: doctor and depcurfew's hook
+- **Date:** 2026-11-06
+- **Checks:** `depcurfew-hook-missing` (the project has `depcurfew.json` and no depcurfew hook in its Claude Code settings) and `depcurfew-hook-broken` (the hook runs a `node_modules/depcurfew/dist/cli.js` that does not exist; an error with `onFailure: "block"`, since depcurfew's README says that then blocks every command, otherwise a warning). The hook is recognised as `depcurfew … check … --hook`, in `command` or `args`. Source: depcurfew's README on GitHub.
+- **This repository (decision of the maintainer):** `doctor .` found that the repository had `depcurfew.json` and no depcurfew hook, so `.claude/settings.json` now holds depcurfew's hook as its README writes it (`onFailure: "block"`), agentcurfew's own hook (running `dist/cli.js`, since agentcurfew is the project here, not a package in `node_modules`), and a SessionStart hook that runs `npm ci --ignore-scripts` and the build when they are missing. That hook is an auto-run, which the repository's policy accepts by an exception with its reason; `agentcurfew.lock` was updated.
+
+## D-030: No `acf` alias
+- **Date:** 2026-11-07
+- **Decision of the maintainer:** the package ships one binary, `agentcurfew`. Other packages on npm and PyPI ship an `acf` binary (Q-001), so the alias could run another tool or be shadowed by one; an alias can be added later, but removing one after a release would break scripts. The help text no longer names it, and a test checks that.
+
+## D-031: A file that could not be read fails `scan`
+- **Date:** 2026-11-07
+- **Decision of the maintainer (Q-013, option b):** `scan` exits with 1 when the inventory has a `too-large`, `too-deep` or `unreadable` problem, since that file was not checked; `unparsable`, `outside-project` and `too-many-entries` stay warnings. The text output ends with "Failed: N files could not be read", and SARIF output gets an invocation with `executionSuccessful: false` and one notification per file. `--fail-on none` turns this off too, as it turns off every failure of `scan`. The list is `UNCHECKED_PROBLEMS` in `src/inventory/types.ts`.
+
+## D-032: Node 20.20 is the floor
+- **Date:** 2026-11-07
+- **Decision of the maintainer:** Node 18 is dropped for 1.0.0. `engines` is `>=20.20.0`, the oldest line CI tests, at the release it tests (20.20.2 on 2026-11-07); the smoke test of the assembled package runs on Node 20, 22, 24 and 26.
+- **Source:** the Node.js release schedule, https://raw.githubusercontent.com/nodejs/Release/main/schedule.json, read on 2026-11-07: Node 18 ended on 2025-04-30, Node 20 on 2026-04-30, Node 22 ends on 2027-04-30 (see Q-014).
+- **Superseded** by D-033 the same day: Node 22 is the floor.
+
+## D-033: Node 22.23 is the floor
+- **Date:** 2026-11-07
+- **Decision of the maintainer (Q-014):** Node 20 is dropped as well, since it ended on 2026-04-30 by the Node.js release schedule. `engines` is `>=22.23.0`, the oldest line CI tests, at the release it tests (22.23.4 on 2026-11-07), following the rule of D-032; the smoke test runs on Node 22, 24 and 26, and the test suite on 22 and 24. Node 22 is in maintenance until 2027-04-30.
+
+## D-034: Knowledge audit of 2026-11-07
+- **Date:** 2026-11-07
+- **What:** every source URL of src/knowledge/ was read again. 25 discrepancies were found; each change was checked against the saved page and dated 2026-11-07 (the facts it touched use verifiedOn('2026-11-07')). Highlights: Claude Code enabledMcpjsonServers, recursive .claude/agents, nested skills and rules, output styles, managedMcpServers, sse and ws remote types, headersHelper; Devin exec and mcp__* allow entries, legacy mcpServers in config.json, allowed-tools; Cursor Mcp(*:*) and WebFetch(*), user rule files, JSONC permissions; VS Code sandboxEnabled and task.allowAutomaticTasks on, profile settings, CLAUDE.local.md; Codex managed hooks, app approval keys and SessionStart as an automatic start; Gemini autoAddToPolicyByDefault and the policy-engine source for tools.exclude.
+- **Not added, because no source documents them:** Cursor Shell(*), .cursor/rules/<name>/RULE.md folders, .cursor/worktrees.json.
+
+## D-035: The lock hashes entries with their secrets redacted
+- **Date:** 2026-11-07
+- **Decision of the maintainer (Q-015, option b):** the hash of each locked component covers its entry with every secret the rules would report replaced by `<redacted>`, as the lock already writes it, and context files are hashed after the same redaction. A committed lock therefore confirms no guessed secret offline. In exchange, a change of a secret's value alone is no longer drift; any other change, a renamed variable or a new argument included, still is. Skill files keep their real hashes, which the comparison with skills-lock.json needs.
+
+## D-036: The site mirrors depcurfew's
+- **Date:** 2026-11-07
+- **Decision of the maintainer:** agentcurfew and depcurfew are one family, depcurfew for the packages people and agents install, agentcurfew for the files that steer the agent, and agentcurfew is laid out as depcurfew is: the code in `DevXord/agentcurfew`, the unscoped npm package `agentcurfew` on the same npm account, and the documentation site at https://agentcurfew.github.io/ from a repository `agentcurfew.github.io` of a GitHub organization `agentcurfew` that holds nothing else. That repository's files are kept in `site/org-repo/`: once a day it builds the site from the latest release tag with `npm run site` and deploys it to GitHub Pages. `homepage` in `package.json` is that address, and the pages name it as canonical. The logo is depcurfew's cube as a speech bubble with an agent's eyes and an AI sparkle, in violet, with depcurfew's amber clock; `site/social.png` (from `site/social.html`) is the repository's social preview and the pages' `og:image`.
+
+## Q-012: For the depcurfew session
+- **Status:** handed over on 2026-11-07, as the maintainer chose: [handoff-depcurfew.md](handoff-depcurfew.md) is the note to pass to depcurfew's own session; agentcurfew does not change depcurfew.
+- `popularPackages` and `popularPythonPackages` are not exported, so agentcurfew cannot check similar names of MCP server packages offline without copying them.
+- The default directory of the local OSV.dev data is not exported, so `LocalOsvData` cannot be pointed at the data `depcurfew osv update` writes without copying that logic.
+- npm 11.21.1 honours `min-release-age-exclude[]=depcurfew` for `npm install` but not for `npm exec`/`npx` (D-022), which `depcurfew apply` may want to know.
+- Its hook, active in this repository's sessions, judges `npx <bin>` by the registry's newest version even when the binary is the project's own, pinned dev dependency: `npx vitest` was denied for vitest 5.1.0 (4 days old) while the project pins an older one, `npx tsdown` likewise, and `npx tsc` got a warning. The workaround here is `npm test`, `npm run build` and `npm run typecheck`. A local binary in `node_modules/.bin` could be checked against its installed version instead.
 
 ## Q-001: Does `acf` collide with a common tool in PATH?
-- **Status:** no collision found on 2026-11-06, not proven. No `bin/acf` in Debian stable or Ubuntu noble, and nothing in Homebrew, Arch, Repology or Chocolatey. Alpine's `acf-core` keeps it off PATH. npm `acf` has no `bin`. Not checked: PyPI `acf` entry points, and npm by binary name, which cannot be searched. The alias stays; decide at phase 9.
+- **Status:** answered on 2026-11-07 by D-030: the alias is dropped. No `bin/acf` in Debian stable or Ubuntu noble, and nothing in Homebrew, Arch, Repology or Chocolatey; Alpine's `acf-core` keeps it off PATH.
+- **Found on 2026-11-06 (research run, from npm and PyPI listings):** several packages ship a binary named `acf`: `@autocodeflow/cli` and `agentic-control-framework` on npm, and `ai-code-forge` on PyPI. The npm package named `acf` is taken (no `bin`). Whichever is installed last wins the name in PATH, so `acf` may run another tool, and another tool's `acf` may run when a user means agentcurfew.
+- **Recommendation:** drop the `acf` alias for 1.0.0 and keep only `agentcurfew`; adding an alias later is easy, removing one after release breaks scripts. If it stays, the docs should say that `agentcurfew` is the reliable name.
 
 ## Q-002: Is the name `agentcurfew` still free on npm?
-- **Status:** free on 2026-11-06 (`npm view agentcurfew` returns E404). Check again right before the first publish.
+- **Status:** free on 2026-11-06, checked again in phase 9 and on 2026-11-07 for the release commit (`npm view agentcurfew` returns E404). Check once more right before the first publish (docs/RELEASING.md).
 
 ## Q-003: Separate `@agentcurfew/mcp` package?
-- **Status:** open until phase 7, depending on whether the MCP server needs the SDK.
+- **Status:** answered by D-025: no; the server needs no SDK and lives in the main package.
 
 ## Q-004: Is Node 18.3 really the floor?
-- **Status:** open. Taken from depcurfew. The build tool does not support every Node version at build time (`rolldown-plugin-dts` warns on 25.8.1, though it builds), and the output has only been run on 25.8.1. A CI matrix should settle the floor in phase 6 or 9.
+- **Status:** answered in phase 9. CI ran the assembled package (bundle and runtime dependencies) through `scripts/smoke.sh` on Node 18.20.8, 20, 22, 24 and 26 on 2026-11-06, all green; the test suite runs on 22 and 24, since the test tools need a newer Node. `engines` was then `>=18.20.0`, the oldest line tested at its last release, instead of the untested `>=18.3.0`. Node 18 is past its end of life; D-032 drops it.
 
 ## Q-006: Which TOML parser for Codex?
 - **Status:** answered by D-010. Codex keeps MCP servers, permissions, hooks and custom agents in TOML with inline tables and quoted keys, so a parser is needed.
 
 ## Q-007: Does the Windsurf entry keep its name?
-- **Status:** open, maintainer's choice. Windsurf is now Devin Desktop: `docs.windsurf.com` redirects to `docs.devin.ai` (checked on 2026-11-06), `.devin/` is primary and `.windsurf/` is legacy. The id stays `windsurf` for now, with the name "Windsurf (Devin Desktop)", and the module lists both folders. The plan's agent list predates this.
+- **Status:** answered on 2026-11-06: the id stays `windsurf`, by the maintainer's choice, since it now appears in findings and JSON output.
+- **Background:** Windsurf is now Devin Desktop: `docs.windsurf.com` redirects to `docs.devin.ai` (checked on 2026-11-06), `.devin/` is primary and `.windsurf/` is legacy. The id stays `windsurf` for now, with the name "Windsurf (Devin Desktop)", and the module lists both folders. The plan's agent list predates this.
 
 ## Q-008: `yaml` in phase 2?
-- **Status:** open until phase 2 shows whether skill frontmatter needs a full parser. D-004 keeps it out until code imports it.
+- **Status:** answered by D-012: the maintainer approved `yaml` in phase 3.
+
+## Q-009: npm in cloud sessions ignores the cooldown
+- **Status:** handled in CI by D-022 (every install through npm 11.21.1); the cloud container itself still has npm 10.9.9, so sessions here keep installing with `npx npm@11.21.1`. Earlier `npx depcurfew@latest doctor` runs in this container passed only because npm 10 ignored the cooldown.
+- **Background:** The cloud container has npm 10.9.9, while `packageManager` pins 11.21.1. npm 10 does not know `min-release-age` or `allowScripts`, so `.npmrc` protections are silently off there, and it rewrites `package-lock.json` (it drops the `libc` fields). `dcf doctor` passed, since it reads the pinned version from `package.json`. Phase 3 installed `yaml` with `npx npm@11.21.1`. CI (phase 9) must run the pinned npm, for example through Corepack.
+
+## Q-010: Credential formats in `secret-in-config`
+- **Status:** answered on 2026-11-06. Each shape in `src/rules/secrets.ts` was checked against the issuer's docs or code, and the source is now next to it. Many issuer sites cannot be reached from the cloud session, so several were read from the docs' source repositories (github/docs, gitlab-org/gitlab, awsdocs/iam-user-guide, npm/redact) or, for Google, Slack and Stripe, from search summaries of their pages.
+- **Changed:** GitHub's stateless installation tokens (`ghs_<app id>_<JWT>`, from 2026-04-27) were missed and are now found; GitLab's routable tokens are matched whole; Google keys that end in `-` are found; Slack's `xoxe-`, `xapp-` and `xwfp-` tokens are found; npm tokens follow npm's own redaction pattern (`npms?_`, 36 to 48 characters); private keys with labels such as `SM2`, `OPENSSH` or `PGP … BLOCK` are found. OpenAI documents no format, so the `sk-` shape stays wide, as "sk- API key (OpenAI and others)", but needs a digit, so a hyphenated word is not taken for a key.
+- **Not covered:** Stripe organization keys (`sk_org`, shape not documented), Google's newer `AQ.` keys (forum reports only), GitLab personal token prefixes an admin changed, unsigned and encrypted JWTs.
+
+## Q-011: Deprecated Windsurf paths
+- **Status:** answered on 2026-11-07. With the session's network opened by the maintainer, docs.devin.ai was read: the Devin Local customizations page (https://docs.devin.ai/desktop/devin-local/customizations.md) calls `.windsurfrules`, `.windsurf/rules/*.md`, `.windsurf/global_rules.md` and `.windsurf/skills/` legacy, still read; the Cascade reference (https://docs.devin.ai/desktop/cascade.md) calls `.windsurf/workflows/` and the Windsurf system directories a legacy fallback, and says Devin Desktop no longer starts Cascade conversations. Each is now a `deprecations` entry of the Windsurf knowledge, dated 2026-11-07, which `doctor`'s `deprecated-format` reports; the doctor fixtures cover `.windsurfrules` and `.windsurf/skills`.
+- **Not changed:** the search summaries of 2026-11-06 also gave a different global rules path; the pages read list `~/.devin/global_rules.md` and `~/.devin/rules/*.md`, as the knowledge base already does, and say nothing of an older global file.
 
 ## Q-005: TypeScript 7?
-- **Status:** open, maintainer's choice. `tsdown` 0.23.5 declares `^7.0.0` as a supported peer; whether 0.23.2 and the d.ts build work with it was not tested.
+- **Status:** answered on 2026-11-07: the maintainer keeps TypeScript 6.0.3 for 1.0.0; TypeScript 7 is to be tried after the release. `tsdown` 0.23.5 declares `^7.0.0` as a supported peer; whether 0.23.2 and the d.ts build work with it was not tested.
+
+## Q-013: Should a file that could not be read fail `scan`?
+- **Status:** answered on 2026-11-07 by D-031: option (b). Today inventory problems (`too-large`, `too-deep`, `unreadable`, `unparsable`, `outside-project`, `too-many-entries`) are listed but never change the exit code (decision of phase 3).
+- **Why it matters:** a hostile repository can pad a walked tree, such as many large `CLAUDE.md` files or a skill folder, so that a later skill or rule file is past the 128 MB read budget, or make a file larger than 2 MB, and `scan` then passes without checking it. Fixed config paths are always read (2026-11-07), so this only hides walked and globbed files; the hook already denies such writes.
+- **Options:** (a) keep it as it is; (b) exit with 1 when a file of the knowledge base could not be read (`too-large`, `too-deep`, `unreadable`); (c) the same through a policy setting, off by default.
+- **Recommendation:** (b), since a file that was not checked should not pass in CI; `unparsable` and `outside-project` could stay warnings.
+
+## Q-014: Drop Node 20 as well?
+- **Status:** answered on 2026-11-07 by D-033: yes, Node 22 is required.
+- **Found on 2026-11-07:** the Node.js release schedule (https://raw.githubusercontent.com/nodejs/Release/main/schedule.json) gives 2026-04-30 as the end of Node 20, so 1.0.0 would start out supporting a line that no longer gets security fixes. Node 22 is in maintenance until 2027-04-30; Node 24 and 26 are LTS.
+- **Options:** keep `>=20.20.0` (D-032), or make it `>=22` with the release CI tests, and drop 20 from the smoke matrix. Nothing in the code needs Node 22 today.
+- **Recommendation:** `>=22`, so that the first release does not promise support for an ended line.
+
+## Q-015: Should the lock hash secret values?
+- **Status:** answered on 2026-11-07 by D-035: option (b).
+- **Found by the pentest of 2026-11-07:** the lock shows `<redacted>` for a secret but its hash covers the real value, so a weak password can be guessed offline from a committed lock (466 guesses for a season-year-symbol password). It matters when the secret sits in a file that is not committed (`.claude/settings.local.json`) while the lock is; a committed config holds the secret in clear anyway, and scan reports it at high.
+- **Options:** (a) keep it: verify notices when a secret's value changes; (b) hash the redacted entry: no oracle, but swapping a secret's value is no longer drift.
+- **Recommendation:** (b), since the lock is meant to be committed and a secret in configuration is already a high finding.
+
+## Q-016: Configuration that agentcurfew does not read yet
+- **Status:** decided on 2026-11-07: after the 1.0.0 release (decision of the maintainer).
+- **Found by the field test and the functional review of 2026-11-07:** Claude Code statusLine.command, apiKeyHelper, env (including ANTHROPIC_BASE_URL), enabledPlugins and extraKnownMarketplaces, and Codex notify, which run commands or redirect the agent; scripts that hooks run (a hook calling .claude/hooks/x.py is locked, the script is not); plugin packages (.claude-plugin/plugin.json, gemini-extension.json); Gemini context.fileName; the executable bit of Cline hook files in the lock; unpinned launchers inside hook commands; headersHelper of remote MCP servers.
+- **Recommendation:** statusLine, apiKeyHelper and hook scripts first, since they run commands; each needs sources in the knowledge base and fixtures.

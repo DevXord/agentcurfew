@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { EXIT_FAILURE } from './cli/io.ts';
 
-// A reader that went away (acf --help | head -1) must not end in a stack trace from an unhandled EPIPE.
+// A reader that went away (agentcurfew --help | head -1) must not end in a stack trace from an unhandled EPIPE.
 function quietWhenClosed(stream: NodeJS.WriteStream): (text: string) => void {
   let closed = false;
   stream.on('error', (error: NodeJS.ErrnoException) => {
@@ -27,8 +27,31 @@ function dropColorWarning(): void {
 }
 
 dropColorWarning();
-import('./cli/run.ts')
-  .then(({ run }) => run(process.argv.slice(2), { stdout: quietWhenClosed(process.stdout), stderr: quietWhenClosed(process.stderr) }))
+// The whole of stdin, read only by the commands that ask for it, and only up to a limit: more is a sign of the wrong input.
+function readStdin(): Promise<string> {
+  const limit = 8 * 1024 * 1024;
+  return new Promise((resolve) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    process.stdin.on('data', (chunk: Buffer) => {
+      size += chunk.length;
+      if (size <= limit) chunks.push(chunk);
+    });
+    process.stdin.on('end', () => resolve(size > limit ? 'x'.repeat(limit + 1) : Buffer.concat(chunks).toString('utf8')));
+    process.stdin.on('error', () => resolve(''));
+  });
+}
+
+Promise.all([import('./cli/run.ts'), import('./cli/style.ts')])
+  .then(([{ run }, { wantsColor }]) =>
+    run(process.argv.slice(2), {
+      stdout: quietWhenClosed(process.stdout),
+      stderr: quietWhenClosed(process.stderr),
+      color: wantsColor(process.stdout.isTTY, process.env),
+      stdin: readStdin,
+      streams: { input: process.stdin, output: process.stdout },
+    }),
+  )
   .then(
     (code) => {
       if (process.exitCode === undefined || process.exitCode === 0) process.exitCode = code;

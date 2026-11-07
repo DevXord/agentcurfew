@@ -2,27 +2,33 @@ import { verifiedOn } from './define.ts';
 import type { AgentKnowledge, AgentPath, ContextFile, SkillsKnowledge } from './types.ts';
 
 const { verified, uncertain, disputed, evidence } = verifiedOn('2026-11-06');
+// Facts changed after the source audit of 2026-11-07, read again that day.
+const later = verifiedOn('2026-11-07');
 
 const SETTINGS = 'https://code.visualstudio.com/docs/configure/settings';
 const MCP_REFERENCE = 'https://code.visualstudio.com/docs/agents/reference/mcp-configuration';
-const MCP_GUIDE = 'https://code.visualstudio.com/docs/copilot/customization/mcp-servers';
+const MCP_GUIDE = 'https://code.visualstudio.com/docs/agent-customization/mcp-servers';
 const HOOKS_REFERENCE = 'https://docs.github.com/en/copilot/reference/hooks-reference';
 const HOOKS_GUIDE = 'https://code.visualstudio.com/docs/agent-customization/hooks';
 const LOCAL_HOOKS = 'https://code.visualstudio.com/docs/agents/reference/hooks-reference';
-const SKILLS = 'https://code.visualstudio.com/docs/copilot/customization/agent-skills';
+const SKILLS = 'https://code.visualstudio.com/docs/agent-customization/agent-skills';
 const MIGRATE = 'https://code.visualstudio.com/docs/agent-customization/migrate-customizations';
 const INSTRUCTIONS = 'https://code.visualstudio.com/docs/agents/reference/custom-instructions-reference';
 const APPROVALS = 'https://code.visualstudio.com/docs/agents/run/approvals';
 const AI_SETTINGS = 'https://code.visualstudio.com/docs/agents/reference/ai-settings';
 const TASKS = 'https://code.visualstudio.com/docs/debugtest/tasks';
 const AGENTS = 'https://code.visualstudio.com/docs/agents/reference/custom-agent-file-reference';
-const PROMPTS = 'https://code.visualstudio.com/docs/copilot/customization/prompt-files';
+const PROMPTS = 'https://code.visualstudio.com/docs/agent-customization/prompt-files';
 
 const WORKSPACE_SETTINGS: AgentPath = { path: '.vscode/settings.json', scope: 'project', format: 'json' };
 const USER_SETTINGS: readonly AgentPath[] = [
   { path: '~/.config/Code/User/settings.json', scope: 'user', format: 'json', platforms: ['linux'] },
   { path: '~/Library/Application Support/Code/User/settings.json', scope: 'user', format: 'json', platforms: ['darwin'] },
   { path: '%APPDATA%/Code/User/settings.json', scope: 'user', format: 'json', platforms: ['win32'] },
+  // A profile scopes the user settings to itself (${SETTINGS}).
+  { path: '~/.config/Code/User/profiles/*/settings.json', scope: 'user', format: 'json', platforms: ['linux'] },
+  { path: '~/Library/Application Support/Code/User/profiles/*/settings.json', scope: 'user', format: 'json', platforms: ['darwin'] },
+  { path: '%APPDATA%/Code/User/profiles/*/settings.json', scope: 'user', format: 'json', platforms: ['win32'] },
 ];
 
 const skills = (directories: readonly string[]): SkillsKnowledge => ({
@@ -45,7 +51,7 @@ export const copilotVscode: AgentKnowledge = {
     SETTINGS,
     'Winner first. The full order, last wins: default, user, remote, workspace, workspace folder, the language-specific forms of those, then policy settings, which beat everything and have no file here. The Windows path is written as the page gives it, with %APPDATA% in place of ~/. These are editor settings; the Copilot harness reads separate Copilot files, and the pages name .github/copilot/settings.json, .github/copilot/settings.local.json and ~/.copilot/settings.json only as sources of inline hooks, with no order against the editor settings.',
   ),
-  mcp: verified(
+  mcp: later.verified(
     {
       files: [
         { path: '.vscode/mcp.json', scope: 'project', format: 'json' },
@@ -57,7 +63,7 @@ export const copilotVscode: AgentKnowledge = {
       remote: { url: 'url', headers: 'headers' },
     },
     MCP_REFERENCE,
-    `The VS Code format also exists as mcp.json in the user profile, per profile, with no on-disk path in the docs. The portable format uses the top-level key mcpServers in .mcp.json at the workspace root (experimental, behind chat.mcp.workspaceRootConfig.enabled) and in $COPILOT_HOME/mcp-config.json, falling back to ~/.copilot/mcp-config.json. With chat.mcp.discovery.enabled VS Code also reads the configuration of other agents, such as Claude Desktop, Cursor and Windsurf. Copilot harness sessions read the portable format directly and do not read .vscode/mcp.json; VS Code forwards its eligible servers, leaving out those that need \${input:...} or \${command:...}. ${MCP_GUIDE} labels .vscode/mcp.json and the profile file deprecated in its guided flow; the reference does not. Both type and the fields above are per server: stdio needs type and command, http and sse need type and url. cwd, envFile and input variables exist only in the VS Code format; the portable format's server fields were not checked one by one.`,
+    `The VS Code format also exists as mcp.json in the user profile, per profile, with no on-disk path in the docs. The portable format uses the top-level key mcpServers in .mcp.json at the workspace root, which is always read (the experimental chat.mcp.workspaceRootConfig.enabled only controls whether MCP: Add Server offers it as a destination: "Existing .mcp.json files remain available when this setting is off", read on 2026-11-07) and in $COPILOT_HOME/mcp-config.json, falling back to ~/.copilot/mcp-config.json. With chat.mcp.discovery.enabled VS Code also reads the configuration of other agents, such as Claude Desktop, Cursor and Windsurf. Copilot harness sessions read the portable format directly and do not read .vscode/mcp.json; VS Code forwards its eligible servers, leaving out those that need \${input:...} or \${command:...}. ${MCP_GUIDE} labels .vscode/mcp.json and the profile file deprecated in its guided flow; the reference does not. Both type and the fields above are per server: stdio needs type and command, http and sse need type and url. cwd, envFile and input variables exist only in the VS Code format; the portable format's server fields were not checked one by one.`,
   ),
   hooks: verified(
     {
@@ -98,12 +104,13 @@ export const copilotVscode: AgentKnowledge = {
     evidence(skills(['.github/skills', '~/.copilot/skills']), SKILLS, 'Lists .agents/skills under the Codex harness, not under Copilot.'),
     evidence(skills(['.github/skills', '.agents/skills', '~/.copilot/skills', '~/.agents/skills']), MIGRATE),
   ),
-  contextFiles: verified(
+  contextFiles: later.verified(
     [
       context('.github/copilot-instructions.md', 'markdown', 'always'),
       context('AGENTS.md', 'markdown', 'always'),
       context('CLAUDE.md', 'markdown', 'always'),
       context('.claude/CLAUDE.md', 'markdown', 'always'),
+      context('CLAUDE.local.md', 'markdown', 'always'),
       context('.github/instructions/**/*.instructions.md', 'markdown-frontmatter', 'conditional'),
       context('**/AGENTS.md', 'markdown', 'conditional'),
       context('.claude/rules/*.md', 'markdown-frontmatter', 'conditional'),
@@ -116,9 +123,9 @@ export const copilotVscode: AgentKnowledge = {
     INSTRUCTIONS,
     'The union of the Copilot, Local, Claude and Codex harnesses of VS Code, since the harness is chosen per session. The reference table does not label activation; loading is read from its descriptions and the custom instructions guide. A .claude/rules file without paths applies generally. Whether .claude/rules is searched recursively is not stated. ~/.codex is the default Codex home. GEMINI.md is not mentioned. Local gating settings, in the AI settings reference: github.copilot.chat.codeGeneration.useInstructionFiles, chat.useAgentsMdFile, chat.useNestedAgentsMdFiles (off by default), chat.useClaudeMdFile, chat.includeApplyingInstructions, chat.instructionsFilesLocations. Local user instructions live in the profile, with no path given.',
   ),
-  permissions: uncertain(
+  permissions: later.uncertain(
     {
-      files: [WORKSPACE_SETTINGS, ...USER_SETTINGS],
+      files: [WORKSPACE_SETTINGS, { path: '.vscode/mcp.json', scope: 'project', format: 'json' }, ...USER_SETTINGS],
       keys: [
         'chat.tools.global.autoApprove',
         'chat.tools.terminal.autoApprove',
@@ -128,18 +135,25 @@ export const copilotVscode: AgentKnowledge = {
         'chat.tools.urls.autoApprove',
         'chat.tools.eligibleForAutoApproval',
         'chat.permissions.default',
+        'chat.agent.sandbox.enabled',
+        'chat.agent.sandbox.allowUnsandboxedCommands',
+        'chat.tools.terminal.autoReplyToPrompts',
+        'task.allowAutomaticTasks',
+        'servers.*.sandboxEnabled',
       ],
       bypass: [
         { key: 'chat.tools.global.autoApprove', value: true },
         { key: 'chat.permissions.default', value: 'autoApprove' },
         { key: 'chat.permissions.default', value: 'autopilot' },
         { key: 'github.copilot.chat.claudeAgent.allowDangerouslySkipPermissions', value: true },
+        { key: 'servers.*.sandboxEnabled', value: true },
+        { key: 'task.allowAutomaticTasks', value: 'on' },
       ],
     },
     APPROVALS,
-    `The keys and values are documented here and in ${AI_SETTINGS}, as flat setting names, not nested paths. Not settled: whether each works from .vscode/settings.json. Neither page states a scope, and the security page advises only against granting permissions at workspace level. Issue reports on microsoft/vscode conflict, so .vscode/settings.json is listed so that a scanner still looks there. chat.permissions.default is experimental; the page lists its values as default, autoApprove and autopilot. chat.tools.edits.autoApprove appears in the settings reference, not on the approvals page.`,
+    `The keys and values are documented here and in ${AI_SETTINGS}, as flat setting names, not nested paths. Not settled: whether each works from .vscode/settings.json. Neither page states a scope, and the security page advises only against granting permissions at workspace level. Issue reports on microsoft/vscode conflict, so .vscode/settings.json is listed so that a scanner still looks there. chat.permissions.default is experimental; the page lists its values as default, autoApprove and autopilot. chat.tools.edits.autoApprove appears in the settings reference, not on the approvals page. Read on 2026-11-07: in .vscode/mcp.json a server with sandboxEnabled true has its tool confirmations "auto-approved because the server runs in a controlled environment" (${MCP_REFERENCE}); task.allowAutomaticTasks on runs automatic tasks "when opening a trusted workspace, without prompting", and the tasks page says to "add it to your user or workspace settings" (${TASKS}).`,
   ),
-  autoRun: verified(
+  autoRun: later.verified(
     {
       files: [{ path: '.vscode/tasks.json', scope: 'project', format: 'json' }],
       containerKey: 'tasks',
@@ -148,7 +162,7 @@ export const copilotVscode: AgentKnowledge = {
       commandField: 'command',
     },
     TASKS,
-    'The keys sit on each task. Whether a task starts is decided by task.allowAutomaticTasks: the default off does not run automatic tasks, and with no choice made for the workspace VS Code prompts once to Allow or Disallow; on runs them without prompting. Automatic tasks never run in an untrusted workspace, whatever the setting. Whether a workspace can set task.allowAutomaticTasks itself is not stated.',
+    'The keys sit on each task. Whether a task starts is decided by task.allowAutomaticTasks: the default off does not run automatic tasks, and with no choice made for the workspace VS Code prompts once to Allow or Disallow; on runs them without prompting. Automatic tasks never run in an untrusted workspace, whatever the setting. The setting may be added to "user or workspace settings" (read on 2026-11-07), so a committed .vscode/settings.json can set it to on; permission-bypass reports that.',
   ),
   extensions: verified(
     {

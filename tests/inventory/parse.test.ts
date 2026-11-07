@@ -24,8 +24,8 @@ describe('stripJsonc', () => {
 
 describe('parseConfig', () => {
   it('reads a file with a byte order mark', () => {
-    expect(parseConfig('﻿{"a":1}', 'json')).toEqual({ a: 1 });
-    expect(parseConfig('﻿a = 1\n', 'toml')).toMatchObject({ a: 1 });
+    expect(parseConfig('\uFEFF{"a":1}', 'json')).toEqual({ a: 1 });
+    expect(parseConfig('\uFEFFa = 1\n', 'toml')).toMatchObject({ a: 1 });
   });
 
   it('refuses nesting that later steps could not walk', () => {

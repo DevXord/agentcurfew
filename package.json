@@ -1,6 +1,6 @@
 {
   "name": "agentcurfew",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Local, account-less CLI that inventories what steers AI coding agents (skills, MCP servers, hooks, context files, permissions), locks it with checksums, enforces policy, and detects dangerous patterns — without running or uploading anything.",
   "license": "MIT",
   "author": "DevXord",
@@ -8,14 +8,13 @@
     "type": "git",
     "url": "git+https://github.com/DevXord/agentcurfew.git"
   },
-  "homepage": "https://github.com/DevXord/agentcurfew",
+  "homepage": "https://agentcurfew.github.io/",
   "bugs": {
     "url": "https://github.com/DevXord/agentcurfew/issues"
   },
   "type": "module",
   "bin": {
-    "agentcurfew": "dist/cli.js",
-    "acf": "dist/cli.js"
+    "agentcurfew": "dist/cli.js"
   },
   "exports": {
     ".": {
@@ -25,10 +24,13 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "schema.json",
+    "schemas",
+    "CHANGELOG.md"
   ],
   "engines": {
-    "node": ">=18.3.0"
+    "node": ">=22.23.0"
   },
   "packageManager": "npm@11.21.1",
   "scripts": {
@@ -37,7 +39,11 @@
     "fuzz": "vitest run --config vitest.fuzz.config.ts",
     "typecheck": "tsc --noEmit",
     "check:pkg": "tsdown && publint && attw --pack . --profile esm-only",
-    "docs:knowledge": "node scripts/generate-knowledge.ts"
+    "docs:knowledge": "node scripts/generate-knowledge.ts",
+    "docs:rules": "node scripts/generate-rules.ts",
+    "docs:policy": "node scripts/generate-policy.ts",
+    "docs:doctor": "node scripts/generate-doctor.ts",
+    "site": "node scripts/site.ts"
   },
   "keywords": [
     "security",
@@ -61,7 +67,10 @@
   ],
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
+    "@modelcontextprotocol/client": "2.4.0",
     "@types/node": "26.6.6",
+    "ajv": "8.20.0",
+    "depcurfew": "1.5.2",
     "fast-check": "4.10.2",
     "publint": "0.3.25",
     "tsdown": "0.23.2",
@@ -72,6 +81,15 @@
     "fsevents": false
   },
   "dependencies": {
-    "smol-toml": "1.9.1"
+    "smol-toml": "1.9.1",
+    "yaml": "2.9.1"
+  },
+  "peerDependencies": {
+    "depcurfew": ">=1.5.2 <2"
+  },
+  "peerDependenciesMeta": {
+    "depcurfew": {
+      "optional": true
+    }
   }
 }

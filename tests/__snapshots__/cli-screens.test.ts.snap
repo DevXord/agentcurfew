@@ -1,0 +1,479 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`screens > doctor and init 1`] = `
+"$ agentcurfew doctor <project>
+[exit 1]
+13 checks: 5 passed, 1 failed, 7 not applicable
+  not applicable  agentcurfew.policy.json follows the schema [invalid-policy]
+  passed          Every agent configuration file can be parsed [unparsable-config]
+  passed          No file is named almost like one an agent reads [misnamed-file]
+  passed          MCP files use the key their agents read [wrong-servers-key]
+  not applicable  Remote servers in .mcp.json say their type [missing-mcp-type]
+  passed          No project file silently overrides another [local-overrides-project]
+  not applicable  No MCP server is defined twice in different ways [conflicting-mcp-server]
+  failed          No deprecated file or setting is used [deprecated-format]
+  passed          Every hook names an event its agent knows [unknown-hook-event]
+  not applicable  Every entry of the policy still matches something [stale-policy-entry]
+  not applicable  The agentcurfew hook finds agentcurfew [agentcurfew-hook-missing]
+  not applicable  A project with depcurfew.json has the depcurfew hook [depcurfew-hook-missing]
+  not applicable  The depcurfew hook finds depcurfew [depcurfew-hook-broken]
+
+WARNING  deprecated-format  .cursorrules
+  Cursor calls .cursorrules deprecated; use rules in .cursor/rules/*.mdc
+  fix: Move the content to the replacement named in the message.
+  source: https://cursor.com/help/customization/rules
+
+INFO  deprecated-format  .gemini/settings.json
+  Gemini CLI calls httpUrl of the server old deprecated; use url with type http
+  fix: Move the content to the replacement named in the message.
+  source: https://github.com/google-gemini/gemini-cli/blob/3fd7d263466b9e5d30b2da1ebf85dae956a0fb86/packages/core/src/tools/mcp-client.ts
+
+WARNING  deprecated-format  .gemini/settings.json
+  Gemini CLI calls tools.exclude deprecated; use deny rules of the policy engine
+  fix: Move the content to the replacement named in the message.
+  source: https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/reference/policy-engine.md
+
+WARNING  deprecated-format  .windsurf/skills/lint/SKILL.md
+  Windsurf (Devin Desktop) calls .windsurf/skills/lint/SKILL.md deprecated; use .devin/skills/<name>/
+  fix: Move the content to the replacement named in the message.
+  source: https://docs.devin.ai/desktop/devin-local/customizations.md
+
+WARNING  deprecated-format  .windsurfrules
+  Windsurf (Devin Desktop) calls .windsurfrules deprecated; use rules in .devin/rules/*.md, or .devin/global_rules.md
+  fix: Move the content to the replacement named in the message.
+  source: https://docs.devin.ai/desktop/devin-local/customizations.md
+
+Failed: 4 problems at level warning or above (change with --fail-on or doctor.failOn).
+"
+`;
+
+exports[`screens > doctor and init 2`] = `
+"$ agentcurfew init <project> --print
+[exit 0]
+{
+  "$schema": "https://unpkg.com/agentcurfew/schema.json",
+  "version": 1,
+  "failOn": "high",
+  "skills": {
+    "allowSources": [
+      "local"
+    ],
+    "allowExecutables": true
+  },
+  "mcp": {
+    "requirePinnedVersions": true,
+    "allowServers": [
+      "@acme/docs"
+    ],
+    "denyPlainHttp": true
+  },
+  "hooks": {
+    "allowNetwork": false,
+    "allowAutoRunOnOpen": true
+  },
+  "contextFiles": {
+    "denyHiddenUnicode": true
+  },
+  "exclude": [],
+  "exceptions": []
+}
+"
+`;
+
+exports[`screens > errors with a suggestion 1`] = `
+"$ agentcurfew scna
+[exit 2]
+[stderr]
+agentcurfew: unknown command: scna
+  in: the command line
+  fix: did you mean scan? run agentcurfew help to see what is available
+"
+`;
+
+exports[`screens > errors with a suggestion 2`] = `
+"$ agentcurfew scan --jsn
+[exit 2]
+[stderr]
+agentcurfew: unknown option for scan: --jsn
+  in: the command line
+  fix: did you mean --json? run agentcurfew help scan to see its options
+"
+`;
+
+exports[`screens > errors with a suggestion 3`] = `
+"$ agentcurfew explain hiden-unicode
+[exit 2]
+[stderr]
+agentcurfew: unknown rule: hiden-unicode
+  in: the command line
+  fix: did you mean hidden-unicode? The rules are hidden-unicode, unpinned-mcp-server, plain-http-mcp, secret-in-config, dangerous-hook-command, auto-run-on-open, permission-bypass, broad-shell-permission, remote-instructions, obfuscated-content, persistence-instruction, drift, skills-lock-mismatch, out-of-policy, mcp-package
+"
+`;
+
+exports[`screens > explain 1`] = `
+"$ agentcurfew explain hidden-unicode
+[exit 0]
+hidden-unicode: Hidden Unicode characters
+
+Level: high; critical for Unicode Tag characters, high for variation selectors and bidirectional controls, medium for zero-width characters alone (pattern matching: can raise false alarms)
+OWASP Agentic Skills Top 10: AST04 Insecure Metadata, AST08 Poor Scanning
+Checks: skill, mcp-server, hook, auto-run, context-file, permission, subagent, command
+
+Finds characters that an editor does not show but a model reads: Unicode Tag characters (U+E0000 to U+E007F), which can spell out whole instructions; supplementary variation selectors; bidirectional controls, which make text display in a different order than it is read; and zero-width characters. Each finding gives the line, the column and the code points.
+
+Example: A CLAUDE.md line "Run the tests." followed by U+E0049 U+E0067 U+E006E ..., which spells "Ignore previous instructions".
+
+Fix: Remove the characters. If the file is not yours, treat it as tampered with: find where it came from before trusting the rest of it.
+
+False alarms: Right-to-left languages can need bidirectional marks, and some text uses zero-width joiners between letters. Joiners between emoji and a byte order mark at the start of a file are not reported.
+"
+`;
+
+exports[`screens > help of doctor 1`] = `
+"$ agentcurfew doctor --help
+[exit 0]
+agentcurfew doctor: Find configuration that agents ignore or that does not work
+
+Usage: agentcurfew doctor [directory] [options]
+
+Finds files with a name or key that agents do not read, settings that another file overrides, deprecated formats, and problems of the policy. Every finding names its source.
+
+Options:
+  --fail-on <level>  Exit with 1 at this level or above: error, warning (default), info, none
+  --json             Print JSON (see docs/cli-json.md); file contents and secrets are left out
+  --user             Also read your home directory and machine settings
+  -h, --help         Show this help
+
+Examples:
+  agentcurfew doctor
+  agentcurfew doctor --fail-on error
+  agentcurfew doctor --json
+"
+`;
+
+exports[`screens > help of explain 1`] = `
+"$ agentcurfew explain --help
+[exit 0]
+agentcurfew explain: Say what a rule finds, why it matters and how to fix it
+
+Usage: agentcurfew explain <rule>
+
+Prints the description, the OWASP Agentic Skills Top 10 references, an example and the fix of a rule. The rules are listed in docs/rules.md.
+
+Options:
+  -h, --help  Show this help
+
+Examples:
+  agentcurfew explain hidden-unicode
+  agentcurfew explain unpinned-mcp-server
+"
+`;
+
+exports[`screens > help of help 1`] = `
+"$ agentcurfew help --help
+[exit 0]
+agentcurfew help: Show every command, or the help of one
+
+Usage: agentcurfew help [command]
+
+Without a command, lists every command. With one, shows its options and examples.
+
+Options:
+  -h, --help  Show this help
+
+Examples:
+  agentcurfew help
+  agentcurfew help scan
+"
+`;
+
+exports[`screens > help of hook 1`] = `
+"$ agentcurfew hook --help
+[exit 0]
+agentcurfew hook: Check a tool call of Claude Code before it runs (used as a hook)
+
+Usage: agentcurfew hook < input.json
+
+Reads the PreToolUse input of Claude Code on stdin. Writes to files that steer agents ask first, and are denied when the new text has a finding at high or above or breaks the policy; adding a skill or an MCP server is denied when the policy does not allow it. Prints nothing for every other call, so it never allows anything by itself. Install it with agentcurfew init --hook.
+
+Options:
+  -h, --help  Show this help
+
+Examples:
+  agentcurfew hook
+"
+`;
+
+exports[`screens > help of init 1`] = `
+"$ agentcurfew init --help
+[exit 0]
+agentcurfew init: Write agentcurfew.policy.json from what the project has now
+
+Usage: agentcurfew init [directory] [options]
+
+Proposes a policy that the project passes as it is: the skill sources and MCP servers it has now, and the strict value of each setting it already meets. Lists what it left loose. With --hook it adds the agentcurfew hook for Claude Code to .claude/settings.json instead, keeping every other hook, such as depcurfew's.
+
+Options:
+  --print     Print the result instead of writing it
+  --force     Replace an existing policy
+  --hook      Add the agentcurfew hook to .claude/settings.json instead, next to any other hook
+  -h, --help  Show this help
+
+Examples:
+  agentcurfew init --print
+  agentcurfew init
+  agentcurfew init --hook --print
+"
+`;
+
+exports[`screens > help of lock 1`] = `
+"$ agentcurfew lock --help
+[exit 0]
+agentcurfew lock: Write agentcurfew.lock with a checksum of every component
+
+Usage: agentcurfew lock [directory]
+
+Writes agentcurfew.lock: every component of the project with a checksum, MCP servers with their command and address (secrets redacted), skills with a checksum per file. Commit the file, and run verify in CI.
+
+Options:
+  -h, --help  Show this help
+
+Examples:
+  agentcurfew lock
+"
+`;
+
+exports[`screens > help of mcp 1`] = `
+"$ agentcurfew mcp --help
+[exit 0]
+agentcurfew mcp: Serve read-only checks to an agent over MCP (stdio)
+
+Usage: agentcurfew mcp [options]
+
+Starts an MCP server on stdin and stdout with read-only tools: scan_project, check_skill (a skill folder before it is installed), check_mcp_config (a server definition before it is added) and explain_rule. It reads files only inside the folder it is started in, the folders given with --root and the roots the client shares. Speaks MCP 2026-07-28 and 2025-11-25.
+
+Options:
+  --root <folder>  Another folder the tools may read; repeat for more
+  -h, --help       Show this help
+
+Examples:
+  agentcurfew mcp
+"
+`;
+
+exports[`screens > help of scan 1`] = `
+"$ agentcurfew scan --help
+[exit 0]
+agentcurfew scan: Check what steers agents in a project against the rules
+
+Usage: agentcurfew scan [directory] [options]
+
+Reads the skills, MCP servers, hooks, context files and permissions of a project, as the knowledge base describes them for each agent, and checks them against the rules. Nothing found is run, and nothing is sent anywhere. Exits with 1 when a finding is at --fail-on or above, or when a file could not be read (too large, too deep or unreadable), since it was not checked.
+
+Options:
+  --fail-on <level>  Exit with 1 at this level or above: critical, high (default), medium, low, none (also stops files that could not be read from failing)
+  --json             Print JSON (see docs/cli-json.md); file contents and secrets are left out
+  --sarif            Print SARIF 2.1.0, for GitHub Code Scanning and other tools
+  --inventory        Only list the components, without the rules
+  --user             Also read your home directory and machine settings
+  -h, --help         Show this help
+
+Examples:
+  agentcurfew scan
+  agentcurfew scan --fail-on medium
+  agentcurfew scan --json
+  agentcurfew scan --sarif
+  agentcurfew scan --inventory
+"
+`;
+
+exports[`screens > help of verify 1`] = `
+"$ agentcurfew verify --help
+[exit 0]
+agentcurfew verify: Exit with 1 when a component changed since agentcurfew.lock
+
+Usage: agentcurfew verify [directory] [options]
+
+Compares the project with agentcurfew.lock and lists what was added, removed or changed. Also compares skills with skills-lock.json, which never changes the result.
+
+Options:
+  --json      Print JSON (see docs/cli-json.md); file contents and secrets are left out
+  -h, --help  Show this help
+
+Examples:
+  agentcurfew verify
+  agentcurfew verify --json
+"
+`;
+
+exports[`screens > lock, verify and drift 1`] = `
+"$ agentcurfew verify <project>
+[exit 1]
+Drift: 4 changes since agentcurfew.lock
+  changed: mcp-server .mcp.json (fs)
+    args: ["-y","pkg@1.2.2"] -> ["-y","pkg@1.2.3"]
+  removed: context-file AGENTS.md
+  changed: context-file CLAUDE.md
+    the content changed
+  added: context-file GEMINI.md
+
+If the changes are expected, run agentcurfew lock and commit agentcurfew.lock.
+"
+`;
+
+exports[`screens > lock, verify and drift 2`] = `
+"$ agentcurfew verify <project>
+[exit 0]
+OK: matches agentcurfew.lock (2 components)
+"
+`;
+
+exports[`screens > lock, verify and drift 3`] = `
+"$ agentcurfew lock <project>
+[exit 0]
+Wrote agentcurfew.lock: 2 components
+"
+`;
+
+exports[`screens > scan 1`] = `
+"$ agentcurfew scan <project>
+[exit 1]
+2 components scanned, 5 findings (2 critical, 2 high, 1 medium)
+
+CRITICAL  hidden-unicode  .mcp.json (docs)
+  2 hidden characters (Unicode Tag character): U+E0041 U+E0042; the Tag characters spell "AB"
+  more: agentcurfew explain hidden-unicode
+
+CRITICAL  hidden-unicode  CLAUDE.md:3:15
+  6 hidden characters (Unicode Tag character): U+E0049 U+E0067 U+E006E U+E006F U+E0072 U+E0065; the Tag characters spell "Ignore"
+
+HIGH  hidden-unicode  CLAUDE.md:4:6
+  1 hidden character (bidirectional control): U+202E
+
+HIGH  hidden-unicode  CLAUDE.md:4:14
+  1 hidden character (bidirectional control): U+202C
+
+MEDIUM  hidden-unicode  CLAUDE.md:5:5
+  1 hidden character (zero-width character): U+200B
+
+Failed: 4 findings at level high or above (change with --fail-on).
+"
+`;
+
+exports[`screens > scan 2`] = `
+"$ agentcurfew scan <project>
+[exit 1]
+6 components scanned, 6 findings (6 high)
+
+HIGH  secret-in-config  .claude/settings.json (Stop#0)
+  AWS access key in plain text: AKIA… (20 characters)
+  more: agentcurfew explain secret-in-config
+
+HIGH  secret-in-config  .mcp.json (api)
+  Authorization holds a literal value: abcd… (16 characters)
+
+HIGH  secret-in-config  .mcp.json (cli)
+  --api-key is given a literal value: plai… (17 characters)
+
+HIGH  secret-in-config  .mcp.json (flags)
+  --password is given a literal value: plai… (16 characters)
+
+HIGH  secret-in-config  .mcp.json (github)
+  GitHub token in plain text: ghp_… (40 characters)
+
+HIGH  secret-in-config  .mcp.json (user)
+  the server address holds a credential as the user name of the address
+
+Failed: 6 findings at level high or above (change with --fail-on).
+"
+`;
+
+exports[`screens > scan 3`] = `
+"$ agentcurfew scan --fail-on none <project>
+[exit 0]
+5 components scanned, 7 findings (5 high, 2 medium)
+
+HIGH  out-of-policy  .claude/skills/lint/SKILL.md
+  bundles programs or scripts (scripts/run.sh), and skills.allowExecutables is false
+  more: agentcurfew explain out-of-policy
+
+HIGH  out-of-policy  .claude/skills/lint/SKILL.md
+  comes from evil/skills, which skills.allowSources does not list
+
+MEDIUM  skills-lock-mismatch  .claude/skills/lint/SKILL.md
+  the folder does not match computedHash in skills-lock.json
+  more: agentcurfew explain skills-lock-mismatch
+
+MEDIUM  out-of-policy  .claude/skills/manual/SKILL.md
+  not listed in skills-lock.json, so its source is unknown, and skills.allowSources does not allow local skills
+  more: agentcurfew explain out-of-policy
+
+HIGH  out-of-policy  .mcp.json (local)
+  starts a local command, and mcp.allowServers does not allow local servers
+
+HIGH  out-of-policy  .mcp.json (random)
+  random-server is not listed in mcp.allowServers
+
+HIGH  out-of-policy  .mcp.json (remote)
+  https://other.dev/mcp is not listed in mcp.allowServers
+"
+`;
+
+exports[`screens > scan 4`] = `
+"$ agentcurfew scan <project> --inventory
+[exit 0]
+11 components found
+  auto-run: .claude/settings.json (SessionStart#0) [claude-code]
+  command: .claude/commands/ship.md [claude-code]
+  context-file: CLAUDE.md [claude-code, copilot-vscode, cursor]
+  hook: .claude/settings.json (PreToolUse#0) [claude-code, copilot-vscode, cursor, windsurf]
+  hook: .claude/settings.json (PreToolUse#1) [claude-code, copilot-vscode, cursor, windsurf]
+  hook: .claude/settings.json (SessionStart#0) [claude-code, copilot-vscode, cursor, windsurf]
+  mcp-server: .mcp.json (docs) [claude-code, copilot-vscode]
+  permission: .claude/settings.json (permissions.allow) [claude-code]
+  permission: .claude/settings.json (permissions.defaultMode) [claude-code]
+  skill: .claude/skills/lint/SKILL.md (lint) [claude-code, cline, cursor]
+  subagent: .claude/agents/reviewer.md [claude-code, copilot-vscode, cursor]
+"
+`;
+
+exports[`screens > welcome and help 1`] = `
+"$ agentcurfew 
+[exit 0]
+agentcurfew 1.0.0: inventory, lock and check what steers your AI coding agents.
+
+Common commands:
+  agentcurfew scan    Check what steers agents in a project against the rules
+  agentcurfew lock    Write agentcurfew.lock with a checksum of every component
+  agentcurfew verify  Exit with 1 when a component changed since agentcurfew.lock
+  agentcurfew doctor  Find configuration that agents ignore or that does not work
+
+Run agentcurfew help to see every command, or agentcurfew help <command> for one.
+"
+`;
+
+exports[`screens > welcome and help 2`] = `
+"$ agentcurfew help
+[exit 0]
+agentcurfew: inventory, lock and check what steers your AI coding agents.
+
+Usage: agentcurfew <command> [options]
+
+Commands:
+  scan     Check what steers agents in a project against the rules
+  lock     Write agentcurfew.lock with a checksum of every component
+  verify   Exit with 1 when a component changed since agentcurfew.lock
+  init     Write agentcurfew.policy.json from what the project has now
+  doctor   Find configuration that agents ignore or that does not work
+  mcp      Serve read-only checks to an agent over MCP (stdio)
+  hook     Check a tool call of Claude Code before it runs (used as a hook)
+  explain  Say what a rule finds, why it matters and how to fix it
+  help     Show every command, or the help of one
+
+Options:
+  -h, --help     Show help; agentcurfew <command> --help shows the help of a command
+  -v, --version  Show the version
+
+Run agentcurfew help <command> for the options and examples of a command.
+"
+`;

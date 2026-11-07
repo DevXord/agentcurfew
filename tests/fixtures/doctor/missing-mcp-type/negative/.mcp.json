@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "remote": {
+      "type": "http",
+      "url": "https://mcp.example.com/mcp"
+    },
+    "local": {
+      "command": "node",
+      "args": [
+        "s.js"
+      ]
+    }
+  }
+}

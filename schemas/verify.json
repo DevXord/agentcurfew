@@ -1,0 +1,154 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://unpkg.com/agentcurfew/schemas/verify.json",
+  "title": "agentcurfew verify --json",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "ok",
+    "changes",
+    "skillsLock",
+    "problems"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "type",
+          "kind",
+          "file",
+          "name",
+          "details"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "added",
+              "removed",
+              "changed"
+            ]
+          },
+          "kind": {
+            "enum": [
+              "skill",
+              "mcp-server",
+              "hook",
+              "auto-run",
+              "context-file",
+              "permission",
+              "subagent",
+              "command"
+            ]
+          },
+          "file": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "skillsLock": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "kind",
+          "file",
+          "name",
+          "message"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "skill",
+              "mcp-server",
+              "hook",
+              "auto-run",
+              "context-file",
+              "permission",
+              "subagent",
+              "command"
+            ]
+          },
+          "file": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "info"
+            ]
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "inFile": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "problems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "code",
+          "file"
+        ],
+        "properties": {
+          "code": {
+            "enum": [
+              "outside-project",
+              "too-large",
+              "too-deep",
+              "too-many-entries",
+              "unreadable",
+              "unparsable"
+            ]
+          },
+          "file": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

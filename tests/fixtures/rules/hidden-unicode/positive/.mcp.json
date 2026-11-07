@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "docs": {
+      "command": "node",
+      "args": [
+        "server.js"
+      ],
+      "description": "Docs server{U+E0041}{U+E0042}"
+    }
+  }
+}

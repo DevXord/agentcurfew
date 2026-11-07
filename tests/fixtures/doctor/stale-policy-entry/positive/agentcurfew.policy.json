@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "skills": {
+    "allowSources": [
+      "github:none/*"
+    ]
+  },
+  "mcp": {
+    "allowServers": [
+      "ghost-server"
+    ]
+  },
+  "exceptions": [
+    {
+      "rule": "hidden-unicode",
+      "path": "nothing/**",
+      "reason": "left over from a removed file"
+    }
+  ]
+}

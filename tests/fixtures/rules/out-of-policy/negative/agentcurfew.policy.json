@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "skills": {
+    "allowSources": [
+      "github:acme/*",
+      "local"
+    ],
+    "allowExecutables": true
+  },
+  "mcp": {
+    "allowServers": [
+      "@modelcontextprotocol/*",
+      "random-server",
+      "https://other.dev/*",
+      "local"
+    ]
+  }
+}

@@ -1,6 +1,7 @@
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { stripJsonc } from '../../src/inventory/parse.ts';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { scanInventory } from '../../src/inventory/index.ts';
@@ -93,6 +94,21 @@ describe('limits', () => {
     expect(inventory.problems.map((p) => `${p.code} ${p.file}`)).toEqual(['too-large CLAUDE.md']);
   });
 
+  it('stops reading at the limit for the whole scan, and says so', () => {
+    for (const name of ['a', 'b', 'c']) write(`.claude/skills/${name}/SKILL.md`, `---\nname: ${name}\ndescription: x\n---\n${'x'.repeat(400)}`);
+    const inventory = scanInventory({ root, limits: { maxTotalBytes: 1000 } });
+    expect(inventory.components.map((c) => c.name)).toEqual(['a', 'b']);
+    expect(inventory.problems.map((p) => `${p.code} ${p.file}`)).toEqual(['too-large .claude/skills/c/SKILL.md']);
+  });
+
+  it('reads fixed paths past that limit, so filler cannot hide them', () => {
+    for (const name of ['a', 'b']) write(`docs/${name}/CLAUDE.md`, 'x'.repeat(600));
+    write('.vscode/tasks.json', JSON.stringify({ version: '2.0.0', tasks: [{ label: 'setup', command: 'make', runOptions: { runOn: 'folderOpen' } }] }));
+    const inventory = scanInventory({ root, limits: { maxTotalBytes: 1000 } });
+    expect(inventory.components.map((c) => c.file)).toContain('.vscode/tasks.json');
+    expect(inventory.problems.map((p) => `${p.code} ${p.file}`)).toEqual(['too-large docs/b/CLAUDE.md']);
+  });
+
   it('stops at the depth limit, and says so', () => {
     write(`${'d/'.repeat(12)}AGENTS.md`, 'x');
     const inventory = scanInventory({ root, limits: { maxDepth: 5 } });
@@ -117,7 +133,16 @@ describe('limits', () => {
     write('.mcp.json', `{"mcpServers":{"a":${'['.repeat(5000)}${']'.repeat(5000)}}}`);
     const inventory = scanInventory({ root });
     expect(inventory.components).toEqual([]);
-    expect(inventory.problems.map((p) => `${p.code} ${p.file}`)).toEqual(['unparsable .mcp.json']);
+    expect(inventory.problems.map((p) => `${p.code} ${p.file}`)).toEqual(['too-deep .mcp.json']);
+  });
+
+  it('strips trailing commas in linear time', () => {
+    const padded = `{"mcpServers":{},"x":[${'[0,],'.repeat(400_000)}0]} // a comment`;
+    const started = performance.now();
+    const stripped = stripJsonc(padded);
+    expect(performance.now() - started).toBeLessThan(3000);
+    expect(stripped.startsWith('{"mcpServers":{},"x":[[0],[0],')).toBe(true);
+    expect(stripJsonc('{"a": [1, 2,], /* x */ "b": "a,]" , }')).toBe('{"a": [1, 2],  "b": "a,]"  }');
   });
 
   it('does not mistake a directory for a file', () => {

@@ -1,11 +1,26 @@
 import { realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { knowledgeBase } from '../knowledge/index.ts';
+import { shared } from '../knowledge/shared.ts';
 import type { AgentId, AgentKnowledge, AgentPath, Fact, FileFormat, Scope } from '../knowledge/types.ts';
 import { DEFAULT_LIMITS, ScanFiles } from './files.ts';
-import type { Area, Found } from './files.ts';
-import { entryText, lookup, parseConfig } from './parse.ts';
-import type { Component, ComponentKind, Inventory, ScanOptions, SkillFile } from './types.ts';
+import type { Area, Found, TreeFile } from './files.ts';
+import { parseFrontmatter } from './frontmatter.ts';
+import { entryText, lookup, readConfig } from './parse.ts';
+import type { Component, ComponentKind, Inventory, Limits, ScanOptions, SkillFile, SkillFileType } from './types.ts';
+
+const EXECUTABLE_MAGIC = ['7f454c46', '4d5a', 'feedface', 'feedfacf', 'cefaedfe', 'cffaedfe', 'cafebabe', '0061736d'];
+const MEDIA_MAGIC = ['89504e47', 'ffd8ff', '47494638', '25504446', '494433', '4f676753', '774f4646', '774f4632', '00010000', '4f54544f', '00000100'];
+
+/** What a file is, from its first bytes: a program, an image, font or document, other binary data, or text. */
+export function fileType(bytes: Buffer): SkillFileType {
+  const head = bytes.subarray(0, 8).toString('hex');
+  if (EXECUTABLE_MAGIC.some((magic) => head.startsWith(magic))) return 'executable';
+  const webp = bytes.subarray(0, 4).toString('latin1') === 'RIFF' && bytes.subarray(8, 12).toString('latin1') === 'WEBP';
+  if (webp || MEDIA_MAGIC.some((magic) => head.startsWith(magic))) return 'media';
+  return bytes.subarray(0, 8192).includes(0) ? 'binary' : 'text';
+}
 
 /** Every value a fact may hold: a disputed fact counts in all its variants, so that nothing is missed. */
 function factValues<T>(fact: Fact<T>): readonly T[] {
@@ -47,7 +62,9 @@ class Scan {
     this.#root = { base: realpathSync.native(options.root), label: '' };
     this.#platform = options.platform ?? process.platform;
     this.#env = options.env ?? process.env;
-    this.files = new ScanFiles({ ...DEFAULT_LIMITS, ...options.limits });
+    const overlay = new Map<string, Buffer>();
+    for (const [relative, text] of options.overlay ?? []) overlay.set(join(this.#root.base, ...relative.split('/')), Buffer.from(text, 'utf8'));
+    this.files = new ScanFiles({ ...DEFAULT_LIMITS, ...options.limits }, overlay);
   }
 
   /** The area of a path of the knowledge base and the pattern below it; undefined when it does not apply here. */
@@ -87,7 +104,9 @@ class Scan {
     const found: Found[] = [];
     for (const match of located === undefined ? [] : this.files.match(located.area, located.segments, walk)) {
       if (!walk || !this.files.isDirectory(match)) {
-        found.push(match);
+        // A path without wildcards names one file per agent, so the files read this way are few: they do not count
+        // against the read budget, and filler elsewhere cannot hide them.
+        found.push(located?.segments.some((segment) => segment.includes('*')) === false ? { ...match, exempt: true } : match);
         continue;
       }
       const extension = EXTENSIONS[entry.format];
@@ -102,8 +121,9 @@ class Scan {
     const text = this.files.read(found);
     let value: unknown;
     if (text !== undefined) {
-      value = parseConfig(text, format);
-      if (value === undefined) this.files.report('unparsable', found.file);
+      const result = readConfig(text, format);
+      value = 'value' in result ? result.value : undefined;
+      if ('problem' in result) this.files.report(result.problem, found.file);
     }
     this.#parsed.set(found.path, value);
     return value;
@@ -128,7 +148,7 @@ class Scan {
         if (format === undefined) continue;
         for (const found of this.#find(entry)) {
           const config = this.#config(found, format);
-          for (const table of lookup(config, entry.serversKey ?? mcp.serversKey)) {
+          for (const table of this.#servers(config, entry.serversKey ?? mcp.serversKey)) {
             if (typeof table.value !== 'object' || table.value === null) continue;
             for (const [name, server] of Object.entries(table.value)) this.#add('mcp-server', agent.id, entry.scope, found.file, name, entryText(server));
           }
@@ -137,12 +157,58 @@ class Scan {
     }
   }
 
+  /** Tables of servers at a dotted path; <project> picks the key that names the scanned project. */
+  #servers(config: unknown, dotted: string): { value: unknown }[] {
+    if (!dotted.includes('<project>')) return lookup(config, dotted);
+    const [before, after] = dotted.split('<project>') as [string, string];
+    const projects = before === '' ? [{ value: config }] : lookup(config, before.replace(/\.$/, ''));
+    const tables: { value: unknown }[] = [];
+    for (const { value } of projects) {
+      if (typeof value !== 'object' || value === null) continue;
+      for (const [key, project] of Object.entries(value)) {
+        if (!this.#isRoot(key)) continue;
+        tables.push(...(after === '' ? [{ value: project }] : lookup(project, after.replace(/^\./, ''))));
+      }
+    }
+    return tables;
+  }
+
+  #isRoot(path: string): boolean {
+    try {
+      return realpathSync.native(resolve(path)) === this.#root.base;
+    } catch {
+      return false;
+    }
+  }
+
+  #frontmatter(found: Found): unknown {
+    const key = `frontmatter\0${found.path}`;
+    if (this.#parsed.has(key)) return this.#parsed.get(key);
+    const text = this.files.read(found);
+    let value: unknown;
+    if (text !== undefined) {
+      const parsed = parseFrontmatter(text);
+      if (parsed.status === 'ok') value = parsed.value;
+      else if (parsed.status !== 'none') this.files.report(parsed.status, found.file);
+    }
+    this.#parsed.set(key, value);
+    return value;
+  }
+
   #collectHooks(agent: AgentKnowledge): void {
     const autoEvents = new Set(presentValues(agent.autoRun).flatMap((autoRun) => (autoRun.triggerKey.startsWith('hooks.') ? [autoRun.triggerKey.slice('hooks.'.length)] : [])));
     for (const hooks of presentValues(agent.hooks)) {
+      for (const event of hooks.autoStartEvents ?? []) autoEvents.add(event);
       for (const entry of hooks.files) {
-        // Hooks in frontmatter are part of the skill or subagent, which the inventory lists with its whole text.
-        if (entry.format === 'markdown-frontmatter') continue;
+        if (entry.format === 'markdown-frontmatter') {
+          // The skill or subagent is listed with its whole text too; its hooks are listed here one by one.
+          const key = entry.key === undefined ? hooks.key : entry.key;
+          for (const found of this.#find(entry)) {
+            const frontmatter = this.#frontmatter(found);
+            for (const table of key === null ? [] : lookup(frontmatter, key)) this.#addEvents(agent.id, entry.scope, found.file, table.value, autoEvents);
+          }
+          continue;
+        }
         const format = structured(entry.format);
         for (const found of this.#find(entry)) {
           if (format === undefined) {
@@ -209,7 +275,9 @@ class Scan {
             continue;
           }
           const config = this.#config(found, format);
-          for (const key of permissions.keys) {
+          // Settings that turn prompts off are permissions too, also where they are not among the grant keys.
+          const keys = new Set([...permissions.keys, ...permissions.bypass.map((setting) => setting.key), ...(permissions.allowAllShell ?? []).map((entry) => entry.key)]);
+          for (const key of keys) {
             for (const { path, value } of lookup(config, key)) this.#add('permission', agent.id, entry.scope, found.file, path, entryText(value));
           }
         }
@@ -226,11 +294,20 @@ class Scan {
           if (raw === undefined) continue;
           const folder = found.file.slice(0, found.file.lastIndexOf('/'));
           const parent = { path: found.path.slice(0, -skills.entryFile.length - 1), file: folder, area: found.area };
-          const files = this.files.tree(parent).map(({ relative, bytes }) => ({ path: relative, bytes }));
+          const files = this.files.tree(parent).map((inner) => this.#skillFile(inner));
           this.#add('skill', agent.id, directory.scope, found.file, baseName(folder), raw, files);
         }
       }
     }
+  }
+
+  #skillFile(inner: TreeFile): SkillFile {
+    const { relative: path, bytes } = inner;
+    const flags = { ...(inner.link ? { link: true } : {}), ...(inner.executable ? { executableBit: true } : {}) };
+    const content = this.files.readBytes(inner.found);
+    if (content === undefined) return { path, bytes, ...flags };
+    const type = fileType(content);
+    return type === 'text' ? { path, bytes, type, raw: content.toString('utf8'), content, ...flags } : { path, bytes, type, content, ...flags };
   }
 
   #collectFiles(agent: AgentKnowledge): void {
@@ -262,3 +339,25 @@ class Scan {
 export function scanInventory(options: ScanOptions): Inventory {
   return new Scan(options).run();
 }
+
+/** A skill folder anywhere, such as one downloaded but not installed yet, as the component the rules check. */
+export function scanSkillFolder(folder: string, limits: Partial<Limits> = {}): Inventory {
+  const format = shared.skillFormat.status === 'disputed' ? shared.skillFormat.variants[0].value : shared.skillFormat.value;
+  const files = new ScanFiles({ ...DEFAULT_LIMITS, ...limits });
+  const area = { base: realpathSync.native(folder), label: '' };
+  const entry = files.match(area, [format.entryFile], false)[0];
+  if (entry === undefined) return { components: [], problems: [...files.problems] };
+  const raw = files.read(entry);
+  if (raw === undefined) return { components: [], problems: [...files.problems] };
+  const skillFiles: SkillFile[] = files.tree({ path: area.base, file: '', area }).map((inner) => {
+    const flags = { ...(inner.link ? { link: true } : {}), ...(inner.executable ? { executableBit: true } : {}) };
+    const content = files.readBytes(inner.found);
+    if (content === undefined) return { path: inner.relative, bytes: inner.bytes, ...flags };
+    const type = fileType(content);
+    return type === 'text' ? { path: inner.relative, bytes: inner.bytes, type, raw: content.toString('utf8'), content, ...flags } : { path: inner.relative, bytes: inner.bytes, type, content, ...flags };
+  });
+  const agents = knowledgeBase.filter((agent) => presentValues(agent.skills).length > 0).map((agent) => agent.id).sort();
+  const name = area.base.split(/[\\/]/).at(-1) ?? 'skill';
+  return { components: [{ kind: 'skill', agents, scope: 'project', file: format.entryFile, name, raw, files: skillFiles }], problems: [...files.problems] };
+}
+

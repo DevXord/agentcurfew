@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "random": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "random-server@1.0.0"
+      ]
+    },
+    "local": {
+      "command": "node",
+      "args": [
+        "./server.js"
+      ]
+    },
+    "remote": {
+      "type": "http",
+      "url": "https://other.dev/mcp"
+    }
+  }
+}

@@ -3,7 +3,7 @@
   "version": 1,
   "cooldown": {
     "minimum": "7d",
-    "exclude": [],
+    "exclude": ["depcurfew"],
     "securityUpdates": "bypass"
   },
   "installScripts": {

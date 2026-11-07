@@ -1,0 +1,102 @@
+name: agentcurfew
+description: Check what steers AI coding agents in a repository (skills, MCP servers, hooks, context files, permissions) without running any of it.
+author: DevXord
+branding:
+  icon: shield
+  color: gray-dark
+
+inputs:
+  command:
+    description: scan, verify or doctor.
+    default: scan
+  directory:
+    description: The project to check, relative to the workspace.
+    default: .
+  fail-on:
+    description: The lowest level that fails the step; empty uses the policy or the command's default. scan takes critical, high (default), medium, low or none; doctor takes error, warning (default), info or none. Not used by verify.
+    default: ''
+  sarif-file:
+    description: Where scan writes its SARIF report.
+    default: agentcurfew.sarif
+  upload-sarif:
+    description: Upload the SARIF report of scan to GitHub Code Scanning. Needs permissions security-events write, and works when directory is the repository root.
+    default: 'false'
+  build-from-source:
+    description: Build agentcurfew from the action's own source instead of installing the matching version from npm. For the action's own tests, before a version is on npm.
+    default: 'false'
+
+outputs:
+  exit-code:
+    description: The exit code of agentcurfew (0 passed, 1 failed, 2 wrong input).
+    value: ${{ steps.run.outputs.exit-code }}
+
+runs:
+  using: composite
+  steps:
+    # Every action is pinned to a full commit SHA; the comment names the release.
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: '24'
+        package-manager-cache: false
+
+    # A released version runs the same package from npm, pinned to the version of this commit. The unreleased version
+    # (0.0.0), or build-from-source, builds from the action's own source instead, with install scripts off.
+    - id: setup
+      name: Prepare agentcurfew
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        ACF_FROM_SOURCE: ${{ inputs.build-from-source }}
+      run: |
+        version="$(node -p 'require("./package.json").version')"
+        if [ "$version" = "0.0.0" ] || [ "$ACF_FROM_SOURCE" = "true" ]; then
+          if [ ! -f dist/cli.js ]; then
+            npm ci --ignore-scripts --no-audit --no-fund
+            npm run build
+          fi
+          echo "cli=$PWD/dist/cli.js" >> "$GITHUB_OUTPUT"
+        else
+          # Installed outside the workspace, so that no .npmrc with min-release-age blocks a fresh release of this package.
+          dir="$RUNNER_TEMP/agentcurfew-$version"
+          mkdir -p "$dir"
+          echo '{"private":true}' > "$dir/package.json"
+          (cd "$dir" && npm install --ignore-scripts --no-audit --no-fund --no-save "agentcurfew@$version")
+          echo "cli=$dir/node_modules/agentcurfew/dist/cli.js" >> "$GITHUB_OUTPUT"
+        fi
+
+    - id: run
+      name: Run agentcurfew
+      shell: bash
+      env:
+        ACF_CLI: ${{ steps.setup.outputs.cli }}
+        ACF_COMMAND: ${{ inputs.command }}
+        ACF_DIRECTORY: ${{ inputs.directory }}
+        ACF_FAIL_ON: ${{ inputs.fail-on }}
+        ACF_SARIF: ${{ inputs.sarif-file }}
+      run: |
+        set +e
+        case "$ACF_COMMAND" in
+          scan|verify|doctor) ;;
+          *) echo "::error title=agentcurfew::command must be scan, verify or doctor"; echo "exit-code=2" >> "$GITHUB_OUTPUT"; exit 0 ;;
+        esac
+        args=("$ACF_COMMAND" "$ACF_DIRECTORY")
+        if [ -n "$ACF_FAIL_ON" ] && [ "$ACF_COMMAND" != verify ]; then args+=(--fail-on "$ACF_FAIL_ON"); fi
+        node "$ACF_CLI" "${args[@]}"
+        code=$?
+        # A wrong input (exit 2) writes no report, so that no empty file is uploaded.
+        if [ "$ACF_COMMAND" = scan ] && [ "$code" != 2 ]; then
+          node "$ACF_CLI" "${args[@]}" --sarif > "$ACF_SARIF"
+        fi
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+
+    - if: inputs.upload-sarif == 'true' && inputs.command == 'scan' && steps.run.outputs.exit-code != '2'
+      uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+      with:
+        sarif_file: ${{ inputs.sarif-file }}
+        category: agentcurfew
+
+    - name: Result
+      shell: bash
+      env:
+        ACF_CODE: ${{ steps.run.outputs.exit-code }}
+      run: exit "$ACF_CODE"
