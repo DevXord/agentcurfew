@@ -153,7 +153,7 @@ describe('where a write lands', () => {
   it('spells existing folders as on disk where case does not count', () => {
     setUp();
     try {
-      expect(writeTarget(join(root, '.CLAUDE/Settings.json'), root, home, true)).toBe(join(root, '.claude/settings.json'));
+      expect(writeTarget(join(root, '.CLAUDE/Settings.json'), root, home, true)).toBe(join(realpathSync.native(root), '.claude/settings.json'));
       expect(writeTarget(join(root, '.CLAUDE/settings.json'), root, home, false)).toBe(join(root, '.CLAUDE/settings.json'));
       expect(checkWrite(join(root, '.CLAUDE/settings.json'), bypass, root, undefined, home, true)?.decision).toBe('deny');
       expect(checkWrite(join(root, '.CLAUDE/settings.json'), bypass, root, undefined, home, false)).toBeUndefined();
