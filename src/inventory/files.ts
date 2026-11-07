@@ -6,6 +6,7 @@ import type { InventoryProblem, Limits, ProblemCode } from './types.ts';
 export const DEFAULT_LIMITS: Limits = { maxFileBytes: 2 * 1024 * 1024, maxDepth: 32, maxEntries: 200_000, maxTotalBytes: 128 * 1024 * 1024 };
 
 const SKIPPED_IN_SEARCH = new Set(['node_modules', '.git']);
+const IGNORES_CASE = process.platform === 'win32' || process.platform === 'darwin';
 
 /** A directory tree the scanner may read: links that leave `base` are not followed. */
 export interface Area {
@@ -54,6 +55,8 @@ export class ScanFiles {
   readonly #limits: Limits;
   readonly #problems = new Map<string, InventoryProblem>();
   readonly #listings = new Map<string, readonly string[]>();
+  // The same names as sets, lower-cased where the file system ignores case, to skip names a folder does not hold.
+  readonly #named = new Map<string, ReadonlySet<string>>();
   #entries = 0;
   #bytes = 0;
 
@@ -97,6 +100,7 @@ export class ScanFiles {
     }
     this.#entries += names.length;
     this.#listings.set(path, names);
+    this.#named.set(path, new Set(IGNORES_CASE ? names.map((name) => name.toLowerCase()) : names));
     return names;
   }
 
@@ -151,6 +155,25 @@ export class ScanFiles {
   }
 
   /** Every file and directory that a pattern of /-separated segments names below `dir`. */
+  // The folders below each folder, found once per scan: every ** pattern of every agent walks the same tree.
+  readonly #children = new Map<string, readonly { path: string; file: string; real: string }[]>();
+
+  #subfolders(area: Area, dir: string, label: string): readonly { path: string; file: string; real: string }[] {
+    const key = `${area.base}\0${dir}`;
+    const known = this.#children.get(key);
+    if (known !== undefined) return known;
+    const children: { path: string; file: string; real: string }[] = [];
+    for (const name of this.#list(dir, label)) {
+      if (SKIPPED_IN_SEARCH.has(name)) continue;
+      const path = join(dir, name);
+      const file = joinLabel(label, name);
+      const entry = this.#kind(area, path, file);
+      if (entry?.kind === 'directory') children.push({ path, file, real: entry.real });
+    }
+    this.#children.set(key, children);
+    return children;
+  }
+
   match(area: Area, segments: readonly string[], directories: boolean): Found[] {
     const found: Found[] = [];
     const seen = new Set<string>([area.base]);
@@ -163,19 +186,19 @@ export class ScanFiles {
       if (segment === undefined) return;
       if (segment === '**') {
         visit(dir, label, after, depth);
-        for (const name of this.#list(dir, label)) {
-          if (SKIPPED_IN_SEARCH.has(name)) continue;
-          const path = join(dir, name);
-          const file = joinLabel(label, name);
-          const entry = this.#kind(area, path, file);
-          if (entry?.kind !== 'directory' || seen.has(entry.real)) continue;
-          seen.add(entry.real);
-          visit(path, file, rest, depth + 1);
+        for (const child of this.#subfolders(area, dir, label)) {
+          if (seen.has(child.real)) continue;
+          seen.add(child.real);
+          visit(child.path, child.file, rest, depth + 1);
         }
         return;
       }
       const names = segment.includes('*') ? this.#list(dir, label).filter((name) => globPattern(segment).test(name)) : [segment];
+      // A folder already listed (every folder a ** pattern walks) tells without a system call that a name is not there:
+      // a **/CLAUDE.md pattern would otherwise look up every agent file name in every folder of a large tree.
+      const listed = this.#named.get(dir);
       for (const name of names) {
+        if (listed !== undefined && !segment.includes('*') && !listed.has(IGNORES_CASE ? name.toLowerCase() : name)) continue;
         const path = join(dir, name);
         const file = joinLabel(label, name);
         const entry = this.#kind(area, path, file);

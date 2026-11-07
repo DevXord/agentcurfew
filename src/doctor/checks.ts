@@ -1,5 +1,6 @@
-import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { join, sep } from 'node:path';
+import { DEFAULT_LIMITS } from '../inventory/files.ts';
 import type { Component } from '../inventory/types.ts';
 import { parseConfig } from '../inventory/parse.ts';
 import { serverIdentity } from '../lock/build.ts';
@@ -44,6 +45,32 @@ function nearMiss(name: string, known: string): string | undefined {
   return undefined;
 }
 
+
+/**
+ * The real path of a project path, when it stays inside the project: doctor reads files itself, so a link anywhere on
+ * the way (.cursor linked to a folder elsewhere) must not lead it out, as the scanner never follows one either.
+ */
+function insideProject(root: string, path: string): string | undefined {
+  try {
+    const base = realpathSync.native(root);
+    const real = realpathSync.native(join(root, path));
+    return real === base || real.startsWith(base + sep) ? real : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** A regular file inside the project, within the size limit, as text; anything else is skipped. */
+function readInside(root: string, path: string): string | undefined {
+  const real = insideProject(root, path);
+  if (real === undefined) return undefined;
+  try {
+    const stat = statSync(real);
+    return stat.isFile() && stat.size <= DEFAULT_LIMITS.maxFileBytes ? readFileSync(real, 'utf8') : undefined;
+  } catch {
+    return undefined;
+  }
+}
 export const invalidPolicy: DoctorCheck = {
   id: 'invalid-policy',
   title: 'agentcurfew.policy.json follows the schema',
@@ -96,8 +123,8 @@ export const misnamedFile: DoctorCheck = {
     for (const [folder, names] of [...byFolder].sort(([a], [b]) => (a < b ? -1 : 1))) {
       let entries: string[] = [];
       try {
-        const path = join(context.root, folder);
-        if (folder !== '' && lstatSync(path).isSymbolicLink()) continue;
+        const path = insideProject(context.root, folder);
+        if (path === undefined) continue;
         entries = readdirSync(path, { withFileTypes: true }).filter((entry) => entry.isFile()).map((entry) => entry.name).sort();
       } catch {
         continue;
@@ -144,14 +171,8 @@ export const wrongServersKey: DoctorCheck = {
     }
     const hits: DoctorHit[] = [];
     for (const [path, { keys, sources, agents }] of [...expected].sort(([a], [b]) => (a < b ? -1 : 1))) {
-      let text: string;
-      try {
-        const full = join(context.root, path);
-        if (lstatSync(full).isSymbolicLink()) continue;
-        text = readFileSync(full, 'utf8');
-      } catch {
-        continue;
-      }
+      const text = readInside(context.root, path);
+      if (text === undefined) continue;
       const value = parseConfig(text, path.endsWith('.toml') ? 'toml' : 'json');
       if (!isRecord(value)) continue;
       if ([...keys].some((key) => key.includes('<') || Object.hasOwn(value, key))) continue;

@@ -7,7 +7,7 @@ import type { AgentId, AgentKnowledge, AgentPath, Fact, FileFormat, Scope } from
 import { DEFAULT_LIMITS, ScanFiles } from './files.ts';
 import type { Area, Found, TreeFile } from './files.ts';
 import { parseFrontmatter } from './frontmatter.ts';
-import { entryText, lookup, parseConfig } from './parse.ts';
+import { entryText, lookup, readConfig } from './parse.ts';
 import type { Component, ComponentKind, Inventory, Limits, ScanOptions, SkillFile, SkillFileType } from './types.ts';
 
 const EXECUTABLE_MAGIC = ['7f454c46', '4d5a', 'feedface', 'feedfacf', 'cefaedfe', 'cffaedfe', 'cafebabe', '0061736d'];
@@ -121,8 +121,9 @@ class Scan {
     const text = this.files.read(found);
     let value: unknown;
     if (text !== undefined) {
-      value = parseConfig(text, format);
-      if (value === undefined) this.files.report('unparsable', found.file);
+      const result = readConfig(text, format);
+      value = 'value' in result ? result.value : undefined;
+      if ('problem' in result) this.files.report(result.problem, found.file);
     }
     this.#parsed.set(found.path, value);
     return value;

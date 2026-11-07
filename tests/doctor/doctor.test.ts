@@ -1,4 +1,7 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { linkDirectory } from '../support/links.ts';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { checks } from '../../src/doctor/checks.ts';
@@ -88,5 +91,23 @@ describe('doctor checks', () => {
   it('are documented in docs/doctor.md, which is up to date (run npm run docs:doctor)', () => {
     const file = readFileSync(new URL('../../docs/doctor.md', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
     expect(file).toBe(renderDoctor());
+  });
+});
+
+describe('doctor and links', () => {
+  it('does not read through a folder that links out of the project', () => {
+    const base = mkdtempSync(join(tmpdir(), 'acf-doctor-link-'));
+    try {
+      mkdirSync(join(base, 'project'));
+      mkdirSync(join(base, 'outside'));
+      writeFileSync(join(base, 'outside', 'mcp.json'), JSON.stringify({ servers: { x: { command: 'node' } } }));
+      linkDirectory(join(base, 'outside'), join(base, 'project', '.cursor'));
+      const check = checks.find((candidate) => candidate.id === 'wrong-servers-key');
+      if (check === undefined) throw new Error('wrong-servers-key');
+      const found = runDoctor(join(base, 'project'), { only: [check] }).results.flatMap((result) => result.hits);
+      expect(found).toEqual([]);
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
   });
 });

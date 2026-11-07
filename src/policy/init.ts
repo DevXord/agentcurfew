@@ -1,3 +1,4 @@
+import { printableJson } from '../cli/printable.ts';
 import type { Inventory } from '../inventory/types.ts';
 import type { AgentKnowledge } from '../knowledge/types.ts';
 import { isExecutable, serverIdentity } from '../lock/build.ts';
@@ -69,5 +70,5 @@ export function proposePolicy(inventory: Inventory, findings: readonly Finding[]
 
 /** The policy as written by init: the schema's order of fields, 2-space indent, a final newline. */
 export function serializePolicy(policy: Policy): string {
-  return `${JSON.stringify(policy, null, 2)}\n`;
+  return `${printableJson(policy)}\n`;
 }

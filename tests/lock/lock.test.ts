@@ -145,6 +145,14 @@ describe('agentcurfew lock', () => {
     expect(scanned.stdout + proposed.stdout).not.toContain('NewSecretPassw0rd99');
   });
 
+  it('escapes invisible characters of file names in the lock', async () => {
+    write('.claude/skills/a\u202Eb/SKILL.md', '---\nname: ab\ndescription: x\n---\nbody\n');
+    await cli('lock', root);
+    const text = lockText();
+    expect(text).not.toMatch(/\u202E/);
+    expect(text).toContain('a\\u202eb');
+  });
+
   it('keeps separate secret arguments out of the lock', async () => {
     write('.mcp.json', JSON.stringify({ mcpServers: { x: { command: 'node', args: ['s.js', '--api-key', 'Zq8vN3xLw7Rt2Kp9Hs4D'] }, y: { type: 'http', url: 'https://Qm4pR8sT2vX6zB1nC5dF@api.example.com/mcp' } } }));
     await cli('lock', root);

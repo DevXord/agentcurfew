@@ -1,3 +1,4 @@
+import { printableJson } from '../cli/printable.ts';
 import type { Component, Inventory, SkillFile } from '../inventory/types.ts';
 import { knowledgeBase } from '../knowledge/index.ts';
 import type { AgentKnowledge } from '../knowledge/types.ts';
@@ -98,5 +99,6 @@ function sortKeys(value: unknown): unknown {
 
 /** The lock as written: sorted keys, 2-space indent, a final newline, no time stamps. */
 export function serializeLock(lock: Lockfile): string {
-  return `${JSON.stringify(sortKeys(lock), null, 2)}\n`;
+  // Escaped like the CLI's JSON output, so that a bidi or zero-width character from a file name cannot reorder the lock in a diff.
+  return `${printableJson(sortKeys(lock))}\n`;
 }

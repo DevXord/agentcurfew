@@ -40,9 +40,12 @@ export type ProblemCode = 'outside-project' | 'too-large' | 'too-deep' | 'too-ma
 /**
  * Problems that leave a file of the knowledge base unchecked, so that `scan` fails on them (Q-013, decision of the
  * maintainer): a hostile repository could otherwise pad a file, or the tree before it, until it is skipped.
- * unparsable, outside-project and too-many-entries stay warnings.
+ * too-many-entries counts too, since padding a folder past the entry limit leaves the files after it unread (found by the
+ * pentest of 2026-11-07), and too-deep includes configuration nested deeper than agentcurfew parses, which an agent may
+ * still load. unparsable and outside-project stay warnings: the agent cannot load the first either, and the second is a
+ * link the scanner refuses on purpose.
  */
-export const UNCHECKED_PROBLEMS: readonly ProblemCode[] = ['too-large', 'too-deep', 'unreadable'];
+export const UNCHECKED_PROBLEMS: readonly ProblemCode[] = ['too-large', 'too-deep', 'too-many-entries', 'unreadable'];
 
 /** A place the scanner could not fully inventory. It carries no text from the file, which may be hostile or secret. */
 export interface InventoryProblem {
