@@ -43,10 +43,23 @@ describe('documentation site', () => {
   it('loads nothing from other hosts and runs no script', () => {
     for (const html of pages.values()) {
       expect(html).not.toMatch(/<script/i);
-      expect(html).not.toMatch(/<(?:link|img)[^>]+(?:href|src)="https?:/i);
+      // A canonical link names the page's own address; nothing that a browser loads may come from a host.
+      expect(html).not.toMatch(/<link rel="(?:stylesheet|icon|preload|modulepreload)"[^>]+href="https?:/i);
+      expect(html).not.toMatch(/<(?:img|iframe|video|audio|source)[^>]+src="https?:/i);
     }
     const css = readFileSync(join(dir, 'style.css'), 'utf8');
     expect(css).not.toMatch(/url\(|@import/);
+  });
+
+  it('names its address, a sitemap and a social image', () => {
+    expect(pages.get('index.html')).toContain('<link rel="canonical" href="https://agentcurfew.github.io/">');
+    expect(pages.get('rules.html')).toContain('<link rel="canonical" href="https://agentcurfew.github.io/rules.html">');
+    expect(pages.get('index.html')).toContain('<meta property="og:image" content="https://agentcurfew.github.io/social.png">');
+    expect(pages.get('404.html')).toContain('<base href="https://agentcurfew.github.io/">');
+    const sitemap = readFileSync(join(dir, 'sitemap.xml'), 'utf8');
+    for (const page of PAGES) expect(sitemap).toContain(page.file === 'index.html' ? '<loc>https://agentcurfew.github.io/</loc>' : `/${page.file}</loc>`);
+    expect(readFileSync(join(dir, 'robots.txt'), 'utf8')).toContain('Sitemap: https://agentcurfew.github.io/sitemap.xml');
+    expect(readdirSync(dir)).toContain('social.png');
   });
 
   it('escapes text from the sources', () => {

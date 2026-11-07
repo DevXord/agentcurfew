@@ -1,8 +1,10 @@
-<img src="site/favicon.svg" alt="" width="96" height="96">
+<img src="https://raw.githubusercontent.com/DevXord/agentcurfew/main/site/favicon.svg" alt="" width="96" height="96">
 
 # agentcurfew
 
 > One local, account-less security policy for the files that steer your AI coding agents: skills, MCP servers, hooks, context files and permissions.
+
+A sibling of [depcurfew](https://depcurfew.github.io/): depcurfew guards the packages that people and agents install, agentcurfew guards the files that steer the agent. Documentation: [agentcurfew.github.io](https://agentcurfew.github.io/).
 
 AI coding agents (Claude Code, Cursor, Codex CLI, Gemini CLI, Copilot in VS Code, Windsurf, Cline) read files from your repository and your machine that decide how they behave: `SKILL.md` files with bundled scripts, MCP server configs, hooks, context files such as `AGENTS.md` and `CLAUDE.md`, and permission settings. Whoever can change those files can steer the agent, so they are a supply chain of their own.
 

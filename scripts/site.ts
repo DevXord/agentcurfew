@@ -9,6 +9,8 @@ import { knowledgeBase } from '../src/knowledge/index.ts';
 const ROOT = new URL('../', import.meta.url);
 const REPOSITORY = 'https://github.com/DevXord/agentcurfew';
 const NPM = 'https://www.npmjs.com/package/agentcurfew';
+/** The sibling project: depcurfew guards the packages that people and agents install. */
+const SIBLING = 'https://depcurfew.github.io/';
 
 interface Page {
   source: string;
@@ -386,7 +388,13 @@ function navigation(current: Page | undefined): string {
     const links = PAGES.filter((page) => page.group === group).map(
       (page) => `<li><a href="${page.file}"${page === current ? ' aria-current="page"' : ''}>${escape(page.label)}</a></li>`,
     );
-    if (group === 'Project') links.push(`<li><a href="${REPOSITORY}">GitHub</a></li>`, `<li><a href="${NPM}">npm</a></li>`);
+    if (group === 'Project') {
+      links.push(
+        `<li><a href="${REPOSITORY}">GitHub</a></li>`,
+        `<li><a href="${NPM}">npm</a></li>`,
+        `<li><a href="${SIBLING}">depcurfew</a></li>`,
+      );
+    }
     return `<div class="group">
 <p class="group-title">${group}</p>
 <ul>
@@ -402,7 +410,24 @@ ${groups.join('\n')}
 </nav>`;
 }
 
-function document(options: { title: string; description: string; version: string; current: Page | undefined; main: string }): string {
+interface DocumentOptions {
+  title: string;
+  description: string;
+  version: string;
+  /** The address of the site, from homepage in package.json, ending in a slash. */
+  homepage: string;
+  /** The page's own file; none for the 404 page, which is served at any address and so resolves its links from the site's root. */
+  file: string | undefined;
+  current: Page | undefined;
+  main: string;
+}
+
+function document(options: DocumentOptions): string {
+  const address = options.file === undefined ? undefined : options.file === 'index.html' ? options.homepage : `${options.homepage}${options.file}`;
+  const located =
+    address === undefined
+      ? `<base href="${escape(options.homepage)}">\n<meta name="robots" content="noindex">`
+      : `<link rel="canonical" href="${escape(address)}">\n<meta property="og:url" content="${escape(address)}">`;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -413,10 +438,15 @@ function document(options: { title: string; description: string; version: string
 <meta name="description" content="${escape(options.description)}">
 <link rel="stylesheet" href="style.css">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+${located}
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="agentcurfew">
 <meta property="og:title" content="${escape(options.title)}">
 <meta property="og:description" content="${escape(options.description)}">
+<meta property="og:image" content="${escape(options.homepage)}social.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta name="twitter:card" content="summary_large_image">
 </head>
 <body>
 <a class="skip" href="#content">Skip to content</a>
@@ -428,7 +458,7 @@ ${navigation(options.current)}
 <main id="content">
 ${options.main}
 </main>
-<footer class="site"><p>agentcurfew ${escape(options.version)} · MIT license · built from the <a href="${REPOSITORY}">repository</a>'s README and docs · a sibling of <a href="https://depcurfew.github.io/">depcurfew</a></p></footer>
+<footer class="site"><p>agentcurfew ${escape(options.version)} · MIT license · built from the <a href="${REPOSITORY}">repository</a>'s README and docs · a sibling of <a href="${SIBLING}">depcurfew</a>, which guards the packages people and agents install</p></footer>
 </body>
 </html>
 `;
@@ -467,7 +497,9 @@ ${items.join('\n')}
 }
 
 export function buildSite(outDir: string): string[] {
-  const version = (JSON.parse(readFileSync(new URL('package.json', ROOT), 'utf8')) as { version: string }).version;
+  const manifest = JSON.parse(readFileSync(new URL('package.json', ROOT), 'utf8')) as { version: string; homepage: string };
+  const { version } = manifest;
+  const homepage = manifest.homepage.endsWith('/') ? manifest.homepage : `${manifest.homepage}/`;
   mkdirSync(outDir, { recursive: true });
   const written: string[] = [];
   for (const page of PAGES) {
@@ -490,7 +522,7 @@ ${extra}
 </div>
 </div>`;
     const title = page.file === 'index.html' ? 'agentcurfew · Security policy for the files that steer AI coding agents' : `${page.label} · agentcurfew`;
-    writeFileSync(`${outDir}/${page.file}`, document({ title, description: page.description, version, current: page, main }));
+    writeFileSync(`${outDir}/${page.file}`, document({ title, description: page.description, version, homepage, file: page.file, current: page, main }));
     written.push(page.file);
   }
   writeFileSync(
@@ -499,16 +531,24 @@ ${extra}
       title: 'Page not found · agentcurfew',
       description: 'This page does not exist.',
       version,
+      homepage,
+      file: undefined,
       current: undefined,
       main: '<div class="page"><div class="content"><h1 id="page-not-found">Page not found</h1><p>This page does not exist. Start at the <a href="index.html">overview</a>.</p></div></div>',
     }),
   );
   written.push('404.html');
-  for (const asset of ['style.css', 'favicon.svg']) {
+  writeFileSync(`${outDir}/robots.txt`, `User-agent: *\nAllow: /\nSitemap: ${homepage}sitemap.xml\n`);
+  const urls = PAGES.map((page) => `  <url><loc>${escape(page.file === 'index.html' ? homepage : `${homepage}${page.file}`)}</loc></url>`);
+  writeFileSync(
+    `${outDir}/sitemap.xml`,
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`,
+  );
+  written.push('robots.txt', 'sitemap.xml');
+  for (const asset of ['style.css', 'favicon.svg', 'social.png']) {
     copyFileSync(new URL(`site/${asset}`, ROOT), `${outDir}/${asset}`);
     written.push(asset);
   }
-  writeFileSync(`${outDir}/.nojekyll`, '');
   return written;
 }
 

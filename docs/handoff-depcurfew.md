@@ -23,3 +23,8 @@ agentcurfew uses depcurfew 1.5.2 as an optional peer: its rule `mcp-package` cal
 
 - **Seen:** depcurfew's Claude Code hook, active in agentcurfew's sessions, denied `npx vitest` because the newest vitest on the registry (5.1.0) was 4 days old, although the project pins an older vitest that `npx` runs from `node_modules/.bin`. `npx tsdown` was denied the same way and `npx tsc` got a warning. The workaround in agentcurfew is `npm test`, `npm run build` and `npm run typecheck`.
 - **Possible fix:** when `npx <bin>` names a binary that `node_modules/.bin` already has, check the installed version from the project's lockfile instead of the registry's newest one; or do not judge `npx` without a version when the package is a locked dependency.
+
+## 5. A link to the sibling
+
+- **Seen:** agentcurfew now presents itself as depcurfew's sibling (D-036 of agentcurfew): its README, site footer, navigation and social preview link to https://depcurfew.github.io/, and its site at https://agentcurfew.github.io/ uses depcurfew's layout in violet. depcurfew does not mention agentcurfew yet.
+- **Possible fix:** add agentcurfew to depcurfew's "Other tools" page and a one-line sibling note near the top of its README, for example "A sibling of agentcurfew (https://agentcurfew.github.io/): depcurfew guards the packages that people and agents install, agentcurfew guards the files that steer the agent." Only if the maintainer wants it.

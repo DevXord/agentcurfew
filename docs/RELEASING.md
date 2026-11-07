@@ -16,6 +16,9 @@ Facts below come from npm's documentation sources (`npm/documentation`, `content
 5. **GitHub environment.** In the repository settings, create the environment `npm` with **Required reviewers** (the maintainer) and **Deployment branches and tags** limited to tags matching `v*`.
 6. **Tag protection.** Add a ruleset for tags `v*` that only the maintainer can create, update or delete.
 
+7. **Documentation site.** Create the free GitHub organization `agentcurfew` and in it a public repository `agentcurfew.github.io` with the files of [`site/org-repo/`](../site/org-repo/) (its `README.md` and `.github/workflows/pages.yml`). In that repository's **Settings → Pages**, set **Source** to "GitHub Actions"; then run the workflow `pages` once (Actions → pages → Run workflow). Before the first release tag it builds from `main`. The site is then at https://agentcurfew.github.io/, the `homepage` of `package.json`.
+8. **Repository page.** In `DevXord/agentcurfew`, **About** (the gear beside it): description "One security policy for the files that steer your AI coding agents", website https://agentcurfew.github.io/, topics such as `security`, `ai-agents`, `mcp`, `claude-code`, `supply-chain`; in **Settings → General → Social preview**, upload [`site/social.png`](../site/social.png).
+
 ## Every release
 
 1. Make sure CI on `main` is green, including `agentcurfew verify .` and `depcurfew doctor`.

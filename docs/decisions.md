@@ -217,6 +217,10 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Date:** 2026-11-07
 - **Decision of the maintainer (Q-015, option b):** the hash of each locked component covers its entry with every secret the rules would report replaced by `<redacted>`, as the lock already writes it, and context files are hashed after the same redaction. A committed lock therefore confirms no guessed secret offline. In exchange, a change of a secret's value alone is no longer drift; any other change, a renamed variable or a new argument included, still is. Skill files keep their real hashes, which the comparison with skills-lock.json needs.
 
+## D-036: The site mirrors depcurfew's
+- **Date:** 2026-11-07
+- **Decision of the maintainer:** agentcurfew and depcurfew are one family, depcurfew for the packages people and agents install, agentcurfew for the files that steer the agent, and agentcurfew is laid out as depcurfew is: the code in `DevXord/agentcurfew`, the unscoped npm package `agentcurfew` on the same npm account, and the documentation site at https://agentcurfew.github.io/ from a repository `agentcurfew.github.io` of a GitHub organization `agentcurfew` that holds nothing else. That repository's files are kept in `site/org-repo/`: once a day it builds the site from the latest release tag with `npm run site` and deploys it to GitHub Pages. `homepage` in `package.json` is that address, and the pages name it as canonical. The logo is depcurfew's cube as a speech bubble with an agent's eyes and an AI sparkle, in violet, with depcurfew's amber clock; `site/social.png` (from `site/social.html`) is the repository's social preview and the pages' `og:image`.
+
 ## Q-012: For the depcurfew session
 - **Status:** handed over on 2026-11-07, as the maintainer chose: [handoff-depcurfew.md](handoff-depcurfew.md) is the note to pass to depcurfew's own session; agentcurfew does not change depcurfew.
 - `popularPackages` and `popularPythonPackages` are not exported, so agentcurfew cannot check similar names of MCP server packages offline without copying them.
