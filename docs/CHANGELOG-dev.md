@@ -2,6 +2,11 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-07: Windsurf deprecations, TypeScript stays
+
+- The maintainer opened the session's network, so docs.devin.ai could be read at last (Q-011). The Windsurf (Devin Desktop) knowledge now lists `.windsurfrules`, `.windsurf/rules/*.md`, `.windsurf/global_rules.md`, `.windsurf/skills` and `.windsurf/workflows` (with the Windsurf system workflow directories) as deprecated, each with the page and quote; `doctor` warns about them. The notes on hooks and workflows cite the Cascade reference, which says Cascade no longer starts conversations.
+- The maintainer keeps TypeScript 6.0.3 for 1.0.0 (Q-005).
+
 ## 2026-11-07: Node 22 required
 
 - The maintainer chose Node 22 as the floor (D-033, Q-014): `engines` is `>=22.23.0`, the release CI tests, and the smoke test runs on Node 22, 24 and 26. README and the release notes say Node.js 22.23.

@@ -2,6 +2,8 @@ import { verifiedOn } from './define.ts';
 import type { AgentKnowledge, AgentPath, ContextFile, ExtensionsKnowledge, McpKnowledge, Scope } from './types.ts';
 
 const { verified, uncertain, disputed, evidence } = verifiedOn('2026-11-06');
+// Read on 2026-11-07, once docs.devin.ai could be reached from the session (Q-011).
+const later = verifiedOn('2026-11-07');
 
 // Windsurf was renamed Devin Desktop, and docs.windsurf.com redirects to docs.devin.ai, so these pages are its official documentation.
 const DOCS = 'https://docs.devin.ai';
@@ -14,6 +16,8 @@ const SKILLS = `${DOCS}/cli/extensibility/skills/overview.md`;
 const RULES = `${DOCS}/cli/extensibility/rules.md`;
 const SUBAGENTS = `${DOCS}/cli/subagents.md`;
 const WORKFLOWS = `${DOCS}/desktop/cascade/workflows`;
+const CASCADE = `${DOCS}/desktop/cascade.md`;
+const CUSTOMIZATIONS = `${DOCS}/desktop/devin-local/customizations.md`;
 const CONTROLS = `${DOCS}/desktop/controls`;
 const FAQ = `${DOCS}/desktop/devin-desktop-faq`;
 const VSCODE_TASKS = 'https://code.visualstudio.com/docs/debugtest/tasks';
@@ -116,7 +120,7 @@ export const windsurf: AgentKnowledge = {
       commandField: 'command',
     },
     HOOKS,
-    `In .devin/hooks.v1.json the hooks object is the whole file, with no hooks key. Project files are found from the working directory up to the repository root. Merge order is not documented. Only exit code 2 blocks; other failures, timeouts and unreadable output do not. Hooks do not load in Restricted Mode. The system hooks.json comes from ${CONTROLS}, which gives neither its key nor its format. The changelog has a command that migrates Windsurf hooks, and no current page says where those files were or whether they are still read, so none is listed.`,
+    `In .devin/hooks.v1.json the hooks object is the whole file, with no hooks key. Project files are found from the working directory up to the repository root. Merge order is not documented. Only exit code 2 blocks; other failures, timeouts and unreadable output do not. Hooks do not load in Restricted Mode. The system hooks.json comes from ${CONTROLS}, which gives neither its key nor its format. The changelog has a command that migrates Windsurf hooks. The Cascade reference shows legacy Cascade hooks in .windsurf/hooks.json (${CASCADE}, read on 2026-11-07), but Cascade no longer runs, so that file is not listed.`,
   ),
   skills: verified(
     {
@@ -178,8 +182,36 @@ export const windsurf: AgentKnowledge = {
     `Inferred from VS Code, not from Devin Desktop docs: the FAQ calls its data directory VS Code-derived and its docs say nothing about automatic tasks. In VS Code the task.allowAutomaticTasks setting gates them, and they never run in untrusted workspaces. Separately, Desktop documents devcontainer.json lifecycle commands, where initializeCommand runs on the host once the folder is trusted (${DOCS}/desktop/advanced).`,
   ),
   extensions: disputed(
-    `Sources disagree on whether workflows still run: the workflows page documents them and calls them Cascade-only, unsupported by Devin Local, while the changelog says v3.9.19 (2026-09-08) removed Cascade and Devin Local is the only agent (${DOCS}/desktop/changelog). Files may therefore be inert on current versions and live on older ones. Skills are invoked as /skill-name.`,
+    `Sources disagree on whether workflows still run: the workflows page documents them and calls them Cascade-only, unsupported by Devin Local, while the changelog says v3.9.19 (2026-09-08) removed Cascade and Devin Local is the only agent (${DOCS}/desktop/changelog). The Cascade reference, read on 2026-11-07, sides with the changelog: "Devin Desktop no longer starts new Cascade conversations and no longer opens old ones" (${CASCADE}). Files may therefore be inert on current versions and live on older ones, so both are kept. Skills are invoked as /skill-name.`,
     evidence(workflows, WORKFLOWS),
     evidence({ subagents, commands: [] }, `${DOCS}/desktop/changelog`),
   ),
+  // Each from a page that calls the path legacy or a fallback; the old paths are still read (Q-011).
+  deprecations: [
+    later.verified(
+      { paths: ['.windsurfrules'], replacement: 'rules in .devin/rules/*.md, or .devin/global_rules.md' },
+      CUSTOMIZATIONS,
+      'The page: "The legacy .windsurf/rules/*.md, .windsurf/global_rules.md, and .windsurfrules files are imported by default."',
+    ),
+    later.verified(
+      { paths: ['**/.windsurf/rules/*.md'], replacement: '.devin/rules/*.md' },
+      CUSTOMIZATIONS,
+      'Called legacy; rule files in both .devin/rules/ and .windsurf/rules/ load.',
+    ),
+    later.verified(
+      { paths: ['**/.windsurf/global_rules.md'], replacement: '.devin/global_rules.md' },
+      CUSTOMIZATIONS,
+      'Called legacy; when both global_rules.md files exist, only .devin/global_rules.md loads, so the old one is then ignored.',
+    ),
+    later.verified(
+      { paths: ['.windsurf/skills'], replacement: '.devin/skills/<name>/' },
+      CUSTOMIZATIONS,
+      'The page: ".agents/skills/ and the legacy .windsurf/skills/ are also read".',
+    ),
+    later.verified(
+      { paths: ['**/.windsurf/workflows/*.md', ...SYSTEM_DIRECTORIES.filter(({ base }) => base.includes('indsurf')).map(({ base }) => `${base}/workflows/*.md`)], replacement: '.devin/workflows/*.md, or the Devin system directory' },
+      CASCADE,
+      'The page calls .windsurf/workflows/ legacy and a fallback, and the Windsurf system directories a legacy fallback, read only when the Devin one is missing. Workflows belong to Cascade, which no longer starts conversations (see extensions).',
+    ),
+  ],
 };

@@ -249,12 +249,11 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Not covered:** Stripe organization keys (`sk_org`, shape not documented), Google's newer `AQ.` keys (forum reports only), GitLab personal token prefixes an admin changed, unsigned and encrypted JWTs.
 
 ## Q-011: Deprecated Windsurf paths
-- **Status:** open. `docs.devin.ai` (where `docs.windsurf.com` redirects) still cannot be reached from the cloud session, so no deprecation was recorded in the knowledge base.
-- **Found on 2026-11-06, from search summaries only (unverified):** `.windsurfrules` is called legacy, and `.windsurf/rules` and `.windsurf/workflows` a fallback next to `.devin/`; a search summary also gave a global rules path that differs from the one in the knowledge base. None of it may be recorded until the page is read (CLAUDE.md: no facts from memory or hearsay).
-- **Needed:** someone with access opens the rules and workflows pages of docs.devin.ai, or the session runs where the host is allowed; then `deprecations` entries are added with the source and `doctor`'s `deprecated-format` picks them up.
+- **Status:** answered on 2026-11-07. With the session's network opened by the maintainer, docs.devin.ai was read: the Devin Local customizations page (https://docs.devin.ai/desktop/devin-local/customizations.md) calls `.windsurfrules`, `.windsurf/rules/*.md`, `.windsurf/global_rules.md` and `.windsurf/skills/` legacy, still read; the Cascade reference (https://docs.devin.ai/desktop/cascade.md) calls `.windsurf/workflows/` and the Windsurf system directories a legacy fallback, and says Devin Desktop no longer starts Cascade conversations. Each is now a `deprecations` entry of the Windsurf knowledge, dated 2026-11-07, which `doctor`'s `deprecated-format` reports; the doctor fixtures cover `.windsurfrules` and `.windsurf/skills`.
+- **Not changed:** the search summaries of 2026-11-06 also gave a different global rules path; the pages read list `~/.devin/global_rules.md` and `~/.devin/rules/*.md`, as the knowledge base already does, and say nothing of an older global file.
 
 ## Q-005: TypeScript 7?
-- **Status:** open, maintainer's choice. `tsdown` 0.23.5 declares `^7.0.0` as a supported peer; whether 0.23.2 and the d.ts build work with it was not tested.
+- **Status:** answered on 2026-11-07: the maintainer keeps TypeScript 6.0.3 for 1.0.0; TypeScript 7 is to be tried after the release. `tsdown` 0.23.5 declares `^7.0.0` as a supported peer; whether 0.23.2 and the d.ts build work with it was not tested.
 
 ## Q-013: Should a file that could not be read fail `scan`?
 - **Status:** answered on 2026-11-07 by D-031: option (b). Today inventory problems (`too-large`, `too-deep`, `unreadable`, `unparsable`, `outside-project`, `too-many-entries`) are listed but never change the exit code (decision of phase 3).

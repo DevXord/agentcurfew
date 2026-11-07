@@ -38,6 +38,8 @@ const POSITIVE: Readonly<Record<string, readonly string[]>> = {
     'warning | .cursorrules | Cursor calls .cursorrules deprecated; use rules in .cursor/rules/*.mdc',
     'info | .gemini/settings.json | Gemini CLI calls httpUrl of the server old deprecated; use url with type http',
     'warning | .gemini/settings.json | Gemini CLI calls tools.exclude deprecated; use deny rules of the policy engine',
+    'warning | .windsurf/skills/lint/SKILL.md | Windsurf (Devin Desktop) calls .windsurf/skills/lint/SKILL.md deprecated; use .devin/skills/<name>/',
+    'warning | .windsurfrules | Windsurf (Devin Desktop) calls .windsurfrules deprecated; use rules in .devin/rules/*.md, or .devin/global_rules.md',
   ],
   'stale-policy-entry': [
     'info | agentcurfew.policy.json | exceptions[0] (hidden-unicode on nothing/**) matches no finding',

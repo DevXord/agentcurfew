@@ -32,7 +32,17 @@ WARNING  deprecated-format  .gemini/settings.json
   fix: Move the content to the replacement named in the message.
   source: https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/reference/configuration.md
 
-Failed: 2 problems at level warning or above (change with --fail-on or doctor.failOn).
+WARNING  deprecated-format  .windsurf/skills/lint/SKILL.md
+  Windsurf (Devin Desktop) calls .windsurf/skills/lint/SKILL.md deprecated; use .devin/skills/<name>/
+  fix: Move the content to the replacement named in the message.
+  source: https://docs.devin.ai/desktop/devin-local/customizations.md
+
+WARNING  deprecated-format  .windsurfrules
+  Windsurf (Devin Desktop) calls .windsurfrules deprecated; use rules in .devin/rules/*.md, or .devin/global_rules.md
+  fix: Move the content to the replacement named in the message.
+  source: https://docs.devin.ai/desktop/devin-local/customizations.md
+
+Failed: 4 problems at level warning or above (change with --fail-on or doctor.failOn).
 "
 `;
 
