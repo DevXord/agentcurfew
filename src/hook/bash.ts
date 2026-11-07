@@ -139,8 +139,9 @@ export function checkCommand(line: string, policy: Policy | undefined): Verdict[
   let tries = 0;
   for (const words of commands(line).flatMap((command) => unwrapCommand(command))) {
     for (let start = 0; start < words.length; start++) {
+      // The first word of each command is always tried, which reads each word once; only later starts count.
       if (start > 0 && !first.has(words[start] ?? '')) continue;
-      if (++tries > MAX_STARTS) {
+      if (start > 0 && ++tries > MAX_STARTS) {
         verdicts.push({ decision: 'ask', reasons: ['agentcurfew: this command line is too long and repetitive to check for installs of skills and MCP servers.'] });
         return verdicts;
       }

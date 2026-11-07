@@ -257,10 +257,10 @@ agentcurfew scan: Check what steers agents in a project against the rules
 
 Usage: agentcurfew scan [directory] [options]
 
-Reads the skills, MCP servers, hooks, context files and permissions of a project, as the knowledge base describes them for each agent, and checks them against the rules. Nothing found is run, and nothing is sent anywhere. Exits with 1 when a finding is at --fail-on or above.
+Reads the skills, MCP servers, hooks, context files and permissions of a project, as the knowledge base describes them for each agent, and checks them against the rules. Nothing found is run, and nothing is sent anywhere. Exits with 1 when a finding is at --fail-on or above, or when a file could not be read (too large, too deep or unreadable), since it was not checked.
 
 Options:
-  --fail-on <level>  Exit with 1 at this level or above: critical, high (default), medium, low, none
+  --fail-on <level>  Exit with 1 at this level or above: critical, high (default), medium, low, none (also stops files that could not be read from failing)
   --json             Print JSON (see docs/cli-json.md); file contents and secrets are left out
   --sarif            Print SARIF 2.1.0, for GitHub Code Scanning and other tools
   --inventory        Only list the components, without the rules

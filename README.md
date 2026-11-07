@@ -39,7 +39,7 @@ It needs Node.js 18.20 or later. The command is `agentcurfew`.
 ## Use
 
 ```bash
-agentcurfew scan                        # exit code 1 on a finding at level high or above
+agentcurfew scan                        # exit code 1 on a finding at level high or above, or a file it could not read
 agentcurfew scan --fail-on medium --json
 agentcurfew scan --sarif > agentcurfew.sarif   # for GitHub Code Scanning
 agentcurfew lock                        # write agentcurfew.lock; commit it

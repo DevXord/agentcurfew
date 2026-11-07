@@ -1,3 +1,4 @@
+import type { InventoryProblem } from '../inventory/types.ts';
 import { createHash } from 'node:crypto';
 import type { Suppressed } from '../policy/apply.ts';
 import { rules } from '../rules/index.ts';
@@ -34,7 +35,7 @@ function result(finding: Finding, ruleIndex: number, suppressed?: Suppressed): o
  * The findings of a scan as SARIF 2.1.0, for GitHub Code Scanning and other tools. Deterministic: no time stamps, no
  * absolute paths. Findings accepted by the policy are kept, with the exception's reason as a suppression.
  */
-export function toSarif(findings: readonly Finding[], suppressed: readonly Suppressed[]): object {
+export function toSarif(findings: readonly Finding[], suppressed: readonly Suppressed[], unchecked: readonly InventoryProblem[] = []): object {
   const index = new Map(rules.map((rule, position) => [rule.id, position]));
   return {
     $schema: SCHEMA,
@@ -61,6 +62,21 @@ export function toSarif(findings: readonly Finding[], suppressed: readonly Suppr
             })),
           },
         },
+        // Files that could not be read were not checked: the run did not succeed, and each is a notification (Q-013).
+        ...(unchecked.length === 0
+          ? {}
+          : {
+              invocations: [
+                {
+                  executionSuccessful: false,
+                  toolExecutionNotifications: unchecked.map((problem) => ({
+                    level: 'error',
+                    message: { text: `${problem.code}: the file could not be read, so it was not checked` },
+                    locations: [{ physicalLocation: { artifactLocation: { uri: problem.file } } }],
+                  })),
+                },
+              ],
+            }),
         columnKind: 'unicodeCodePoints',
         results: [
           ...findings.map((finding) => result(finding, index.get(finding.rule) ?? 0)),

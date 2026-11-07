@@ -23,6 +23,12 @@ describe('SARIF', () => {
     expect(createHash('sha256').update(bytes).digest('hex')).toBe('c3b4bb2d6093897483348925aaa73af03b3e3f4bd4ca38cef26dcb4212a2682e');
   });
 
+  it('is valid SARIF 2.1.0 with files that could not be read', () => {
+    const sarif = toSarif([], [], [{ code: 'too-large', file: 'CLAUDE.md' }, { code: 'unreadable', file: '.claude/skills' }]);
+    expect(validate(sarif), JSON.stringify(validate.errors)).toBe(true);
+    expect((sarif as { runs: { invocations: unknown[] }[] }).runs[0]?.invocations).toHaveLength(1);
+  });
+
   it.each(readdirSync(fixtureDir('')))('is valid SARIF 2.1.0 for the %s fixture', async (rule) => {
     const { root, cleanup } = materialize(`${rule}/positive`);
     try {

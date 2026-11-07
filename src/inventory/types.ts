@@ -37,6 +37,13 @@ export interface Component {
 
 export type ProblemCode = 'outside-project' | 'too-large' | 'too-deep' | 'too-many-entries' | 'unreadable' | 'unparsable';
 
+/**
+ * Problems that leave a file of the knowledge base unchecked, so that `scan` fails on them (Q-013, decision of the
+ * maintainer): a hostile repository could otherwise pad a file, or the tree before it, until it is skipped.
+ * unparsable, outside-project and too-many-entries stay warnings.
+ */
+export const UNCHECKED_PROBLEMS: readonly ProblemCode[] = ['too-large', 'too-deep', 'unreadable'];
+
 /** A place the scanner could not fully inventory. It carries no text from the file, which may be hostile or secret. */
 export interface InventoryProblem {
   code: ProblemCode;

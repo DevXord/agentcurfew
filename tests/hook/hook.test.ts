@@ -104,6 +104,9 @@ describe('hook helpers', () => {
       expect(checkCommand(line, policy).map((verdict) => verdict.decision), line).toContain('deny');
     }
     expect(checkCommand('npx skills add good/repo', policy).map((verdict) => verdict.decision)).toEqual(['ask']);
+    // Many short commands are no reason to ask: only repeated starts inside one command are.
+    expect(checkCommand(Array.from({ length: 200 }, (_, index) => `echo ${index}`).join('; '), policy)).toEqual([]);
+    expect(checkCommand(`python3 - <<'EOF'\n${'f(x); g(y)\n'.repeat(500)}EOF`, policy)).toEqual([]);
     const padded = `${'npx x '.repeat(100_000)}npx skills add evil/repo`;
     const started = performance.now();
     expect(checkCommand(padded, policy).map((verdict) => verdict.decision)).toEqual(['ask']);

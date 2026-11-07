@@ -2,6 +2,11 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-07: Unchecked files fail the scan
+
+- The maintainer chose Q-013 option (b), recorded as D-031: `scan` exits with 1 when a file could not be read (`too-large`, `too-deep`, `unreadable`), says so in the text output, and marks the SARIF run as not successful with one notification per file. `--fail-on none` turns it off.
+- The hook asked "too long and repetitive" about ordinary command lines with many short commands, such as a script with many parentheses, because the first word of every command counted against its limit of 32 tries. Only later starts count now; tests cover both.
+
 ## 2026-11-07: A second review, of the hardening itself
 
 A fresh read-only review of the fixes above found eleven more problems and a latent one; all were reproduced and fixed with tests.

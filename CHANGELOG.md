@@ -10,7 +10,7 @@ The first release will be 1.0.0. Nothing has been published yet; the notes below
 
 The first release. agentcurfew inventories, locks and checks the files that steer AI coding agents (Claude Code, Cursor, Codex CLI, Gemini CLI, Copilot in VS Code, Windsurf and Cline) without running any of them and without using the network.
 
-- `scan`: lists skills, MCP servers, hooks, automatic tasks, context files, permissions, subagents and commands from a sourced knowledge base, and checks them against 15 rules, each with an OWASP Agentic Skills Top 10 reference, a fix and an example. Text, JSON (with published schemas) and SARIF 2.1.0 output; `--fail-on`; `--user` for the home directory and machine settings.
+- `scan`: lists skills, MCP servers, hooks, automatic tasks, context files, permissions, subagents and commands from a sourced knowledge base, and checks them against 15 rules, each with an OWASP Agentic Skills Top 10 reference, a fix and an example. Text, JSON (with published schemas) and SARIF 2.1.0 output; `--fail-on`; a file that could not be read fails the scan; `--user` for the home directory and machine settings.
 - `lock` and `verify`: `agentcurfew.lock` holds a checksum of every component, with MCP servers' commands and addresses (secrets redacted); `verify` fails when anything was added, removed or changed. Skills are also compared with `skills-lock.json`.
 - `init` and `agentcurfew.policy.json`: allowed skill sources and MCP servers, pinned versions, plain HTTP, network in hooks, auto-run on open, hidden Unicode, excluded paths, and exceptions with a reason and an end date. A JSON schema for editors.
 - `doctor`: 12 checks for configuration that agents ignore or that does not work, each naming its source.

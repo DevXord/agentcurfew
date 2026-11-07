@@ -144,6 +144,27 @@ describe('agentcurfew scan', () => {
     expect(stdout + stderr).not.toContain(SECRET);
   });
 
+  it('fails when a file could not be read, so it was not checked (Q-013)', async () => {
+    const base = mkdtempSync(join(tmpdir(), 'acf-unchecked-'));
+    try {
+      writeFileSync(join(base, 'CLAUDE.md'), `# Rules\n${' '.repeat(2 * 1024 * 1024)}`);
+      writeFileSync(join(base, '.mcp.json'), '{ not json');
+      const result = await cli('scan', base);
+      expect(result.code).toBe(EXIT_FAILURE);
+      expect(result.stdout).toContain('too-large: CLAUDE.md');
+      expect(result.stdout).toContain('Failed: 1 file could not be read, so it was not checked');
+      expect((await cli('scan', base, '--fail-on', 'none')).code).toBe(EXIT_OK);
+      const sarif = JSON.parse((await cli('scan', base, '--sarif')).stdout) as { runs: { invocations?: { executionSuccessful: boolean; toolExecutionNotifications: { level: string; locations: { physicalLocation: { artifactLocation: { uri: string } } }[] }[] }[] }[] };
+      expect(sarif.runs[0]?.invocations?.[0]?.executionSuccessful).toBe(false);
+      expect(sarif.runs[0]?.invocations?.[0]?.toolExecutionNotifications.map((note) => note.locations[0]?.physicalLocation.artifactLocation.uri)).toEqual(['CLAUDE.md']);
+      // A file that is not valid JSON stays a warning.
+      rmSync(join(base, 'CLAUDE.md'));
+      expect((await cli('scan', base)).code).toBe(EXIT_OK);
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
+  });
+
   it('rejects a wrong --fail-on and --fail-on with --inventory', async () => {
     expect((await cli('scan', fixture('empty'), '--fail-on', 'severe')).code).toBe(EXIT_USAGE);
     expect((await cli('scan', fixture('empty'), '--fail-on', 'low', '--inventory')).code).toBe(EXIT_USAGE);

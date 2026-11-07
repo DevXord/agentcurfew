@@ -33,9 +33,9 @@ export const COMMANDS: readonly CommandSpec[] = [
     summary: 'Check what steers agents in a project against the rules',
     usage: 'scan [directory] [options]',
     description:
-      'Reads the skills, MCP servers, hooks, context files and permissions of a project, as the knowledge base describes them for each agent, and checks them against the rules. Nothing found is run, and nothing is sent anywhere. Exits with 1 when a finding is at --fail-on or above.',
+      'Reads the skills, MCP servers, hooks, context files and permissions of a project, as the knowledge base describes them for each agent, and checks them against the rules. Nothing found is run, and nothing is sent anywhere. Exits with 1 when a finding is at --fail-on or above, or when a file could not be read (too large, too deep or unreadable), since it was not checked.',
     options: [
-      { name: 'fail-on', type: 'string', value: 'level', description: 'Exit with 1 at this level or above: critical, high (default), medium, low, none' },
+      { name: 'fail-on', type: 'string', value: 'level', description: 'Exit with 1 at this level or above: critical, high (default), medium, low, none (also stops files that could not be read from failing)' },
       JSON_OPTION,
       { name: 'sarif', type: 'boolean', description: 'Print SARIF 2.1.0, for GitHub Code Scanning and other tools' },
       { name: 'inventory', type: 'boolean', description: 'Only list the components, without the rules' },

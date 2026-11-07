@@ -1,5 +1,6 @@
 import { analyzeProjectAsync } from '../analyze.ts';
 import type { Component, Inventory, InventoryProblem } from '../inventory/index.ts';
+import { UNCHECKED_PROBLEMS } from '../inventory/types.ts';
 import { LOCKFILE } from '../lock/types.ts';
 import type { Suppressed } from '../policy/apply.ts';
 import { toSarif } from '../report/sarif.ts';
@@ -55,7 +56,7 @@ function where(finding: Finding): string {
   return printable(`${finding.file}${place}${name}`);
 }
 
-function renderFindings(io: CliIo, inventory: Inventory, findings: readonly Finding[], suppressed: readonly Suppressed[], failOn: FailOn): string {
+function renderFindings(io: CliIo, inventory: Inventory, findings: readonly Finding[], suppressed: readonly Suppressed[], failOn: FailOn, unchecked: number): string {
   const counts = LEVELS.map((level) => [level, findings.filter((finding) => finding.level === level).length] as const).filter(([, count]) => count > 0);
   const summary = counts.length === 0 ? '' : ` (${counts.map(([level, count]) => `${count} ${level}`).join(', ')})`;
   const lines = [`${plural(inventory.components.length, 'component')} scanned, ${plural(findings.length, 'finding')}${summary}`];
@@ -70,6 +71,7 @@ function renderFindings(io: CliIo, inventory: Inventory, findings: readonly Find
   lines.push(...problemLines(inventory));
   const failing = failOn === 'none' ? 0 : findings.filter((finding) => atLeast(finding.level, failOn)).length;
   if (failing > 0) lines.push('', `${label(io, 'Failed')}: ${plural(failing, 'finding')} at level ${failOn} or above (change with --fail-on).`);
+  if (failOn !== 'none' && unchecked > 0) lines.push('', `${label(io, 'Failed')}: ${plural(unchecked, 'file')} could not be read, so ${unchecked === 1 ? 'it was' : 'they were'} not checked (see the problems above).`);
   return `${lines.join('\n')}\n`;
 }
 
@@ -104,15 +106,17 @@ export async function runScan(argv: readonly string[], io: CliIo, usageError: (w
     }
     return EXIT_OK;
   }
+  // A file that could not be read was not checked, so it fails the scan as a finding would (Q-013).
+  const unchecked = inventory.problems.filter((problem) => UNCHECKED_PROBLEMS.includes(problem.code));
   if (values.sarif === true) {
-    io.stdout(`${printableJson(toSarif(findings, suppressed))}\n`);
+    io.stdout(`${printableJson(toSarif(findings, suppressed, unchecked))}\n`);
   } else if (values.json === true) {
     const output = { schemaVersion: SCAN_SCHEMA_VERSION, failOn, components: inventory.components.map(publicComponent), findings, suppressed, problems: inventory.problems };
     io.stdout(`${printableJson(output)}\n`);
   } else {
     const note = lock.status === 'invalid' ? `\nNote: ${LOCKFILE} was not compared, because ${lock.reason}.\n` : '';
-    io.stdout(renderFindings(io, inventory, findings, suppressed, failOn) + note);
+    io.stdout(renderFindings(io, inventory, findings, suppressed, failOn, unchecked.length) + note);
   }
-  const failed = failOn !== 'none' && findings.some((finding) => atLeast(finding.level, failOn as Level));
+  const failed = failOn !== 'none' && (unchecked.length > 0 || findings.some((finding) => atLeast(finding.level, failOn as Level)));
   return failed ? EXIT_FAILURE : EXIT_OK;
 }

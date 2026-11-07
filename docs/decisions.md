@@ -75,7 +75,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Model:** a rule has an id, a level, OWASP references, a description, a fix, an example, the component kinds it reads, and, when it matches patterns, a note on false alarms. `check` returns hits whose message must already be safe to print; the engine also bounds and cleans every message. A hit may raise or lower the level, for example a setting the agent ignores in a project file is `low`.
 - **Engine:** pure and deterministic (sorted by file, line, column, rule), at most 20 hits per rule and component plus one summary finding, a rule that throws becomes an `info` finding, and a hook that is also an auto-run component is reported once per rule.
 - **Facts stay in the knowledge base:** which settings bypass prompts and whether a project file may set them (`fromProject`), which allow-list entries mean every shell command (`allowAllShell`), the skill field that grants tools (`grantsField`), events that start hooks on their own (`autoStartEvents`) and further remote URL fields (`otherUrls`) are new knowledge fields. Formats of credentials are facts about their issuers, not agents, and live in `src/rules/secrets.ts`, each with its source (Q-010).
-- **Exit code:** `agentcurfew scan` exits with 1 when a finding is at `--fail-on` or above, `high` by default, as the maintainer chose; `none` turns it off. Inventory problems do not change the exit code. `--fail-on` with `--inventory` is a usage error.
+- **Exit code:** `agentcurfew scan` exits with 1 when a finding is at `--fail-on` or above, `high` by default, as the maintainer chose; `none` turns it off. Inventory problems did not change the exit code; since D-031, a file that could not be read does. `--fail-on` with `--inventory` is a usage error.
 - **JSON:** `scan --json` is schema version 2: the inventory's fields plus `failOn` and `findings`. `scan --inventory --json` stays at version 1.
 - **Fixtures:** each rule has `tests/fixtures/rules/<id>/positive` and `negative`. Hidden characters and secret-shaped values are written `{U+XXXX}` and `{{secret:name}}` and expanded only in a temporary copy, so that the repository holds no invisible text and nothing a secret scanner would take for a live token.
 - **Not in phase 3:** drift (phase 4, lockfile) and out-of-policy (phase 5, policy) are listed as planned in docs/rules.md.
@@ -194,6 +194,10 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Date:** 2026-11-07
 - **Decision of the maintainer:** the package ships one binary, `agentcurfew`. Other packages on npm and PyPI ship an `acf` binary (Q-001), so the alias could run another tool or be shadowed by one; an alias can be added later, but removing one after a release would break scripts. The help text no longer names it, and a test checks that.
 
+## D-031: A file that could not be read fails `scan`
+- **Date:** 2026-11-07
+- **Decision of the maintainer (Q-013, option b):** `scan` exits with 1 when the inventory has a `too-large`, `too-deep` or `unreadable` problem, since that file was not checked; `unparsable`, `outside-project` and `too-many-entries` stay warnings. The text output ends with "Failed: N files could not be read", and SARIF output gets an invocation with `executionSuccessful: false` and one notification per file. `--fail-on none` turns this off too, as it turns off every failure of `scan`. The list is `UNCHECKED_PROBLEMS` in `src/inventory/types.ts`.
+
 ## Q-012: For the depcurfew session
 - **Status:** open, to raise in depcurfew's own session; agentcurfew does not change depcurfew.
 - `popularPackages` and `popularPythonPackages` are not exported, so agentcurfew cannot check similar names of MCP server packages offline without copying them.
@@ -243,7 +247,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Status:** open, maintainer's choice. `tsdown` 0.23.5 declares `^7.0.0` as a supported peer; whether 0.23.2 and the d.ts build work with it was not tested.
 
 ## Q-013: Should a file that could not be read fail `scan`?
-- **Status:** open, maintainer's choice. Today inventory problems (`too-large`, `too-deep`, `unreadable`, `unparsable`, `outside-project`, `too-many-entries`) are listed but never change the exit code (decision of phase 3).
+- **Status:** answered on 2026-11-07 by D-031: option (b). Today inventory problems (`too-large`, `too-deep`, `unreadable`, `unparsable`, `outside-project`, `too-many-entries`) are listed but never change the exit code (decision of phase 3).
 - **Why it matters:** a hostile repository can pad a walked tree, such as many large `CLAUDE.md` files or a skill folder, so that a later skill or rule file is past the 128 MB read budget, or make a file larger than 2 MB, and `scan` then passes without checking it. Fixed config paths are always read (2026-11-07), so this only hides walked and globbed files; the hook already denies such writes.
 - **Options:** (a) keep it as it is; (b) exit with 1 when a file of the knowledge base could not be read (`too-large`, `too-deep`, `unreadable`); (c) the same through a policy setting, off by default.
 - **Recommendation:** (b), since a file that was not checked should not pass in CI; `unparsable` and `outside-project` could stay warnings.
