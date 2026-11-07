@@ -19,4 +19,4 @@ The first release. agentcurfew inventories, locks and checks the files that stee
 - depcurfew as an optional peer (`>=1.5.2 <2`): the rule `mcp-package` checks the packages that MCP servers start, offline; `doctor` checks depcurfew's hook.
 - A GitHub Action (`scan`, `verify` or `doctor`, with SARIF upload).
 - Hostile input: size, depth and total-read limits, links not followed out of the project, secrets masked in every output and redacted in the lock, and patterns that read padded text in linear time.
-- Node.js 20.20 or later; one runtime dependency each for YAML and TOML.
+- Node.js 22.23 or later; one runtime dependency each for YAML and TOML.

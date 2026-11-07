@@ -2,6 +2,10 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-07: Node 22 required
+
+- The maintainer chose Node 22 as the floor (D-033, Q-014): `engines` is `>=22.23.0`, the release CI tests, and the smoke test runs on Node 22, 24 and 26. README and the release notes say Node.js 22.23.
+
 ## 2026-11-07: Node 18 dropped
 
 - The maintainer dropped Node 18 (D-032): `engines` is `>=20.20.0`, the smoke test runs on Node 20, 22, 24 and 26, and README and the release notes say Node.js 20.20. Node 20 ended on 2026-04-30 too, by the official schedule, so Q-014 asks whether to drop it as well.

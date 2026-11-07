@@ -34,7 +34,7 @@ npm install --save-dev agentcurfew
 npx agentcurfew@1 scan
 ```
 
-It needs Node.js 20.20 or later. The command is `agentcurfew`.
+It needs Node.js 22.23 or later. The command is `agentcurfew`.
 
 ## Use
 
