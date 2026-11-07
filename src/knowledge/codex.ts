@@ -2,6 +2,8 @@ import { verifiedOn } from './define.ts';
 import type { AgentKnowledge, AgentPath } from './types.ts';
 
 const { verified, uncertain, disputed, evidence } = verifiedOn('2026-11-06');
+// Facts changed after the source audit of 2026-11-07, read again that day.
+const later = verifiedOn('2026-11-07');
 
 const DOCS = 'https://learn.chatgpt.com/docs';
 const CONFIG_BASIC = `${DOCS}/config-file/config-basic.md`;
@@ -42,13 +44,15 @@ export const codex: AgentKnowledge = {
     MCP_TYPES,
     `Project scoping (trusted projects only) is from ${DOCS}/extend/mcp.md. Other fields a scanner must read: env_vars, cwd, env_http_headers, bearer_token_env_var, and http_headers_helper, a command Codex runs to print headers. Plugins can also bundle MCP servers.`,
   ),
-  hooks: verified(
+  hooks: later.verified(
     {
       files: [
         { path: '**/.codex/hooks.json', scope: 'project', format: 'json' },
         PROJECT_CONFIG,
         { path: '~/.codex/hooks.json', scope: 'user', format: 'json' },
         USER_CONFIG,
+        { path: '/etc/codex/requirements.toml', scope: 'managed', format: 'toml', platforms: ['linux', 'darwin'] },
+        { path: '%ProgramData%/OpenAI/Codex/requirements.toml', scope: 'managed', format: 'toml', platforms: ['win32'] },
       ],
       key: 'hooks',
       events: ['SessionStart', 'SessionEnd', 'SubagentStart', 'SubagentStop', 'PreToolUse', 'PermissionRequest', 'PostToolUse', 'PreModelRequest', 'PostModelRequest', 'PreCompact', 'PostCompact', 'UserPromptSubmit', 'Stop', 'Interrupt'],
@@ -56,7 +60,7 @@ export const codex: AgentKnowledge = {
       commandField: 'command',
     },
     HOOKS,
-    `Hooks of all layers run together; a higher layer does not replace a lower one. Any active config layer can hold them, so these four files are the documented common ones, not the full list; plugins can bundle hooks too. commandWindows (command_windows in TOML) overrides the command on Windows. prompt and agent handlers are parsed but skipped. Non-managed hooks run only after review, tracked by hash. Separately, notify in config.toml runs a command; project config ignores it (${CONFIG_ADVANCED}).`,
+    `Hooks of all layers run together; a higher layer does not replace a lower one. Any active config layer can hold them, so these four files are the documented common ones, not the full list; plugins can bundle hooks too. commandWindows (command_windows in TOML) overrides the command on Windows. prompt and agent handlers are parsed but skipped. Non-managed hooks run only after review, tracked by hash. Separately, notify in config.toml runs a command; project config ignores it (${CONFIG_ADVANCED}). Managed hooks: "Define local Codex hooks under [hooks] in requirements.toml"; they are trusted by policy, and allow_managed_hooks_only = true skips all other sources (read on 2026-11-07).`,
   ),
   skills: disputed(
     'The documentation lists only .agents/skills roots, while the loader also scans .codex/skills next to each project config layer and the deprecated ~/.codex/skills. Scan every path of both variants. Codex follows symlinked skill folders.',
@@ -98,7 +102,7 @@ export const codex: AgentKnowledge = {
     AGENTS_MD,
     'Read at startup, once per run, for each directory from the project root down to the working directory, so a file outside that path is not read in that run. One file per directory, override first. project_doc_fallback_filenames adds other names, so the list is open-ended and config.toml must be read to find them. project_doc_max_bytes caps the total, 32 KiB by default.',
   ),
-  permissions: verified(
+  permissions: later.verified(
     {
       files: [
         PROJECT_CONFIG,
@@ -108,7 +112,7 @@ export const codex: AgentKnowledge = {
         { path: '/etc/codex/requirements.toml', scope: 'managed', format: 'toml', platforms: ['linux', 'darwin'] },
         { path: '%ProgramData%/OpenAI/Codex/requirements.toml', scope: 'managed', format: 'toml', platforms: ['win32'] },
       ],
-      keys: ['approval_policy', 'sandbox_mode', 'default_permissions', 'permissions', 'sandbox_workspace_write.network_access', 'sandbox_workspace_write.writable_roots', 'mcp_servers.<id>.default_tools_approval_mode', 'mcp_servers.<id>.tools.<tool>.approval_mode'],
+      keys: ['approval_policy', 'sandbox_mode', 'default_permissions', 'permissions', 'sandbox_workspace_write.network_access', 'sandbox_workspace_write.writable_roots', 'mcp_servers.<id>.default_tools_approval_mode', 'mcp_servers.<id>.tools.<tool>.approval_mode', 'apps.<id>.default_tools_approval_mode', 'apps.<id>.tools.<tool>.approval_mode', 'approvals_reviewer', 'apps.<id>.approvals_reviewer'],
       bypass: [
         { key: 'approval_policy', value: 'never', fromProject: 'needs-trust' },
         { key: 'sandbox_mode', value: 'danger-full-access', fromProject: 'needs-trust' },
@@ -116,7 +120,7 @@ export const codex: AgentKnowledge = {
       ],
     },
     APPROVALS,
-    `.rules files are Starlark, with prefix_rule decisions of allow, prompt or forbidden (${DOCS}/agent-configuration/rules.md). The :danger-full-access built-in is from ${DOCS}/permissions.md. None of the bypass keys is on PROJECT_LOCAL_CONFIG_DENYLIST in ${CONFIG_LOADER}, so a trusted project file appears able to set them; this is read from the code and was not tested by running Codex.`,
+    `.rules files are Starlark, with prefix_rule decisions of allow, prompt or forbidden (${DOCS}/agent-configuration/rules.md). The :danger-full-access built-in is from ${DOCS}/permissions.md. None of the bypass keys is on PROJECT_LOCAL_CONFIG_DENYLIST in ${CONFIG_LOADER}, so a trusted project file appears able to set them; this is read from the code and was not tested by running Codex. Read on 2026-11-07 (${DOCS}/config-file/config-reference.md): approval_policy is on-request, never or a granular table; "untrusted is unsupported, and on-failure is deprecated", so a file with either no longer asks as it used to. App tools take approval_mode auto, prompt, writes or approve, and approvals_reviewer auto_review hands eligible prompts to a reviewer subagent; whether approve skips the prompt is not stated, so they are listed as keys, not as bypasses.`,
   ),
   autoRun: uncertain(
     null,

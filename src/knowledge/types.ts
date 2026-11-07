@@ -100,7 +100,7 @@ export interface ContextFile extends AgentPath {
 
 export interface BypassSetting {
   key: string;
-  /** Matches the value itself, or an item of a list. */
+  /** Matches the value itself, or an item of a list; '*' matches any non-empty string or list, as in a list of approved servers. */
   value: string | boolean;
   /**
    * What the agent does with it in a project file: ignored (only user or managed files count), needs-trust (only once

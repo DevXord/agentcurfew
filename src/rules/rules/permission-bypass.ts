@@ -4,6 +4,8 @@ import { entryValue } from '../text.ts';
 import type { Rule, RuleHit } from '../types.ts';
 
 function holds(value: unknown, wanted: string | boolean): boolean {
+  // '*' stands for any value: a list with at least one item, or any string.
+  if (wanted === '*') return Array.isArray(value) ? value.some((item) => typeof item === 'string' && item !== '') : typeof value === 'string' && value !== '';
   if (Array.isArray(value)) return value.some((item) => item === wanted);
   return value === wanted;
 }
@@ -32,7 +34,7 @@ export const permissionBypass: Rule = {
             fact.status === 'verified' ||
             (fact.status === 'disputed' && fact.variants.every((variant) => variant.value?.bypass.some((other) => other.key === setting.key && other.value === setting.value) === true));
           const doubt = settled ? '' : '; the knowledge base marks this fact as not settled';
-          const what = `${quote(component.name, 80)} = ${quote(String(setting.value), 40)}`;
+          const what = setting.value === '*' ? `${quote(component.name, 80)} (${quote(component.raw, 60)})` : `${quote(component.name, 80)} = ${quote(String(setting.value), 40)}`;
           let hit: RuleHit;
           if (component.scope !== 'project') {
             hit = { message: `${what} turns prompts off for ${agent.name} in every project of this user${doubt}`, level: 'low' };

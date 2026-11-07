@@ -1,5 +1,7 @@
 {
   "permissions": {
     "defaultMode": "bypassPermissions"
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": ["github"]
 }

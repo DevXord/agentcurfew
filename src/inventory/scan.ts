@@ -274,7 +274,9 @@ class Scan {
             continue;
           }
           const config = this.#config(found, format);
-          for (const key of permissions.keys) {
+          // Settings that turn prompts off are permissions too, also where they are not among the grant keys.
+          const keys = new Set([...permissions.keys, ...permissions.bypass.map((setting) => setting.key), ...(permissions.allowAllShell ?? []).map((entry) => entry.key)]);
+          for (const key of keys) {
             for (const { path, value } of lookup(config, key)) this.#add('permission', agent.id, entry.scope, found.file, path, entryText(value));
           }
         }

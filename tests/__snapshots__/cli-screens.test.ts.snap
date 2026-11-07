@@ -30,7 +30,7 @@ INFO  deprecated-format  .gemini/settings.json
 WARNING  deprecated-format  .gemini/settings.json
   Gemini CLI calls tools.exclude deprecated; use deny rules of the policy engine
   fix: Move the content to the replacement named in the message.
-  source: https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/reference/configuration.md
+  source: https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/reference/policy-engine.md
 
 WARNING  deprecated-format  .windsurf/skills/lint/SKILL.md
   Windsurf (Devin Desktop) calls .windsurf/skills/lint/SKILL.md deprecated; use .devin/skills/<name>/

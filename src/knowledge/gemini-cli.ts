@@ -2,6 +2,8 @@ import { verifiedOn } from './define.ts';
 import type { AgentKnowledge, AgentPath } from './types.ts';
 
 const { verified, uncertain } = verifiedOn('2026-11-06');
+// Facts changed after the source audit of 2026-11-07, read again that day.
+const later = verifiedOn('2026-11-07');
 
 const RAW = 'https://raw.githubusercontent.com/google-gemini/gemini-cli/main';
 const CONFIGURATION = `${RAW}/docs/reference/configuration.md`;
@@ -11,6 +13,7 @@ const SKILLS = `${RAW}/docs/cli/skills.md`;
 const CONTEXT = `${RAW}/docs/cli/gemini-md.md`;
 const SUBAGENTS = `${RAW}/docs/core/subagents.md`;
 const COMMANDS = `${RAW}/docs/cli/custom-commands.md`;
+const POLICY_ENGINE = `${RAW}/docs/reference/policy-engine.md`;
 
 const PROJECT_SETTINGS: AgentPath = { path: '.gemini/settings.json', scope: 'project', format: 'json' };
 const USER_SETTINGS: AgentPath = { path: '~/.gemini/settings.json', scope: 'user', format: 'json' };
@@ -77,7 +80,7 @@ export const geminiCli: AgentKnowledge = {
     CONTEXT,
     'The name is only the default: context.fileName (a string or a list, e.g. AGENTS.md) replaces it in every location, so a scanner must read that setting. Parent directories of the workspace are searched too, bounded by context.memoryBoundaryMarkers (default .git). A file can import others with @file.md, relative or absolute. How several names in the list interact is not documented.',
   ),
-  permissions: verified(
+  permissions: later.verified(
     {
       files: [
         ...SETTINGS_FILES,
@@ -86,7 +89,7 @@ export const geminiCli: AgentKnowledge = {
         { path: '/Library/Application Support/GeminiCli/policies', scope: 'managed', format: 'toml', platforms: ['darwin'] },
         { path: 'C:/ProgramData/gemini-cli/policies', scope: 'managed', format: 'toml', platforms: ['win32'] },
       ],
-      keys: ['general.defaultApprovalMode', 'tools.allowed', 'tools.confirmationRequired', 'tools.core', 'tools.exclude', 'mcp.allowed', 'mcp.excluded', 'mcpServers.*.trust', 'policyPaths', 'adminPolicyPaths', 'security.disableYoloMode', 'security.disableAlwaysAllow', 'security.enablePermanentToolApproval', 'security.folderTrust.enabled', 'admin.secureModeEnabled', 'rule'],
+      keys: ['general.defaultApprovalMode', 'tools.allowed', 'tools.confirmationRequired', 'tools.core', 'tools.exclude', 'mcp.allowed', 'mcp.excluded', 'mcpServers.*.trust', 'policyPaths', 'adminPolicyPaths', 'security.disableYoloMode', 'security.disableAlwaysAllow', 'security.enablePermanentToolApproval', 'security.folderTrust.enabled', 'security.autoAddToPolicyByDefault', 'admin.secureModeEnabled', 'rule'],
       bypass: [
         { key: 'mcpServers.*.trust', value: true },
         { key: 'general.defaultApprovalMode', value: 'auto_edit' },
@@ -94,7 +97,7 @@ export const geminiCli: AgentKnowledge = {
       allowAllShell: [{ key: 'tools.allowed', value: 'run_shell_command' }],
     },
     CONFIGURATION,
-    'YOLO cannot be set in a file: only --yolo or --approval-mode=yolo enable it. auto_edit approves edit tools only, and tools.allowed skips prompts per tool. Policy rules are [[rule]] tables, read through the key rule with toolName, decision, priority, commandPrefix, commandRegex and modes (docs/reference/policy-engine.md). .gemini/policies in a workspace has no effect, per the same page, so it is left out. tools.exclude is deprecated in favor of deny rules. allowAllShell is inferred: docs/tools/shell.md says a bare run_shell_command in tools.core is a wildcard for any command not blocked, and this page says tools.core mirrors the matching of tools.allowed, which skips the confirmation.',
+    'YOLO cannot be set in a file: only --yolo or --approval-mode=yolo enable it. auto_edit approves edit tools only, and tools.allowed skips prompts per tool. Policy rules are [[rule]] tables, read through the key rule with toolName, decision, priority, commandPrefix, commandRegex and modes (docs/reference/policy-engine.md). .gemini/policies in a workspace has no effect, per the same page, so it is left out. tools.exclude is deprecated in favor of deny rules. security.autoAddToPolicyByDefault makes "Allow for all future sessions" the default choice for low-risk tools in trusted workspaces, and a user or admin [[rule]] with decision allow "is executed automatically without user interaction" (read on 2026-11-07); the arguments of a rule decide how wide it is, which agentcurfew does not judge. allowAllShell is inferred: docs/tools/shell.md says a bare run_shell_command in tools.core is a wildcard for any command not blocked, and this page says tools.core mirrors the matching of tools.allowed, which skips the confirmation.',
   ),
   autoRun: uncertain(
     { files: SETTINGS_FILES, triggerKey: 'hooks.SessionStart', triggerValue: 'startup', commandField: 'command' },
@@ -116,10 +119,10 @@ export const geminiCli: AgentKnowledge = {
     `Commands come from ${COMMANDS}: *.toml files, a project command wins over a user one, and a prompt can run shell commands with !{...} after a confirmation. registry.ts skips project agents in an untrusted folder and registers them only after acknowledgement. experimental.enableAgents turns subagents off.`,
   ),
   deprecations: [
-    verified(
+    later.verified(
       { paths: ['.gemini/settings.json', '~/.gemini/settings.json'], key: 'tools.exclude', replacement: 'deny rules of the policy engine' },
-      CONFIGURATION,
-      'The permissions fact records the same: tools.exclude is deprecated in favor of deny rules.',
+      POLICY_ENGINE,
+      'The page: "The legacy tools.exclude setting in settings.json is deprecated in favor of policy rules with a deny decision." The configuration reference no longer says so.',
     ),
     uncertain(
       { paths: ['.gemini/settings.json', '~/.gemini/settings.json'], key: 'mcpServers.*.httpUrl', replacement: 'url with type http' },
