@@ -508,7 +508,9 @@ export function buildSite(outDir: string): string[] {
     if (page.file === 'index.html') {
       // The title and the summary quote become the hero.
       const summary = /^> (.*)$/m.exec(text)?.[1] ?? page.description;
-      text = text.replace(/^<img [^>]*>\n+/, '').replace(/^# .*\n+/m, '').replace(/^> .*\n+/m, '');
+      // The logo and the badges belong to the README on GitHub and npm: the hero shows the logo, and the site loads nothing
+      // from other hosts.
+      text = text.replace(/^<img [^>]*>\n+/, '').replace(/^# .*\n+/m, '').replace(/^\[!\[.*\n/gm, '').replace(/^> .*\n+/m, '');
       top = hero(markdown(summary, page.source).html.replace(/^<p>|<\/p>$/g, ''));
     }
     const rendered = markdown(text, page.source);

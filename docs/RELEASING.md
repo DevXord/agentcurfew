@@ -34,12 +34,12 @@ Facts below come from npm's documentation sources (`npm/documentation`, `content
 
 ## The first release (1.0.0): published by hand
 
-Read again on 2026-11-07: a trusted publisher can be configured only for a package that already exists ("Package must exist", `npm/cli` docs of `npm trust`; the npmjs.com form sits in the package settings). So 1.0.0 cannot be staged by the workflow through OIDC. The maintainer stages it from their own machine instead, from the tarball the workflow built and tested; it then has no provenance statement, and every later release does.
+Read again on 2026-11-07: a trusted publisher can be configured only for a package that already exists ("Package must exist", `npm/cli` docs of `npm trust`; the npmjs.com form sits in the package settings). So 1.0.0 cannot be staged by the workflow through OIDC. The maintainer publishes it from their own machine instead, from the tarball the workflow built and tested; it then has no provenance statement, and every later release does.
 
 1. Push the tag `v1.0.0` as in "Every release". The job `build` tests and packs the tarball and prints its SHA-256; reject the job `publish` in the environment `npm`, since it cannot authenticate yet.
 2. Download the artifact `package` of that run, unzip it, and check its SHA-256 against the run summary (`sha256sum agentcurfew-1.0.0.tgz`).
-3. With npm 11.15.0 or later and Node 22.14.0 or later: `npm login` (2FA), then `npm stage publish ./agentcurfew-1.0.0.tgz --access public`. Staging a package that does not exist yet publishes a placeholder version `0.0.0-stage`; the staged 1.0.0 stays private until approved.
-4. `npm stage list agentcurfew`, `npm stage view <id>`, then `npm stage approve <id>` with 2FA.
+3. `npm login` (with 2FA), then `npm publish ./agentcurfew-1.0.0.tgz --access public`, giving the one-time code when asked. A plain publish, not `npm stage publish`: staging a package that does not exist yet publishes a public placeholder version `0.0.0-stage`, which would stay in the package's version list.
+4. Check the package page on npmjs.com (version 1.0.0, README with logo and badges, homepage https://agentcurfew.github.io/) and `npm view agentcurfew version`.
 5. Now that the package exists, add the trusted publisher (step 3 of "Once, before the first release"), with stage publishing allowed, and set **Publishing access** to disallow tokens (step 4). From 1.0.1 on, releases follow "Every release" with OIDC and provenance.
 
 ## Open points for the first release

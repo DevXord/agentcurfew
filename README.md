@@ -2,6 +2,12 @@
 
 # agentcurfew
 
+[![ci](https://github.com/DevXord/agentcurfew/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DevXord/agentcurfew/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/agentcurfew?color=6d28d9&label=npm)](https://www.npmjs.com/package/agentcurfew)
+[![node](https://img.shields.io/badge/node-%E2%89%A522.23-6d28d9)](https://nodejs.org/)
+[![license](https://img.shields.io/badge/license-MIT-6d28d9)](LICENSE)
+[![docs](https://img.shields.io/badge/docs-agentcurfew.github.io-6d28d9)](https://agentcurfew.github.io/)
+
 > One local, account-less security policy for the files that steer your AI coding agents: skills, MCP servers, hooks, context files and permissions.
 
 A sibling of [depcurfew](https://depcurfew.github.io/): depcurfew guards the packages that people and agents install, agentcurfew guards the files that steer the agent. Documentation: [agentcurfew.github.io](https://agentcurfew.github.io/).
