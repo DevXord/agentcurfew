@@ -94,17 +94,21 @@ describe('agentcurfew lock', () => {
     expect(canonicalJson({ b: [1, { d: 1, c: 2 }], a: null })).toBe('{"a":null,"b":[1,{"c":2,"d":1}]}');
   });
 
-  it('keeps secrets out of the lock, and still sees a change of one', async () => {
+  it('keeps secrets out of the lock and its hashes, and sees every other change (Q-015)', async () => {
     copy('secrets');
     await cli('lock', root);
     const text = lockText();
     expect(text).not.toContain(SECRET);
     expect(text).toContain('"--token=<redacted>"');
     expect(text).toContain('"API_KEY"');
-    write('.mcp.json', readFileSync(join(root, '.mcp.json'), 'utf8').replace(`"API_KEY": "${SECRET}"`, '"API_KEY": "another-secret-value-9876"'));
+    // A secret's value alone is not drift: the hash covers the redacted entry, so a committed lock confirms no guess.
+    const original = readFileSync(join(root, '.mcp.json'), 'utf8');
+    write('.mcp.json', original.replace(`"API_KEY": "${SECRET}"`, '"API_KEY": "another-secret-value-9876"'));
+    expect((await cli('verify', root)).code).toBe(EXIT_OK);
+    // Any other change still is.
+    write('.mcp.json', original.replace('"API_KEY"', '"OTHER_KEY"'));
     const { code, stdout } = await cli('verify', root);
     expect(code).toBe(EXIT_FAILURE);
-    expect(stdout).toContain('another field changed, such as the value of a secret or a setting');
     expect(stdout).not.toContain('another-secret-value');
   });
 

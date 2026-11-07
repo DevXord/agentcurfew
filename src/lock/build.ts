@@ -6,7 +6,8 @@ import { launch, packageRef } from '../rules/launch.ts';
 import { commandLine, mcpEntry } from '../rules/mcp.ts';
 import { entryValue, isWholeFile } from '../rules/text.ts';
 import { canonicalJson, normalizeText, sha256 } from './hash.ts';
-import { redact, redactWords } from './redact.ts';
+import { REDACTED, redact, redactWords } from './redact.ts';
+import { namedSecret } from '../rules/secrets.ts';
 import type { LockedComponent, LockedServer, LockedSkill, Lockfile } from './types.ts';
 import { LOCKFILE_VERSION } from './types.ts';
 
@@ -66,10 +67,22 @@ export function serverIdentity(component: Component, knowledge: readonly AgentKn
   return { names, local: names.length === 0 && entry.command !== undefined };
 }
 
+/**
+ * A parsed entry with every secret the rules would report replaced by <redacted>. The lock is meant to be committed, so
+ * its hashes must not let anyone confirm a guessed secret offline (Q-015, decision of the maintainer): a change of a
+ * secret's value alone is therefore not drift, while any other change is.
+ */
+function redactedValue(value: unknown, key?: string): unknown {
+  if (typeof value === 'string') return key !== undefined && namedSecret(key, value) !== undefined ? REDACTED : redact(value);
+  if (Array.isArray(value)) return value.every((item) => typeof item === 'string') ? redactWords(value as string[]) : value.map((item) => redactedValue(item));
+  if (typeof value === 'object' && value !== null) return Object.fromEntries(Object.entries(value).map(([name, item]) => [name, redactedValue(item, name)]));
+  return value;
+}
+
 function componentHash(component: Component): string {
-  if (isWholeFile(component)) return sha256(normalizeText(component.raw));
+  if (isWholeFile(component)) return sha256(redact(normalizeText(component.raw)));
   const value = entryValue(component);
-  return sha256(value === undefined ? normalizeText(component.raw) : canonicalJson(value));
+  return sha256(value === undefined ? redact(normalizeText(component.raw)) : canonicalJson(redactedValue(value)));
 }
 
 /** The lock of an inventory: project components only, in the inventory's order, with nothing machine-specific. */

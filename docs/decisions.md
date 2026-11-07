@@ -213,6 +213,10 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **What:** every source URL of src/knowledge/ was read again. 25 discrepancies were found; each change was checked against the saved page and dated 2026-11-07 (the facts it touched use verifiedOn('2026-11-07')). Highlights: Claude Code enabledMcpjsonServers, recursive .claude/agents, nested skills and rules, output styles, managedMcpServers, sse and ws remote types, headersHelper; Devin exec and mcp__* allow entries, legacy mcpServers in config.json, allowed-tools; Cursor Mcp(*:*) and WebFetch(*), user rule files, JSONC permissions; VS Code sandboxEnabled and task.allowAutomaticTasks on, profile settings, CLAUDE.local.md; Codex managed hooks, app approval keys and SessionStart as an automatic start; Gemini autoAddToPolicyByDefault and the policy-engine source for tools.exclude.
 - **Not added, because no source documents them:** Cursor Shell(*), .cursor/rules/<name>/RULE.md folders, .cursor/worktrees.json.
 
+## D-035: The lock hashes entries with their secrets redacted
+- **Date:** 2026-11-07
+- **Decision of the maintainer (Q-015, option b):** the hash of each locked component covers its entry with every secret the rules would report replaced by `<redacted>`, as the lock already writes it, and context files are hashed after the same redaction. A committed lock therefore confirms no guessed secret offline. In exchange, a change of a secret's value alone is no longer drift; any other change, a renamed variable or a new argument included, still is. Skill files keep their real hashes, which the comparison with skills-lock.json needs.
+
 ## Q-012: For the depcurfew session
 - **Status:** handed over on 2026-11-07, as the maintainer chose: [handoff-depcurfew.md](handoff-depcurfew.md) is the note to pass to depcurfew's own session; agentcurfew does not change depcurfew.
 - `popularPackages` and `popularPythonPackages` are not exported, so agentcurfew cannot check similar names of MCP server packages offline without copying them.
@@ -273,12 +277,12 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Recommendation:** `>=22`, so that the first release does not promise support for an ended line.
 
 ## Q-015: Should the lock hash secret values?
-- **Status:** open, maintainer's choice.
+- **Status:** answered on 2026-11-07 by D-035: option (b).
 - **Found by the pentest of 2026-11-07:** the lock shows `<redacted>` for a secret but its hash covers the real value, so a weak password can be guessed offline from a committed lock (466 guesses for a season-year-symbol password). It matters when the secret sits in a file that is not committed (`.claude/settings.local.json`) while the lock is; a committed config holds the secret in clear anyway, and scan reports it at high.
 - **Options:** (a) keep it: verify notices when a secret's value changes; (b) hash the redacted entry: no oracle, but swapping a secret's value is no longer drift.
 - **Recommendation:** (b), since the lock is meant to be committed and a secret in configuration is already a high finding.
 
 ## Q-016: Configuration that agentcurfew does not read yet
-- **Status:** open, for after 1.0.0 unless the maintainer wants some before.
+- **Status:** decided on 2026-11-07: after the 1.0.0 release (decision of the maintainer).
 - **Found by the field test and the functional review of 2026-11-07:** Claude Code statusLine.command, apiKeyHelper, env (including ANTHROPIC_BASE_URL), enabledPlugins and extraKnownMarketplaces, and Codex notify, which run commands or redirect the agent; scripts that hooks run (a hook calling .claude/hooks/x.py is locked, the script is not); plugin packages (.claude-plugin/plugin.json, gemini-extension.json); Gemini context.fileName; the executable bit of Cline hook files in the lock; unpinned launchers inside hook commands; headersHelper of remote MCP servers.
 - **Recommendation:** statusLine, apiKeyHelper and hook scripts first, since they run commands; each needs sources in the knowledge base and fixtures.

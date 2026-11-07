@@ -43,7 +43,7 @@ function details(before: LockedComponent, after: LockedComponent, compareBits: b
     if (JSON.stringify(a.args) !== JSON.stringify(b.args)) lines.push(`args: ${JSON.stringify(a.args)} -> ${JSON.stringify(b.args)}`);
     if (JSON.stringify(a.urls) !== JSON.stringify(b.urls)) lines.push(`address: ${a.urls.join(' ') || '(none)'} -> ${b.urls.join(' ') || '(none)'}`);
     lines.push(...listDiff('environment variable', a.env, b.env), ...listDiff('header', a.headers, b.headers));
-    if (lines.length === 0 && before.hash !== after.hash) lines.push('another field changed, such as the value of a secret or a setting');
+    if (lines.length === 0 && before.hash !== after.hash) lines.push('another field changed, such as a setting or the name of a variable');
     return lines;
   }
   return before.hash === after.hash ? [] : ['the content changed'];

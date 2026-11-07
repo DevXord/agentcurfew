@@ -2,6 +2,11 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-07: Secrets out of the lock's hashes
+
+- The maintainer chose Q-015 option (b), recorded as D-035: each component's hash covers its entry with secrets redacted, so a committed lock confirms no guessed secret; a change of a secret's value alone is no longer drift. The lock test now checks both sides.
+- Q-016 (configuration not read yet: statusLine, apiKeyHelper, hook scripts, plugins, Codex notify) is planned for after 1.0.0.
+
 ## 2026-11-07: A full review before 1.0.0
 
 The maintainer asked for the whole package to be checked. Five read-only reviews ran: a functional review of the packed tarball, a penetration test of the scanner, one of the MCP server and the hook (stopped early, then done in this session), a field test on 24 public repositories, and an audit of every knowledge source. What held: nothing found is ever run (strace and Node's permission model), nothing uses the network, scans are deterministic, and no crash was seen on any repository.
