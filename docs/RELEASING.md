@@ -40,7 +40,8 @@ Read again on 2026-11-07: a trusted publisher can be configured only for a packa
 2. Download the artifact `package` of that run, unzip it, and check its SHA-256 against the run summary (`sha256sum agentcurfew-1.0.0.tgz`).
 3. `npm login` (with 2FA), then `npm publish ./agentcurfew-1.0.0.tgz --access public`, giving the one-time code when asked. A plain publish, not `npm stage publish`: staging a package that does not exist yet publishes a public placeholder version `0.0.0-stage`, which would stay in the package's version list.
 4. Check the package page on npmjs.com (version 1.0.0, README with logo and badges, homepage https://agentcurfew.github.io/) and `npm view agentcurfew version`.
-5. Now that the package exists, add the trusted publisher (step 3 of "Once, before the first release"), with stage publishing allowed, and set **Publishing access** to disallow tokens (step 4). From 1.0.1 on, releases follow "Every release" with OIDC and provenance.
+5. Set **Publishing access** to disallow tokens (step 4 of "Once, before the first release") right away. Add the trusted publisher (step 3), with stage publishing allowed, on the day of the next release, not now: a new configuration that sees no publish within 2 days expires. From 1.0.1 on, releases follow "Every release" with OIDC and provenance.
+6. Optionally, create a GitHub release from the tag `v1.0.0` with the notes of [CHANGELOG.md](../CHANGELOG.md), so that the repository page shows it.
 
 ## Open points for the first release
 
