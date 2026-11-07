@@ -60,7 +60,7 @@ Fix: Use the https:// (or wss://) address of the server. If it has none, run it 
 
 **Secret written into agent configuration.** Level high. AST04 Insecure Metadata.
 
-Finds credentials written as plain values in MCP server definitions, hooks and automatic tasks: known token formats anywhere in them, and literal values of fields whose names say they hold a secret (env, headers, --token=...). Such files are often committed, copied into other repositories and read by every tool that loads the configuration. Values that refer to a variable (${VAR}, $VAR, %VAR%, ${env:VAR}, ${input:id}) are not reported. The secret is never printed in full.
+Finds credentials written as plain values in MCP server definitions, hooks and automatic tasks: known token formats anywhere in them, literal values of fields whose names say they hold a secret (env, headers, --token=..., --token ...), and credentials in addresses, as a password or as a long user name (https://TOKEN@host). Such files are often committed, copied into other repositories and read by every tool that loads the configuration. Values that refer to a variable (${VAR}, $VAR, %VAR%, ${env:VAR}, ${input:id}) or to a file (./pass, ~/.token) are not reported. The secret is never printed in full.
 
 Example: `"env": { "GITHUB_TOKEN": "ghp_..." }`
 

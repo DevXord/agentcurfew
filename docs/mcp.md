@@ -40,6 +40,7 @@ A `PreToolUse` hook on `Bash`, `Write` and `Edit`. It reads the call on stdin an
 | --- | --- |
 | `Write` or `Edit` of a file that steers an agent (every project path of the knowledge base: `CLAUDE.md`, `AGENTS.md`, `.mcp.json`, `.claude/settings.json`, skills, subagents, commands, rules and the others), or of `agentcurfew.policy.json`, `agentcurfew.lock` or `skills-lock.json` | `ask`, with the agents it steers and what the rules found in the new text |
 | the same, when the new text brings a finding at high or above, or one of `out-of-policy` | `deny`, with the findings |
+| the same, when the new text is larger than agentcurfew reads (2 MB) or nested deeper than it searches, so it cannot be checked | `deny` |
 | a new `agentcurfew.policy.json` that breaks the schema | `deny` |
 | a write to a file in the user's home that steers an agent | `ask` |
 | `npx skills add <source>` (also `pnpm dlx`, `bunx`, `yarn dlx`, `npm exec`) | `deny` when `skills.allowSources` does not allow the source, otherwise `ask` |
@@ -47,7 +48,7 @@ A `PreToolUse` hook on `Bash`, `Write` and `Edit`. It reads the call on stdin an
 | a shell redirect, `tee`, `sed -i`, `cp` or `mv` to such a file | `ask` |
 | anything else, or input it cannot read | nothing: the call goes through Claude Code's own permissions and other hooks |
 
-The new text of a write is checked as an overlay on the project, so nothing is written to check it. Drift and `skills-lock.json` differences are left out, since any write changes the file. The hook never answers `allow`, and it does not check installs of packages, which depcurfew's hook does.
+The new text of a write is checked as an overlay on the project, so nothing is written to check it. The path is read the way the write lands: through links inside the project (a write to `docs/x.json` that links to `.claude/settings.json` is a write to the settings), and on Windows and macOS, whose file systems ignore letter case, with each existing folder spelled as on disk (`.CLAUDE/settings.json` is `.claude/settings.json`). A path that differs from a file of the knowledge base only in case, in a folder that does not exist yet, gets `ask`. Commands are read with their wrappers taken off: `CI=1 …`, `env …`, `sudo …`, `(…)`, `$(…)`, `bash -c "…"`, `cmd /c …` and `pwsh -Command …` are checked as the command they run. Drift and `skills-lock.json` differences are left out, since any write changes the file. The hook never answers `allow`, and it does not check installs of packages, which depcurfew's hook does.
 
 **Installing it.** `agentcurfew init --hook` adds this entry to `hooks.PreToolUse` of `.claude/settings.json`, after any hook already there, such as depcurfew's, which it leaves exactly as it was; running it again adds nothing:
 

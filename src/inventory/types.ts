@@ -53,6 +53,8 @@ export interface Limits {
   maxDepth: number;
   /** Directory entries looked at in one scan. */
   maxEntries: number;
+  /** Bytes read in one scan, all files together; past it a file is reported as too-large and not read. 128 MB when not given. */
+  maxTotalBytes?: number;
 }
 
 export interface ScanOptions {

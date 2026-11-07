@@ -23,7 +23,7 @@ type FailOn = (typeof FAIL_ON)[number];
 
 const PROBLEMS: Readonly<Record<InventoryProblem['code'], string>> = {
   'outside-project': 'a link that leaves the project, so it was not followed',
-  'too-large': 'a file over the size limit, so it was not read',
+  'too-large': 'a file over the size limit, or past the limit for the whole scan, so it was not read',
   'too-deep': 'nested deeper than the limit, so it was not searched further',
   'too-many-entries': 'more entries than the limit, so the inventory is incomplete',
   unreadable: 'could not be read',

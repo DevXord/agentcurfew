@@ -1,5 +1,7 @@
 // How an MCP server is started, read from its command line only: nothing is run or resolved.
 
+import { unwrapCommand } from './command-words.ts';
+
 function program(word: string): string {
   return (word.split(/[\\/]/).at(-1) ?? '').toLowerCase().replace(/\.(?:cmd|exe|bat|ps1)$/, '');
 }
@@ -36,8 +38,19 @@ function findSpec(words: readonly string[], from: number, family: Launch['family
   return { explicit };
 }
 
-/** How the server is started, when it is a launcher that fetches a package or image at run time. */
+/**
+ * How the server is started, when it is a launcher that fetches a package or image at run time. Wrappers are looked
+ * through: cmd /c npx -y server, sh -c "npx -y server" and env X=1 npx -y server start npx.
+ */
 export function launch(words: readonly string[]): Launch | undefined {
+  for (const inner of unwrapCommand(words)) {
+    const started = launchOne(inner);
+    if (started !== undefined) return started;
+  }
+  return undefined;
+}
+
+function launchOne(words: readonly string[]): Launch | undefined {
   const name = program(words[0] ?? '');
   const sub = words[1];
   let family: Launch['family'] | undefined;

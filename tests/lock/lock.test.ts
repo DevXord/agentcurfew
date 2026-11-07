@@ -9,7 +9,7 @@ import { buildLock, serializeLock } from '../../src/lock/build.ts';
 import { carryExecutableBits, diffLocks } from '../../src/lock/diff.ts';
 import { canonicalJson, normalizeText } from '../../src/lock/hash.ts';
 import { parseLock, readLock } from '../../src/lock/read.ts';
-import { redact } from '../../src/lock/redact.ts';
+import { redact, redactWords } from '../../src/lock/redact.ts';
 import { materialize } from '../rules/materialize.ts';
 import { canLinkFiles, linkFile } from '../support/links.ts';
 
@@ -113,6 +113,22 @@ describe('acf lock', () => {
     expect(redact(`ghp${'_'}${'Ab1'.repeat(12)}`)).toBe('<redacted>');
     expect(redact('https://user:hunter2hunter2@mcp.example.com/sse?token=abcdefgh1234&x=1')).toBe('https://user:<redacted>@mcp.example.com/sse?token=<redacted>&x=1');
     expect(redact('-y')).toBe('-y');
+  });
+
+  it('redacts the value where it stands, separate secret flags and a credential as the user name', () => {
+    expect(redact('token_abcdefgh123=abcdefgh123')).toBe('token_abcdefgh123=<redacted>');
+    expect(redact('run --token abcdefgh1234 --verbose')).toBe('run --token <redacted> --verbose');
+    expect(redact('https://Zq8vN3xLw7Rt2Kp9Hs4D@api.example.com/mcp')).toBe('https://<redacted>@api.example.com/mcp');
+    expect(redact('https://git@example.com/mcp')).toBe('https://git@example.com/mcp');
+    expect(redactWords(['--api-key', 'Zq8vN3xLw7Rt2Kp9Hs4D', '--password', 'hunter2hunter2', '--password-file', './pass', '--port', '8080'])).toEqual(['--api-key', '<redacted>', '--password', '<redacted>', '--password-file', './pass', '--port', '8080']);
+  });
+
+  it('keeps separate secret arguments out of the lock', async () => {
+    write('.mcp.json', JSON.stringify({ mcpServers: { x: { command: 'node', args: ['s.js', '--api-key', 'Zq8vN3xLw7Rt2Kp9Hs4D'] }, y: { type: 'http', url: 'https://Qm4pR8sT2vX6zB1nC5dF@api.example.com/mcp' } } }));
+    await cli('lock', root);
+    const text = lockText();
+    expect(text).not.toMatch(/Zq8vN3x|Qm4pR8s/);
+    expect(text).toContain('"<redacted>"');
   });
 
   it.runIf(canLinkFiles)('refuses to write through a link', async () => {

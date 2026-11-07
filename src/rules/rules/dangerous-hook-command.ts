@@ -1,9 +1,10 @@
 import { agentFilePattern } from '../agent-files.ts';
 import { DOWNLOAD_EXECUTE, NETWORK, writesTo } from '../shell.ts';
+import type { Matcher } from '../shell.ts';
 import { at, entryValue, strings, texts } from '../text.ts';
 import type { Level, Rule, RuleHit } from '../types.ts';
 
-const patterns = new WeakMap<object, RegExp>();
+const patterns = new WeakMap<object, Matcher>();
 
 export const dangerousHookCommand: Rule = {
   id: 'dangerous-hook-command',

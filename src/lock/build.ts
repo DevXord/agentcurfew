@@ -5,7 +5,7 @@ import { launch, packageRef } from '../rules/launch.ts';
 import { commandLine, mcpEntry } from '../rules/mcp.ts';
 import { entryValue, isWholeFile } from '../rules/text.ts';
 import { canonicalJson, normalizeText, sha256 } from './hash.ts';
-import { redact } from './redact.ts';
+import { redact, redactWords } from './redact.ts';
 import type { LockedComponent, LockedServer, LockedSkill, Lockfile } from './types.ts';
 import { LOCKFILE_VERSION } from './types.ts';
 
@@ -45,7 +45,7 @@ function lockServer(component: Component, knowledge: readonly AgentKnowledge[]):
   const started = launch(commandLine(entry));
   return {
     command: entry.command === undefined ? null : redact(entry.command),
-    args: entry.args.map(redact),
+    args: redactWords(entry.args),
     urls: entry.urls.map(redact),
     env: Object.keys(entry.env).sort(compare),
     headers: Object.keys(entry.headers).sort(compare),

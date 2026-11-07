@@ -9,52 +9,12 @@ import { atLeast, runRules } from '../rules/index.ts';
 import { quote } from '../rules/mask.ts';
 import { allowedBy } from '../rules/rules/out-of-policy.ts';
 import { writesTo } from '../rules/shell.ts';
+import type { Matcher } from '../rules/shell.ts';
 import type { Verdict } from './types.ts';
 
-/** Words of one simple command, with quotes removed; commands are split on ;, &&, ||, | and newlines outside quotes. */
-export function commands(line: string): string[][] {
-  const result: string[][] = [];
-  let words: string[] = [];
-  let word = '';
-  let quoted: '"' | "'" | undefined;
-  let started = false;
-  const endWord = () => {
-    if (started) words.push(word);
-    word = '';
-    started = false;
-  };
-  const endCommand = () => {
-    endWord();
-    if (words.length > 0) result.push(words);
-    words = [];
-  };
-  for (let index = 0; index < line.length; index++) {
-    const char = line[index] as string;
-    if (quoted !== undefined) {
-      if (char === quoted) quoted = undefined;
-      else if (char === '\\' && quoted === '"' && index + 1 < line.length) word += line[++index];
-      else word += char;
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quoted = char;
-      started = true;
-    } else if (char === '\\' && index + 1 < line.length) {
-      word += line[++index];
-      started = true;
-    } else if (char === ';' || char === '\n' || char === '|' || char === '&') {
-      endCommand();
-      if ((char === '|' || char === '&') && line[index + 1] === char) index++;
-    } else if (/\s/.test(char)) {
-      endWord();
-    } else {
-      word += char;
-      started = true;
-    }
-  }
-  endCommand();
-  return result;
-}
+import { commands, unwrapCommand } from '../rules/command-words.ts';
+
+export { commands };
 
 const LAUNCHERS: readonly (readonly string[])[] = [['npx'], ['pnpx'], ['bunx'], ['pnpm', 'dlx'], ['yarn', 'dlx'], ['npm', 'exec'], ['bun', 'x']];
 
@@ -151,12 +111,13 @@ function checkMcpAdd(added: NonNullable<ReturnType<typeof addedServer>>, policy:
   return { decision: 'ask', reasons: [`agentcurfew: this adds the MCP server ${shown} to ${added.agent.name}.${notes}`] };
 }
 
-let writePattern: RegExp | undefined;
+let writePattern: Matcher | undefined;
 
 /** A Bash command line: skills and MCP servers being added, and shell writes to the files that steer agents. */
 export function checkCommand(line: string, policy: Policy | undefined): Verdict[] {
   const verdicts: Verdict[] = [];
-  for (const words of commands(line)) {
+  // Each command with its wrappers taken off: CI=1 npx skills add, (npx skills add) and bash -c "npx skills add" are checked alike.
+  for (const words of commands(line).flatMap((command) => unwrapCommand(command))) {
     const source = skillsSource(words);
     if (source !== undefined) verdicts.push(checkSkillsAdd(source, policy));
     const added = addedServer(words);

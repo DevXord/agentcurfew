@@ -352,7 +352,7 @@ Failed: 4 findings at level high or above (change with --fail-on).
 exports[`screens > scan 2`] = `
 "$ agentcurfew scan <project>
 [exit 1]
-4 components scanned, 4 findings (4 high)
+6 components scanned, 6 findings (6 high)
 
 HIGH  secret-in-config  .claude/settings.json (Stop#0)
   AWS access key in plain text: AKIA… (20 characters)
@@ -364,10 +364,16 @@ HIGH  secret-in-config  .mcp.json (api)
 HIGH  secret-in-config  .mcp.json (cli)
   --api-key is given a literal value: plai… (17 characters)
 
+HIGH  secret-in-config  .mcp.json (flags)
+  --password is given a literal value: plai… (16 characters)
+
 HIGH  secret-in-config  .mcp.json (github)
   GitHub token in plain text: ghp_… (40 characters)
 
-Failed: 4 findings at level high or above (change with --fail-on).
+HIGH  secret-in-config  .mcp.json (user)
+  the server address holds a credential as the user name of the address
+
+Failed: 6 findings at level high or above (change with --fail-on).
 "
 `;
 

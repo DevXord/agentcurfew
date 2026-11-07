@@ -99,6 +99,17 @@ describe('MCP server with the official client', () => {
     await client.close();
   });
 
+  it('quotes and cuts short the key names of an invalid policy', async () => {
+    writeFileSync(join(root, 'agentcurfew.policy.json'), JSON.stringify({ version: 1, [`x\u001b${'k'.repeat(10_000)}`]: true }));
+    const { client } = await connect('auto');
+    const result = await client.callTool({ name: 'scan_project', arguments: {} });
+    expect(result.isError).toBe(true);
+    expect(text(result)).toContain('does not follow the schema');
+    expect(text(result).length).toBeLessThan(400);
+    expect(text(result)).not.toContain('\u001b');
+    await client.close();
+  });
+
   it('explains a rule and suggests one for a typo', async () => {
     const { client } = await connect('legacy');
     expect(text(await client.callTool({ name: 'explain_rule', arguments: { id: 'hidden-unicode' } }))).toContain('hidden-unicode: Hidden Unicode characters');

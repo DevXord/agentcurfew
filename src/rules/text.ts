@@ -6,15 +6,53 @@ export function isWholeFile(component: Component): boolean {
   return component.name === component.file.slice(component.file.lastIndexOf('/') + 1);
 }
 
+/** Code points in text[from, to): each UTF-16 unit except the second half of a surrogate pair. */
+function codePoints(text: string, from: number, to: number): number {
+  let count = 0;
+  for (let index = from; index < to; index++) {
+    const unit = text.charCodeAt(index);
+    if (unit < 0xdc00 || unit > 0xdfff || index === from || !isHigh(text.charCodeAt(index - 1))) count++;
+  }
+  return count;
+}
+
+function isHigh(unit: number): boolean {
+  return unit >= 0xd800 && unit <= 0xdbff;
+}
+
+/**
+ * Lines and columns of many indexes into one text. Line starts are found once and a column is counted on from the
+ * last index asked for, so a rule that reports thousands of places in a long line costs linear time, not quadratic.
+ */
+class Locator {
+  readonly #text: string;
+  readonly #starts: number[] = [0];
+  #last = { index: 0, line: 0, column: 1 };
+
+  constructor(text: string) {
+    this.#text = text;
+    for (let at = text.indexOf('\n'); at !== -1; at = text.indexOf('\n', at + 1)) this.#starts.push(at + 1);
+  }
+
+  locate(index: number): { line: number; column: number } {
+    let low = 0;
+    let high = this.#starts.length - 1;
+    while (low < high) {
+      const middle = (low + high + 1) >> 1;
+      if ((this.#starts[middle] ?? 0) <= index) low = middle;
+      else high = middle - 1;
+    }
+    const start = this.#starts[low] ?? 0;
+    const last = this.#last;
+    const column = last.line === low && last.index <= index ? last.column + codePoints(this.#text, last.index, index) : 1 + codePoints(this.#text, start, index);
+    this.#last = { index, line: low, column };
+    return { line: low + 1, column };
+  }
+}
+
 /** 1-based line and column, in code points, of an index into text. */
 export function position(text: string, index: number): { line: number; column: number } {
-  let line = 1;
-  let start = 0;
-  for (let at = text.indexOf('\n'); at !== -1 && at < index; at = text.indexOf('\n', at + 1)) {
-    line++;
-    start = at + 1;
-  }
-  return { line, column: [...text.slice(start, index)].length + 1 };
+  return new Locator(text).locate(index);
 }
 
 /** Every text a component holds, with where it comes from: its own raw, and for a skill each text file of its folder. */
@@ -28,8 +66,16 @@ export function texts(component: Component): { text: string; inFile?: string; wh
 }
 
 /** A hit placed at an index of one of the component's texts. */
+const locators = new WeakMap<object, Locator>();
+
+/** Where an index into a source lies; repeated calls with the same source object share one Locator. */
 export function at(source: { text: string; inFile?: string; whole: boolean }, index: number): { line?: number; column?: number; inFile?: string } {
-  const place = source.whole ? position(source.text, index) : {};
+  let locator = locators.get(source);
+  if (locator === undefined && source.whole) {
+    locator = new Locator(source.text);
+    locators.set(source, locator);
+  }
+  const place = locator === undefined ? {} : locator.locate(index);
   return source.inFile === undefined ? place : { ...place, inFile: source.inFile };
 }
 

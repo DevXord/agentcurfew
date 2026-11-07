@@ -22,6 +22,18 @@
         "cli.js",
         "--api-key=plain-value-12345"
       ]
+    },
+    "flags": {
+      "command": "node",
+      "args": [
+        "flags.js",
+        "--password",
+        "plain-pass-24680"
+      ]
+    },
+    "user": {
+      "type": "http",
+      "url": "https://Zq8vN3xLw7Rt2Kp9Hs4D@user.example.com/mcp"
     }
   }
 }

@@ -52,15 +52,30 @@ export function runInit(argv: readonly string[], io: CliIo, usageError: (what: s
   return EXIT_OK;
 }
 
+/** The first part of a project-relative path that is a link, such as .claude in .claude/settings.json, or undefined. */
+function linkOnTheWay(root: string, relative: string): string | undefined {
+  const parts = relative.split('/');
+  for (let count = 1; count <= parts.length; count++) {
+    const part = parts.slice(0, count).join('/');
+    try {
+      if (lstatSync(join(root, part)).isSymbolicLink()) return part;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
 function initHook(root: string, io: CliIo, print: boolean): number {
   const path = join(root, HOOK_SETTINGS);
   let current: string | undefined;
+  // A cloned repository can make .claude a link to the user's own ~/.claude: the hook would then run in every project.
+  const link = linkOnTheWay(root, HOOK_SETTINGS);
+  if (link !== undefined) {
+    io.stderr(`agentcurfew: ${link} is a link, so ${HOOK_SETTINGS} was not changed\n  in: ${link}\n  fix: replace the link with a regular ${link === HOOK_SETTINGS ? 'file' : 'folder'}\n`);
+    return EXIT_FAILURE;
+  }
   try {
-    const stat = lstatSync(path);
-    if (stat.isSymbolicLink()) {
-      io.stderr(`agentcurfew: ${HOOK_SETTINGS} is a link, so it was not changed\n  in: ${HOOK_SETTINGS}\n  fix: replace the link with a regular file\n`);
-      return EXIT_FAILURE;
-    }
     current = readFileSync(path, 'utf8');
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {

@@ -23,6 +23,22 @@
         "cli.js",
         "--api-key=$API_KEY"
       ]
+    },
+    "flags": {
+      "command": "node",
+      "args": [
+        "flags.js",
+        "--api-key",
+        "$API_KEY",
+        "--password-file",
+        "./secrets/pass.txt",
+        "--token",
+        "--verbose"
+      ]
+    },
+    "user": {
+      "type": "http",
+      "url": "https://git@user.example.com/mcp"
     }
   }
 }

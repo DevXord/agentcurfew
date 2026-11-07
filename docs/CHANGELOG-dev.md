@@ -2,6 +2,20 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-07: Before 1.0.0, a bug review
+
+A read-only review of the whole code base for hostile input found eleven problems; each was reproduced, fixed with a test, and one more was found while measuring.
+
+- **Quadratic patterns (high).** Several regular expressions read to the end of a run of text from every start, so padding stalled `scan`, `lock` and the hook: 200 KB of `eyJ-` in one MCP argument took 39.6 s, 200 KB of zero-width spaces took 390 s in `hidden-unicode`. Fixed: JWTs and GitHub's `ghs_` tokens are read from the start of each run of token characters (`dottedTokens`); the digit of an `sk-` key is checked after the match; addresses in `secret-in-config` start at the start of a run; `curl … | sh`, base64 and openssl decoding, encoded PowerShell and `cp`/`mv` writes look at the first word of each pipeline stage or line only; `redact` finds the end of each word once; line and column come from a `Locator` that finds line starts once and counts columns on. The same case now takes 0.2 s, and 0.3 s at the 2 MB file limit. `tests/rules/linear.test.ts` times hostile input on every pattern and rule; `tests/fuzz/patterns.fuzz.ts` checks that the new patterns find what the old ones found, except that a newline is no longer taken for a space inside a command.
+- **Hook: new skill folders (high).** The overlay listed a written file only in its own folder, so a Write that created `.claude/skills/new/SKILL.md` was never scanned and got "nothing new". Overlaid files now show up in every folder above them; a hook fixture writes a new skill with Tag characters and is denied.
+- **Secrets in separate arguments (high).** `--api-key VALUE` as two words, `--token VALUE` in a command string and `https://TOKEN@host` were neither reported nor redacted, so they went into `agentcurfew.lock` in plain text. `secret-in-config` and the lock now handle them; values that point at a file (`./pass`, `~/.token`) are not taken for secrets. `redact` replaces a value where it stands, not its first occurrence.
+- **Hook: padding, case and links (medium).** A write over the 2 MB read limit, or one the scanner reports as too deep, is now denied instead of passing as "nothing new". The path of a write is followed through links inside the project and, on Windows and macOS, spelled as on disk, so `.CLAUDE/settings.json` and a link to `.claude/settings.json` are checked as that file.
+- **Wrapped commands (medium).** `cmd /c npx -y server`, `sh -c "…"`, `env X=1 …`, `sudo …`, `CI=1 …`, `(…)` and `$(…)` hid the launcher from `unpinned-mcp-server`, the lock's package and `mcp.allowServers`, and hid `npx skills add` and `claude mcp add` from the hook. `src/rules/command-words.ts` takes the wrappers off for both.
+- **`init --hook` through a linked `.claude` (medium).** Every part of `.claude/settings.json` is now checked for a link, so a cloned repository cannot point the hook into `~/.claude`.
+- **Memory (medium).** A scan reads at most 128 MB in all (`maxTotalBytes`), and each file once, also when several agents read it.
+- **Output (low).** Key names of an invalid policy are quoted and cut short in MCP and CLI errors.
+- 441 tests and 10 fuzz properties pass; `typecheck`, `check:pkg`, the smoke test and the self-check pass.
+
 ## 2026-11-06: Before 1.0.0, hardening
 
 - CI on Windows and macOS (`test-os`) found three problems, now fixed: the MCP server compared resolved paths with folders that were not resolved, so it refused its own folder where the temporary folder is a link (macOS `/var` is `/private/var`; Windows short names); git turned LF into CRLF on Windows checkouts, which broke the checksums of the SARIF schema and of a `skills-lock.json` fixture, so `.gitattributes` now keeps every file's bytes (`* -text`). A test runs the MCP server through linked folders.

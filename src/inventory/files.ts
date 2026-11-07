@@ -1,8 +1,9 @@
 import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
-import { basename, dirname, join, sep } from 'node:path';
+import { join, sep } from 'node:path';
 import type { InventoryProblem, Limits, ProblemCode } from './types.ts';
 
-export const DEFAULT_LIMITS: Limits = { maxFileBytes: 2 * 1024 * 1024, maxDepth: 32, maxEntries: 200_000 };
+// maxTotalBytes keeps memory bounded: a skill folder can hold thousands of copies of one 2 MB file, which git stores once.
+export const DEFAULT_LIMITS: Limits = { maxFileBytes: 2 * 1024 * 1024, maxDepth: 32, maxEntries: 200_000, maxTotalBytes: 128 * 1024 * 1024 };
 
 const SKIPPED_IN_SEARCH = new Set(['node_modules', '.git']);
 
@@ -52,6 +53,7 @@ export class ScanFiles {
   readonly #problems = new Map<string, InventoryProblem>();
   readonly #listings = new Map<string, readonly string[]>();
   #entries = 0;
+  #bytes = 0;
 
   readonly #overlay: ReadonlyMap<string, Buffer>;
 
@@ -73,15 +75,19 @@ export class ScanFiles {
     const cached = this.#listings.get(path);
     if (cached !== undefined) return cached;
     let names: string[] = [];
+    // An overlaid file shows up in every folder above it, also in folders that do not exist yet: a write of
+    // .claude/skills/new/SKILL.md creates the folder new.
+    const overlaid = new Set<string>();
+    for (const key of this.#overlay.keys()) {
+      if (key.startsWith(path + sep)) overlaid.add(key.slice(path.length + 1).split(sep)[0] ?? '');
+    }
+    overlaid.delete('');
     try {
       names = readdirSync(path).sort();
     } catch {
-      if (![...this.#overlay.keys()].some((key) => dirname(key) === path)) this.report('unreadable', file === '' ? '.' : file);
+      if (overlaid.size === 0) this.report('unreadable', file === '' ? '.' : file);
     }
-    for (const key of this.#overlay.keys()) {
-      const name = basename(key);
-      if (dirname(key) === path && !names.includes(name)) names = [...names, name].sort();
-    }
+    for (const name of overlaid) if (!names.includes(name)) names = [...names, name].sort();
     const room = this.#limits.maxEntries - this.#entries;
     if (names.length > room) {
       this.report('too-many-entries', file === '' ? '.' : file);
@@ -222,24 +228,43 @@ export class ScanFiles {
     return this.readBytes(found)?.toString('utf8');
   }
 
+  /** Whether a file of this size may be read, within the limit for one file and the limit for the scan; counts it if so. */
+  #fits(size: number): boolean {
+    const total = this.#limits.maxTotalBytes ?? DEFAULT_LIMITS.maxTotalBytes ?? Infinity;
+    if (size > this.#limits.maxFileBytes || this.#bytes + size > total) return false;
+    this.#bytes += size;
+    return true;
+  }
+
+  // Several agents read the same files, so each is read once per scan; that also counts its bytes once.
+  readonly #read = new Map<string, Buffer | ProblemCode>();
+
   readBytes(found: Found): Buffer | undefined {
+    let result = this.#read.get(found.path);
+    if (result === undefined) {
+      result = this.#readOnce(found);
+      this.#read.set(found.path, result);
+    }
+    if (typeof result !== 'string') return result;
+    this.report(result, found.file);
+    return undefined;
+  }
+
+  #readOnce(found: Found): Buffer | ProblemCode {
     const overlaid = this.#overlay.get(found.path);
     if (overlaid !== undefined) {
-      if (overlaid.length > this.#limits.maxFileBytes) {
-        this.report('too-large', found.file);
-        return undefined;
+      if (!this.#fits(overlaid.length)) {
+        return 'too-large';
       }
       return overlaid;
     }
     try {
-      if (statSync(found.path).size > this.#limits.maxFileBytes) {
-        this.report('too-large', found.file);
-        return undefined;
+      if (!this.#fits(statSync(found.path).size)) {
+        return 'too-large';
       }
       return readFileSync(found.path);
     } catch {
-      this.report('unreadable', found.file);
-      return undefined;
+      return 'unreadable';
     }
   }
 }

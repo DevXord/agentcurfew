@@ -14,6 +14,12 @@ import { explainText } from '../rules/render.ts';
 import type { Finding, RuleContext } from '../rules/types.ts';
 import { closest } from '../text/distance.ts';
 
+/** The first schema issue of the policy; its path holds key names from the file, so it is quoted and cut short. */
+function policySchemaError(issues: readonly { path: string; message: string }[]): string {
+  const first = issues[0];
+  return `agentcurfew.policy.json does not follow the schema: ${quote(first?.path ?? 'policy', 120)}: ${first?.message ?? 'invalid'}`;
+}
+
 export interface ToolResult {
   content: { type: 'text'; text: string }[];
   structuredContent?: Record<string, unknown>;
@@ -114,7 +120,7 @@ function checkContext(root: string): { context: RuleContext; policyError?: strin
   const { context, policy } = projectContext(root);
   const result: RuleContext = { knowledge: knowledgeBase };
   if (context.policy !== undefined) result.policy = context.policy;
-  return policy.status === 'invalid' ? { context: result, policyError: `agentcurfew.policy.json does not follow the schema: ${policy.issues[0]?.path}: ${policy.issues[0]?.message}` } : { context: result };
+  return policy.status === 'invalid' ? { context: result, policyError: policySchemaError(policy.issues) } : { context: result };
 }
 
 async function checkInventory(inventory: Inventory, context: ToolContext, kinds: readonly string[]): Promise<{ findings: Finding[]; suppressed: Suppressed[]; policyError?: string }> {
@@ -146,7 +152,7 @@ export async function callTool(name: string, args: Record<string, unknown>, cont
     const where = allowedPath(context, args.path);
     if ('why' in where) return error(where.why);
     const analysis = await analyzeProjectAsync(where.path, context.now === undefined ? {} : { now: context.now });
-    if (analysis.policy.status === 'invalid') return error(`agentcurfew.policy.json does not follow the schema: ${analysis.policy.issues[0]?.path}: ${analysis.policy.issues[0]?.message}`);
+    if (analysis.policy.status === 'invalid') return error(policySchemaError(analysis.policy.issues));
     return report('Project', analysis.findings, analysis.suppressed, { components: analysis.inventory.components.length, problems: analysis.inventory.problems });
   }
   if (name === 'check_skill') {

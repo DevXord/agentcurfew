@@ -32,7 +32,7 @@ const POSITIVE: Readonly<Record<string, readonly string[]>> = {
   ],
   'unpinned-mcp-server': ['medium | .mcp.json | fs', 'medium | .mcp.json | gh', 'medium | .mcp.json | git', 'medium | .mcp.json | latest', 'medium | .mcp.json | next', 'medium | .mcp.json | range'],
   'plain-http-mcp': ['high | .cursor/mcp.json | remote', 'high | .gemini/settings.json | internal'],
-  'secret-in-config': ['high | .claude/settings.json | Stop#0', 'high | .mcp.json | api', 'high | .mcp.json | cli', 'high | .mcp.json | github'],
+  'secret-in-config': ['high | .claude/settings.json | Stop#0', 'high | .mcp.json | api', 'high | .mcp.json | cli', 'high | .mcp.json | flags', 'high | .mcp.json | github', 'high | .mcp.json | user'],
   'dangerous-hook-command': ['high | .claude/settings.json | PreToolUse#0', 'high | .claude/settings.json | SessionStart#0', 'medium | .claude/settings.json | Stop#0', 'high | .cursor/hooks.json | afterFileEdit#0'],
   'auto-run-on-open': ['medium | .claude/settings.json | SessionStart#0', 'high | .cline/cron/nightly.md | nightly.md', 'high | .cursor/hooks.json | workspaceOpen#0', 'high | .vscode/tasks.json | setup'],
   'permission-bypass': ['low | .claude/settings.json | permissions.defaultMode', 'high | .codex/config.toml | approval_policy', 'high | .codex/config.toml | sandbox_mode', 'high | .cursor/permissions.json | mcpAllowlist'],
@@ -81,7 +81,9 @@ describe('rule fixtures', async () => {
   it('masks secrets and names the depcurfew check', async () => {
     const secrets = (await findings('secret-in-config/positive', 'secret-in-config')).map((finding) => finding.message);
     expect(secrets).toContain('GitHub token in plain text: ghp_… (40 characters)');
-    expect(secrets.join('\n')).not.toMatch(/Ab1Ab1|Q7Q7|efgh1234|value-12345/);
+    expect(secrets.join('\n')).not.toMatch(/Ab1Ab1|Q7Q7|efgh1234|value-12345|pass-24680|Lw7Rt2/);
+    expect(secrets).toContain('--password is given a literal value: plai… (16 characters)');
+    expect(secrets).toContain('the server address holds a credential as the user name of the address');
     const unpinned = (await findings('unpinned-mcp-server/positive', 'unpinned-mcp-server')).map((finding) => finding.message);
     expect(unpinned).toContain('the package mcp-server-git has no version, so every start may fetch a newer one');
     expect(unpinned.some((message) => message.endsWith('check it with npx depcurfew check @modelcontextprotocol/server-filesystem'))).toBe(true);

@@ -2,6 +2,7 @@ import { statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { EXIT_FAILURE } from './io.ts';
 import type { CliIo } from './io.ts';
+import { quote } from '../rules/mask.ts';
 import { printable } from './printable.ts';
 
 /** The project directory of a command, or the exit code after saying why it is not one. */
@@ -26,7 +27,7 @@ export function policyError(io: CliIo, issues: readonly { path: string; message:
   const first = issues[0];
   const more = issues.length > 1 ? ` (and ${issues.length - 1} more)` : '';
   io.stderr(
-    `agentcurfew: agentcurfew.policy.json cannot be used: ${printable(first?.path ?? 'policy')}: ${printable(first?.message ?? 'invalid')}${more}\n  in: agentcurfew.policy.json\n  fix: correct the file; agentcurfew doctor lists every problem\n`,
+    `agentcurfew: agentcurfew.policy.json cannot be used: ${quote(first?.path ?? 'policy', 120)}: ${printable(first?.message ?? 'invalid')}${more}\n  in: agentcurfew.policy.json\n  fix: correct the file; agentcurfew doctor lists every problem\n`,
   );
   return EXIT_FAILURE;
 }

@@ -1,5 +1,6 @@
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
-import { canLinkFiles, linkFile } from '../support/links.ts';
+import { canLinkFiles, linkDirectory, linkFile } from '../support/links.ts';
+import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -73,6 +74,19 @@ describe('agentcurfew init --hook', () => {
     linkFile(join(root, 'elsewhere.json'), join(root, '.claude/settings.json'));
     expect((await cli('init', root, '--hook')).stderr).toContain('is a link');
     expect(readFileSync(join(root, 'elsewhere.json'), 'utf8')).toBe('{}');
+  });
+
+  it('refuses a .claude folder that is a link out of the project', async () => {
+    const outside = mkdtempSync(join(tmpdir(), 'acf-outside-'));
+    try {
+      linkDirectory(outside, join(root, '.claude'));
+      const result = await cli('init', root, '--hook');
+      expect(result.code).toBe(EXIT_FAILURE);
+      expect(result.stderr).toContain('.claude is a link');
+      expect(existsSync(join(outside, 'settings.json'))).toBe(false);
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
   });
 
   it('reports shapes it cannot extend', () => {

@@ -93,6 +93,13 @@ describe('limits', () => {
     expect(inventory.problems.map((p) => `${p.code} ${p.file}`)).toEqual(['too-large CLAUDE.md']);
   });
 
+  it('stops reading at the limit for the whole scan, and says so', () => {
+    for (const name of ['a', 'b', 'c']) write(`.claude/skills/${name}/SKILL.md`, `---\nname: ${name}\ndescription: x\n---\n${'x'.repeat(400)}`);
+    const inventory = scanInventory({ root, limits: { maxTotalBytes: 1000 } });
+    expect(inventory.components.map((c) => c.name)).toEqual(['a', 'b']);
+    expect(inventory.problems.map((p) => `${p.code} ${p.file}`)).toEqual(['too-large .claude/skills/c/SKILL.md']);
+  });
+
   it('stops at the depth limit, and says so', () => {
     write(`${'d/'.repeat(12)}AGENTS.md`, 'x');
     const inventory = scanInventory({ root, limits: { maxDepth: 5 } });
