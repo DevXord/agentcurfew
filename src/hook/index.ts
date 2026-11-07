@@ -3,7 +3,7 @@ import { claudeCode } from '../knowledge/claude-code.ts';
 import type { ToolHookKnowledge } from '../knowledge/types.ts';
 import { readPolicy } from '../policy/read.ts';
 import { checkCommand } from './bash.ts';
-import { afterEdit, checkWrite, readCurrent } from './files.ts';
+import { afterEdit, checkWrite, readCurrent, TOO_LARGE } from './files.ts';
 import { combine } from './types.ts';
 import type { Verdict } from './types.ts';
 
@@ -42,8 +42,14 @@ export function judge(input: unknown, root: string, now?: Date, home: string = h
   const tool = field(input, hook.toolNameField);
   const toolInput = field(input, hook.toolInputField);
   if (typeof tool !== 'string') return undefined;
-  const fields = hook.tools[tool];
-  if (fields === undefined) return undefined;
+  const fields = Object.hasOwn(hook.tools, tool) ? hook.tools[tool] : undefined;
+  if (fields === undefined) {
+    // A tool that writes files but whose input the knowledge base does not describe (NotebookEdit, or one added later):
+    // when it names a file that steers an agent, the change cannot be checked, so ask.
+    if (!/edit|write/i.test(tool)) return undefined;
+    const named = ['file_path', 'notebook_path', 'path'].map((name) => field(toolInput, name)).find((value): value is string => typeof value === 'string' && value !== '');
+    return named === undefined ? undefined : checkWrite(named, { why: `agentcurfew cannot read the input of the tool ${tool.slice(0, 40).replace(/[^\w-]/g, '?')}` }, root, now, home);
+  }
   if (fields.command !== undefined) {
     const command = field(toolInput, fields.command);
     if (typeof command !== 'string') return undefined;
@@ -62,7 +68,9 @@ export function judge(input: unknown, root: string, now?: Date, home: string = h
     if (typeof oldText !== 'string' || typeof newText !== 'string') {
       text = { why: 'the edit is incomplete' };
     } else {
-      const edited = afterEdit(readCurrent(file, root), oldText, newText, field(toolInput, fields.replaceAll) === true);
+      const current = readCurrent(file, root);
+      // A file past the read limit cannot be checked after the edit either: the same padding as in a Write.
+      const edited = current === TOO_LARGE ? { why: 'the file is larger than agentcurfew reads', deny: true } : afterEdit(current, oldText, newText, field(toolInput, fields.replaceAll) === true);
       text = 'text' in edited ? edited.text : edited;
     }
   }

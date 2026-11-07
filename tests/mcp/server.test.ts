@@ -124,11 +124,13 @@ describe('MCP server with the official client', () => {
     mkdirSync(outside);
     linkDirectory(outside, join(root, 'link'));
     const { client } = await connect('auto');
-    for (const path of [outside, join(root, 'link'), '../outside']) {
+    for (const path of [outside, join(root, 'link'), '../outside', join(base, 'no-such-folder'), '../outside/missing']) {
       const result = await client.callTool({ name: 'scan_project', arguments: { path } });
       expect(result.isError, path).toBe(true);
       expect(text(result)).toContain('outside the folders this server may read');
     }
+    // Inside its folders, a missing path is named as missing.
+    expect(text(await client.callTool({ name: 'scan_project', arguments: { path: 'missing' } }))).toContain('does not exist');
     await client.close();
   });
 });

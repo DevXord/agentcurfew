@@ -1,5 +1,5 @@
 import { realpathSync } from 'node:fs';
-import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { analyzeProjectAsync } from '../analyze.ts';
 import { checkMcpPackages } from '../depcurfew/bridge.ts';
 import { scanSkillFolder } from '../inventory/index.ts';
@@ -90,17 +90,28 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function allowedPath(context: ToolContext, given: unknown): { path: string } | { why: string } {
   if (given !== undefined && typeof given !== 'string') return { why: 'path must be a string' };
   const wanted = resolve(context.root, given ?? '.');
+  const isInside = (path: string): boolean =>
+    context.allowed().some((folder) => {
+      const rel = relative(folder, path);
+      return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel) && !rel.startsWith(`..${sep}`));
+    });
+  const outside = { why: 'the path is outside the folders this server may read (its own folder, --root folders and the client roots)' };
   let real: string;
   try {
     real = realpathSync.native(wanted);
   } catch {
-    return { why: 'the path does not exist' };
+    // A missing path gets the same answer as an existing one outside, so the answer tells nothing about other folders.
+    let parent = dirname(wanted);
+    for (;;) {
+      try {
+        return isInside(realpathSync.native(parent)) ? { why: 'the path does not exist' } : outside;
+      } catch {
+        if (dirname(parent) === parent) return outside;
+        parent = dirname(parent);
+      }
+    }
   }
-  const inside = context.allowed().some((folder) => {
-    const rel = relative(folder, real);
-    return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel) && !rel.startsWith(`..${sep}`));
-  });
-  return inside ? { path: real } : { why: 'the path is outside the folders this server may read (its own folder, --root folders and the client roots)' };
+  return isInside(real) ? { path: real } : outside;
 }
 
 function findingLine(finding: Finding): string {

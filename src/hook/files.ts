@@ -198,7 +198,7 @@ export function afterEdit(current: string | undefined, oldText: string, newText:
  * A write to a file that steers an agent: ask, with the agents it steers; deny when the new text brings a finding at high
  * or above, or one out of the policy. The new text is scanned as an overlay, so nothing is written to check it.
  */
-export function checkWrite(file: string, newText: string | { why: string }, root: string, now?: Date, home: string = homedir(), ignoreCase: boolean = CASE_INSENSITIVE): Verdict | undefined {
+export function checkWrite(file: string, newText: string | { why: string; deny?: boolean }, root: string, now?: Date, home: string = homedir(), ignoreCase: boolean = CASE_INSENSITIVE): Verdict | undefined {
   // The file the write lands on, through links and letter case, when that is a file that steers an agent; else the path as given.
   const target = writeTarget(file, root, home, ignoreCase);
   const realRoot = real(root);
@@ -214,7 +214,7 @@ export function checkWrite(file: string, newText: string | { why: string }, root
   const agents = agentsOfFile(path);
   if (agents.length === 0) return undefined;
   const what = `${quote(path, 120)} steers ${agents.join(', ')}`;
-  if (typeof newText !== 'string') return { decision: 'ask', reasons: [`agentcurfew: ${what}, and the change could not be checked: ${newText.why}.`] };
+  if (typeof newText !== 'string') return { decision: newText.deny === true ? 'deny' : 'ask', reasons: [`agentcurfew: ${what}, and the change could not be checked: ${newText.why}.`] };
   // Text past the scanner's limit would be skipped, and the hook would see nothing in it: padding must not turn a deny into an ask.
   if (Buffer.byteLength(newText, 'utf8') > DEFAULT_LIMITS.maxFileBytes) return { decision: 'deny', reasons: [`agentcurfew: ${what}, and the new text is larger than the ${DEFAULT_LIMITS.maxFileBytes} bytes agentcurfew reads, so it cannot be checked.`] };
   if (path.startsWith('~/')) return { decision: 'ask', reasons: [`agentcurfew: ${what}, in your user settings, which apply to every project.`] };
@@ -243,10 +243,13 @@ export function checkWrite(file: string, newText: string | { why: string }, root
   return { decision: 'ask', reasons: [`agentcurfew: ${what}.${minor}`] };
 }
 
-export function readCurrent(file: string, root: string): string | undefined {
+/** What readCurrent returns for a file over the read limit. */
+export const TOO_LARGE = Symbol('too large');
+
+export function readCurrent(file: string, root: string): string | typeof TOO_LARGE | undefined {
   try {
     const path = isAbsolute(file) ? file : resolve(root, file);
-    if (statSync(path).size > DEFAULT_LIMITS.maxFileBytes) return undefined;
+    if (statSync(path).size > DEFAULT_LIMITS.maxFileBytes) return TOO_LARGE;
     return readFileSync(path, 'utf8');
   } catch {
     return undefined;

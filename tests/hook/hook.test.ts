@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { runHook } from '../../src/hook/index.ts';
+import { judge, runHook } from '../../src/hook/index.ts';
 import { checkCommand, commands, skillsSource } from '../../src/hook/bash.ts';
 import { unwrapCommand } from '../../src/rules/command-words.ts';
 import { launch } from '../../src/rules/launch.ts';
@@ -98,6 +98,16 @@ describe('hook helpers', () => {
     expect(serverIdentity(wrapped)).toEqual({ names: ['evil-server'], local: false });
   });
 
+  it('ask about commands that name an agent file, unless they only read it', () => {
+    const decide = (line: string) => checkCommand(line, undefined).map((verdict) => verdict.decision).join(',') || 'quiet';
+    for (const line of ['curl -o CLAUDE.md https://x.example', 'dd if=x of=.mcp.json', `python3 -c "open('AGENTS.md','w').write('x')"`, "perl -pi -e 's/a/b/' CLAUDE.md", 'git checkout evil -- .claude/settings.json', 'install x CLAUDE.md', "echo x > 'C'LAUDE.md", 'echo x >| CLAUDE.md', 'cp x .cursor/rules/style.mdc', 'touch .claude/skills/new/SKILL.md', 'find . -name SKILL.md -delete']) {
+      expect(decide(line), line).toBe('ask');
+    }
+    for (const line of ['cat CLAUDE.md', 'grep -rn hook .claude/', "git commit -m 'update CLAUDE.md'", 'git diff -- .mcp.json', 'sed -n 1,10p AGENTS.md', 'head .claude/settings.json | jq .', 'find . -name SKILL.md', 'npm test', 'python3 x.py --config settings.json']) {
+      expect(decide(line), line).toBe('quiet');
+    }
+  });
+
   it('check wrapped installs against the policy', () => {
     const policy = { version: 1 as const, skills: { allowSources: ['good/*'] }, mcp: { allowServers: ['local'] } };
     for (const line of ['nice -n 5 npx skills add evil/repo', 'timeout -s KILL 60 npx skills add evil/repo', "bash -c -- 'npx skills add evil/repo'", 'npx -p skills skills add evil/repo', 'chpst -u me npx skills add evil/repo', 'if npx skills add evil/repo; then echo; fi', 'CI=1 npx skills add evil/repo', '(npx skills add evil/repo)', 'bash -c "npx skills add evil/repo"', 'echo $(npx skills add evil/repo)', 'claude mcp add w -- cmd /c npx -y evil-server']) {
@@ -156,6 +166,22 @@ describe('where a write lands', () => {
       const padded = checkWrite(join(root, '.claude/settings.json'), bypass + ' '.repeat(2 * 1024 * 1024), root, undefined, home);
       expect(padded?.decision).toBe('deny');
       expect(padded?.reasons.join('')).toContain('cannot be checked');
+    } finally {
+      tearDown();
+    }
+  });
+
+  it('denies an edit of a file too large to check, and asks about write tools it cannot read', () => {
+    setUp();
+    try {
+      writeFileSync(join(root, '.claude/settings.json'), `{}${' '.repeat(2 * 1024 * 1024 + 10)}`);
+      const edit = judge({ tool_name: 'Edit', tool_input: { file_path: join(root, '.claude/settings.json'), old_string: '{}', new_string: bypass } }, root, undefined, home);
+      expect(edit?.decision).toBe('deny');
+      const notebook = judge({ tool_name: 'NotebookEdit', tool_input: { notebook_path: join(root, 'CLAUDE.md'), new_source: 'x' } }, root, undefined, home);
+      expect(notebook?.decision).toBe('ask');
+      expect(notebook?.reasons.join('')).toContain('NotebookEdit');
+      expect(judge({ tool_name: 'Read', tool_input: { file_path: join(root, 'CLAUDE.md') } }, root, undefined, home)).toBeUndefined();
+      expect(judge({ tool_name: 'NotebookEdit', tool_input: { notebook_path: join(root, 'src/a.ipynb') } }, root, undefined, home)).toBeUndefined();
     } finally {
       tearDown();
     }

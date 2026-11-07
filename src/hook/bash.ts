@@ -4,7 +4,7 @@ import { shared } from '../knowledge/shared.ts';
 import type { AgentKnowledge, McpAddKnowledge, SkillsInstallerKnowledge } from '../knowledge/types.ts';
 import { serverIdentity } from '../lock/build.ts';
 import type { Policy } from '../policy/types.ts';
-import { agentFilePattern } from '../rules/agent-files.ts';
+import { agentFilePattern, agentFolders, escapeRegExp } from '../rules/agent-files.ts';
 import { atLeast, runRules } from '../rules/index.ts';
 import { quote } from '../rules/mask.ts';
 import { allowedBy } from '../rules/rules/out-of-policy.ts';
@@ -154,6 +154,47 @@ export function checkCommand(line: string, policy: Policy | undefined): Verdict[
     }
   }
   writePattern ??= writesTo(`(?:${agentFilePattern(knowledgeBase)}|agentcurfew\\.policy\\.json|agentcurfew\\.lock|skills-lock\\.json)`);
-  if (writePattern.test(line)) verdicts.push({ decision: 'ask', reasons: ['agentcurfew: this command writes to a file that steers an agent, and its new content cannot be checked before it runs.'] });
+  if (writePattern.test(line)) {
+    verdicts.push({ decision: 'ask', reasons: ['agentcurfew: this command writes to a file that steers an agent, and its new content cannot be checked before it runs.'] });
+    return verdicts;
+  }
+  const named = namedAgentFile(line);
+  if (named !== undefined) verdicts.push({ decision: 'ask', reasons: [`agentcurfew: this command names ${quote(named, 80)}, which steers an agent, and agentcurfew cannot tell from the command whether it changes it.`] });
   return verdicts;
+}
+
+// Commands that only read the files they name. Anything else that names an agent file may write it: curl -o, dd of=,
+// python -c, perl -pi, git checkout --, unzip, install and many more, so asking is the safe answer.
+const READ_ONLY = new Set(['cat', 'less', 'more', 'head', 'tail', 'grep', 'egrep', 'fgrep', 'rg', 'ag', 'wc', 'diff', 'cmp', 'ls', 'stat', 'file', 'md5sum', 'sha1sum', 'sha256sum', 'bat', 'jq', 'echo', 'printf', 'test', '[', 'realpath', 'readlink', 'dirname', 'basename', 'agentcurfew', 'depcurfew', 'code', 'open']);
+const GIT_READ_ONLY = new Set(['diff', 'log', 'show', 'status', 'blame', 'ls-files', 'grep', 'add', 'commit', 'reset']);
+const FIND_WRITES = /^-(?:delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)$/;
+// A redirection word: >, >>, >|, 1>, 2>>, &> and the like, alone or with its target joined to it.
+const REDIRECT = /^[0-9&]*>{1,2}[|&]?(.*)$/;
+let mentionPattern: RegExp | undefined;
+
+function readOnly(words: readonly string[]): boolean {
+  const program = (words[0]?.split(/[\\/]/).at(-1) ?? '').toLowerCase();
+  if (program === 'git') return GIT_READ_ONLY.has(words.find((word, index) => index > 0 && !word.startsWith('-')) ?? '');
+  if (program === 'find') return !words.some((word) => FIND_WRITES.test(word));
+  if (program === 'sed') return !words.some((word) => /^(?:-i|--in-place)/.test(word));
+  return READ_ONLY.has(program);
+}
+
+/** The first agent file a command names, when the command is not known to only read it; redirections always count. */
+function namedAgentFile(line: string): string | undefined {
+  mentionPattern ??= new RegExp(`(?:^|[^\\w.-])(${agentFilePattern(knowledgeBase)}|${agentFolders(knowledgeBase).map(escapeRegExp).join('|')}|agentcurfew\\.policy\\.json|agentcurfew\\.lock|skills-lock\\.json)(?![\\w-]|\\.\\w)`, 'i');
+  for (const words of commands(line).flatMap((command) => unwrapCommand(command))) {
+    const checked = readOnly(words)
+      ? words.flatMap((word, index) => {
+          const redirect = REDIRECT.exec(word);
+          if (redirect === null) return [];
+          return [redirect[1] === '' ? (words[index + 1] ?? '') : (redirect[1] ?? '')];
+        })
+      : words;
+    for (const word of checked) {
+      const match = mentionPattern.exec(word);
+      if (match !== null) return match[1];
+    }
+  }
+  return undefined;
 }

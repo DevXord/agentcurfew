@@ -40,6 +40,30 @@ export function agentFileNames(knowledge: readonly AgentKnowledge[]): string[] {
   return [...names].sort();
 }
 
+/**
+ * Folders whose files steer an agent, where the knowledge base names them with a wildcard: .cursor/rules/,
+ * .claude/skills/, .devin/workflows/. Each starts at its first dot folder, so ~/ and **\/ prefixes fall away; system
+ * folders without one (/etc/devin) are left out, since their names are too plain to mean an agent.
+ */
+export function agentFolders(knowledge: readonly AgentKnowledge[]): string[] {
+  const folders = new Set<string>();
+  const add = (path: string): void => {
+    const parts = path.split('/');
+    const wild = parts.findIndex((part) => part.includes('*'));
+    const kept = wild === -1 ? parts : parts.slice(0, wild);
+    const dot = kept.findIndex((part) => part.startsWith('.') && part.length > 1);
+    if (dot !== -1) folders.add(`${kept.slice(dot).join('/')}/`);
+  };
+  for (const agent of knowledge) {
+    for (const entry of paths(agent)) if (entry.path.includes('*')) add(entry.path);
+    for (const skills of values(agent.skills)) if (skills !== null) for (const directory of skills.directories) add(`${directory.path}/*`);
+    if (agent.extensions !== undefined) {
+      for (const extensions of values(agent.extensions)) if (extensions !== null) for (const entry of [...extensions.subagents, ...extensions.commands]) add(entry.path.includes('*') ? entry.path : `${entry.path}/*`);
+    }
+  }
+  return [...folders].sort();
+}
+
 export function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
