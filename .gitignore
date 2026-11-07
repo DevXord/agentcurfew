@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-site/
 *.log
 .DS_Store
 coverage/
@@ -8,5 +9,7 @@ coverage/
 # A doctor fixture needs an installed copy to stand in for agentcurfew
 !tests/fixtures/doctor/agentcurfew-hook-missing/negative/node_modules/
 !tests/fixtures/doctor/agentcurfew-hook-missing/negative/node_modules/agentcurfew/dist/
+dist-site/
 !tests/fixtures/doctor/depcurfew-hook-broken/negative/node_modules/
 !tests/fixtures/doctor/depcurfew-hook-broken/negative/node_modules/depcurfew/dist/
+dist-site/

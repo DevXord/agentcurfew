@@ -1,3 +1,5 @@
+<img src="site/favicon.svg" alt="" width="96" height="96">
+
 # agentcurfew
 
 > One local, account-less security policy for the files that steer your AI coding agents: skills, MCP servers, hooks, context files and permissions.
@@ -89,6 +91,7 @@ npm ci --ignore-scripts
 npm test
 npm run typecheck
 npm run check:pkg
+npm run site        # the documentation site, into dist-site/
 ```
 
 The plan lives in [docs/PLAN.md](docs/PLAN.md); decisions and open questions in [docs/decisions.md](docs/decisions.md); the development log in [docs/CHANGELOG-dev.md](docs/CHANGELOG-dev.md). Security reports: [SECURITY.md](SECURITY.md).

@@ -42,7 +42,8 @@
     "docs:knowledge": "node scripts/generate-knowledge.ts",
     "docs:rules": "node scripts/generate-rules.ts",
     "docs:policy": "node scripts/generate-policy.ts",
-    "docs:doctor": "node scripts/generate-doctor.ts"
+    "docs:doctor": "node scripts/generate-doctor.ts",
+    "site": "node scripts/site.ts"
   },
   "keywords": [
     "security",

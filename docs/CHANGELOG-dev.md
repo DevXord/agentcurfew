@@ -2,6 +2,12 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-07: Logo and documentation site
+
+- Logo (`site/favicon.svg`), chosen by the maintainer from three rounds of drafts: depcurfew's cube turned into a speech bubble with an agent's eyes and an AI sparkle, in violet, with depcurfew's amber clock. AI agents are shown today as a bot or a friendly character, with the sparkle as the general AI mark.
+- `npm run site` builds the documentation site into `dist-site/` from README.md, the user-facing pages of docs/ and CHANGELOG.md (`scripts/site.ts`, its own Markdown subset, no new dependency). The layout and stylesheet follow depcurfew's site (https://depcurfew.github.io/) in violet: no JavaScript, nothing loaded from other hosts, light and dark schemes, level pills in tables. `tests/site/site.test.ts` checks every relative link and anchor, escaping and that nothing is loaded from elsewhere.
+- Not done, for the maintainer: where the site is hosted (no `homepage`, canonical address or sitemap yet) and a workflow that publishes it.
+
 ## 2026-11-07: Secrets out of the lock's hashes
 
 - The maintainer chose Q-015 option (b), recorded as D-035: each component's hash covers its entry with secrets redacted, so a committed lock confirms no guessed secret; a change of a secret's value alone is no longer drift. The lock test now checks both sides.
