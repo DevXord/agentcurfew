@@ -103,7 +103,7 @@ describe('hook helpers', () => {
     for (const line of ['curl -o CLAUDE.md https://x.example', 'dd if=x of=.mcp.json', `python3 -c "open('AGENTS.md','w').write('x')"`, "perl -pi -e 's/a/b/' CLAUDE.md", 'git checkout evil -- .claude/settings.json', 'install x CLAUDE.md', "echo x > 'C'LAUDE.md", 'echo x >| CLAUDE.md', 'cp x .cursor/rules/style.mdc', 'touch .claude/skills/new/SKILL.md', 'find . -name SKILL.md -delete']) {
       expect(decide(line), line).toBe('ask');
     }
-    for (const line of ['cat CLAUDE.md', 'grep -rn hook .claude/', "git commit -m 'update CLAUDE.md'", 'git diff -- .mcp.json', 'sed -n 1,10p AGENTS.md', 'head .claude/settings.json | jq .', 'find . -name SKILL.md', 'npm test', 'python3 x.py --config settings.json']) {
+    for (const line of ['cat CLAUDE.md', 'grep -rn hook .claude/', "git commit -m 'update CLAUDE.md'", 'git diff -- .mcp.json', 'sed -n 1,10p AGENTS.md', 'head .claude/settings.json | jq .', 'find . -name SKILL.md', 'npm test', 'python3 x.py --config settings.json', 'cd src/rules/rules; sed -n 1,200p broad-shell-permission.ts | grep -n "skill\\|claude\\|agents" | head -30', 'node --experimental-strip-types scripts/rules.ts']) {
       expect(decide(line), line).toBe('quiet');
     }
   });

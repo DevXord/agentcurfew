@@ -4,7 +4,7 @@ import { shared } from '../knowledge/shared.ts';
 import type { AgentKnowledge, McpAddKnowledge, SkillsInstallerKnowledge } from '../knowledge/types.ts';
 import { serverIdentity } from '../lock/build.ts';
 import type { Policy } from '../policy/types.ts';
-import { agentFilePattern, agentFolders, escapeRegExp } from '../rules/agent-files.ts';
+import { agentFileNames, agentFilePattern, agentFolders, escapeRegExp } from '../rules/agent-files.ts';
 import { atLeast, runRules } from '../rules/index.ts';
 import { quote } from '../rules/mask.ts';
 import { allowedBy } from '../rules/rules/out-of-policy.ts';
@@ -165,7 +165,7 @@ export function checkCommand(line: string, policy: Policy | undefined): Verdict[
 
 // Commands that only read the files they name. Anything else that names an agent file may write it: curl -o, dd of=,
 // python -c, perl -pi, git checkout --, unzip, install and many more, so asking is the safe answer.
-const READ_ONLY = new Set(['cat', 'less', 'more', 'head', 'tail', 'grep', 'egrep', 'fgrep', 'rg', 'ag', 'wc', 'diff', 'cmp', 'ls', 'stat', 'file', 'md5sum', 'sha1sum', 'sha256sum', 'bat', 'jq', 'echo', 'printf', 'test', '[', 'realpath', 'readlink', 'dirname', 'basename', 'agentcurfew', 'depcurfew', 'code', 'open']);
+const READ_ONLY = new Set(['cat', 'less', 'more', 'head', 'tail', 'grep', 'egrep', 'fgrep', 'rg', 'ag', 'wc', 'diff', 'cmp', 'ls', 'stat', 'file', 'md5sum', 'sha1sum', 'sha256sum', 'bat', 'jq', 'echo', 'printf', 'test', '[', 'realpath', 'readlink', 'dirname', 'basename', 'agentcurfew', 'depcurfew', 'code', 'open', 'cd', 'pushd', 'popd', 'pwd', 'which', 'type', 'du', 'od', 'hexdump', 'strings', 'cut', 'nl', 'column']);
 const GIT_READ_ONLY = new Set(['diff', 'log', 'show', 'status', 'blame', 'ls-files', 'grep', 'add', 'commit', 'reset']);
 const FIND_WRITES = /^-(?:delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)$/;
 // A redirection word: >, >>, >|, 1>, 2>>, &> and the like, alone or with its target joined to it.
@@ -182,7 +182,12 @@ function readOnly(words: readonly string[]): boolean {
 
 /** The first agent file a command names, when the command is not known to only read it; redirections always count. */
 function namedAgentFile(line: string): string | undefined {
-  mentionPattern ??= new RegExp(`(?:^|[^\\w.-])(${agentFilePattern(knowledgeBase)}|${agentFolders(knowledgeBase).map(escapeRegExp).join('|')}|agentcurfew\\.policy\\.json|agentcurfew\\.lock|skills-lock\\.json)(?![\\w-]|\\.\\w)`, 'i');
+  // Only names that look like a file or folder of their own (with a dot or a slash) count: a bare word such as Rules,
+  // the name of Cline's rules folder, appears in ordinary paths like src/rules/.
+  // A file name must end where the word does; a folder may be followed by a slash and anything in it.
+  const files = [...agentFileNames(knowledgeBase).filter((name) => /[./]/.test(name)), 'agentcurfew.policy.json', 'agentcurfew.lock', 'skills-lock.json'].map(escapeRegExp);
+  const folders = agentFolders(knowledgeBase).map((folder) => escapeRegExp(folder.replace(/\/$/, '')));
+  mentionPattern ??= new RegExp(`(?:^|[^\\w.-])((?:${files.join('|')})(?![\\w-]|\\.\\w)|(?:${folders.join('|')})(?:/|(?![\\w.-])))`, 'i');
   for (const words of commands(line).flatMap((command) => unwrapCommand(command))) {
     const checked = readOnly(words)
       ? words.flatMap((word, index) => {
