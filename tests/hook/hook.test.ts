@@ -154,7 +154,7 @@ describe('where a write lands', () => {
     setUp();
     try {
       expect(writeTarget(join(root, '.CLAUDE/Settings.json'), root, home, true)).toBe(join(realpathSync.native(root), '.claude/settings.json'));
-      expect(writeTarget(join(root, '.CLAUDE/settings.json'), root, home, false)).toBe(join(root, '.CLAUDE/settings.json'));
+      expect(writeTarget(join(root, '.CLAUDE/settings.json'), root, home, false)).toBe(join(realpathSync.native(root), '.CLAUDE/settings.json'));
       expect(checkWrite(join(root, '.CLAUDE/settings.json'), bypass, root, undefined, home, true)?.decision).toBe('deny');
       expect(checkWrite(join(root, '.CLAUDE/settings.json'), bypass, root, undefined, home, false)).toBeUndefined();
       const folded = checkWrite(join(root, '.Cursor/mcp.json'), '{}', root, undefined, home, true);
