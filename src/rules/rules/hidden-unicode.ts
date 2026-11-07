@@ -52,6 +52,7 @@ export const hiddenUnicode: Rule = {
   owasp: ['AST04', 'AST08'],
   description:
     'Finds characters that an editor does not show but a model reads: Unicode Tag characters (U+E0000 to U+E007F), which can spell out whole instructions; supplementary variation selectors; bidirectional controls, which make text display in a different order than it is read; and zero-width characters. Each finding gives the line, the column and the code points.',
+  levels: 'critical for Unicode Tag characters, high for variation selectors and bidirectional controls, medium for zero-width characters alone',
   fix: 'Remove the characters. If the file is not yours, treat it as tampered with: find where it came from before trusting the rest of it.',
   falsePositives: 'Right-to-left languages can need bidirectional marks, and some text uses zero-width joiners between letters. Joiners between emoji and a byte order mark at the start of a file are not reported.',
   example: 'A CLAUDE.md line "Run the tests." followed by U+E0049 U+E0067 U+E006E ..., which spells "Ignore previous instructions".',

@@ -59,7 +59,9 @@ export async function run(argv: readonly string[], io: CliIo): Promise<number> {
     return EXIT_OK;
   }
   if (first === '--help' || first === '-h') {
-    io.stdout(helpText());
+    // -h scan shows the help of scan, as help scan does.
+    const named = rest[0] === undefined ? undefined : findCommand(rest[0]);
+    io.stdout(named === undefined ? helpText() : commandHelpText(named));
     return EXIT_OK;
   }
   if (first === 'help') {

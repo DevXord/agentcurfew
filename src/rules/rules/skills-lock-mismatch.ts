@@ -8,6 +8,7 @@ export const skillsLockMismatch: Rule = {
   owasp: ['AST07'],
   description:
     'Recomputes computedHash, the checksum that the skills installer writes to skills-lock.json, over each installed skill the file lists, and reports the skills whose folder no longer matches it, and entries with no installed skill. The installer usually takes the hash at the source, not from the copy it installs, so a skill that was never touched can still differ; when the folder shows a known cause, the finding is low and names it.',
+  levels: 'info when skills-lock.json or a skill file could not be read, or a listed skill is not installed; low when the difference has a known cause',
   fix: 'Reinstall the skill with the skills installer, or update skills-lock.json, after checking what changed in the folder. Lock the result with agentcurfew lock.',
   falsePositives:
     'The installer hashes the source, drops metadata.json, __pycache__ and __pypackages__ and copies links as files, and sorts paths by the machine\'s locale, so a mismatch is not proof of tampering.',

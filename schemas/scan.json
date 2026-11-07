@@ -3,7 +3,7 @@
   "$id": "https://unpkg.com/agentcurfew/schemas/scan.json",
   "title": "agentcurfew scan --json",
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "required": [
     "schemaVersion",
     "failOn",
@@ -29,7 +29,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "additionalProperties": false,
+        "additionalProperties": true,
         "required": [
           "kind",
           "agents",
@@ -74,7 +74,7 @@
             "type": "array",
             "items": {
               "type": "object",
-              "additionalProperties": false,
+              "additionalProperties": true,
               "required": [
                 "path",
                 "bytes"
@@ -101,7 +101,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "additionalProperties": false,
+        "additionalProperties": true,
         "required": [
           "rule",
           "level",
@@ -165,7 +165,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "additionalProperties": false,
+        "additionalProperties": true,
         "required": [
           "finding",
           "reason"
@@ -173,7 +173,7 @@
         "properties": {
           "finding": {
             "type": "object",
-            "additionalProperties": false,
+            "additionalProperties": true,
             "required": [
               "rule",
               "level",
@@ -246,7 +246,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "additionalProperties": false,
+        "additionalProperties": true,
         "required": [
           "code",
           "file"

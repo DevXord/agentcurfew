@@ -23,6 +23,13 @@ describe('SARIF', () => {
     expect(createHash('sha256').update(bytes).digest('hex')).toBe('c3b4bb2d6093897483348925aaa73af03b3e3f4bd4ca38cef26dcb4212a2682e');
   });
 
+  it('encodes file names as URI references', () => {
+    const odd = { rule: 'hidden-unicode', level: 'high' as const, kind: 'context-file' as const, file: 'sub dir ü/a#%%.md', name: 'a#%%.md', message: 'm' };
+    const sarif = toSarif([odd], []);
+    expect(validate(sarif), JSON.stringify(validate.errors)).toBe(true);
+    expect(JSON.stringify(sarif)).toContain('"uri":"sub%20dir%20%C3%BC/a%23%25%25.md"');
+  });
+
   it('is valid SARIF 2.1.0 with files that could not be read', () => {
     const sarif = toSarif([], [], [{ code: 'too-large', file: 'CLAUDE.md' }, { code: 'unreadable', file: '.claude/skills' }]);
     expect(validate(sarif), JSON.stringify(validate.errors)).toBe(true);

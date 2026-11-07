@@ -11,9 +11,9 @@ export function explainText(rule: Rule): string {
   const lines = [
     `${rule.id}: ${rule.title}`,
     '',
-    `Level: ${rule.level}${rule.falsePositives === undefined ? '' : ' (pattern matching: can raise false alarms)'}`,
+    `Level: ${rule.level}${rule.levels === undefined ? '' : `; ${rule.levels}`}${rule.falsePositives === undefined ? '' : ' (pattern matching: can raise false alarms)'}`,
     `OWASP Agentic Skills Top 10: ${owasp(rule)}`,
-    `Checks: ${rule.kinds.join(', ')}`,
+    `Checks: ${rule.kinds.length === 0 ? 'the whole project' : rule.kinds.join(', ')}`,
     '',
     rule.description,
     '',
@@ -36,16 +36,16 @@ export function renderRules(): string {
     '',
     'Every rule reads files only. Nothing that is found is run, and nothing is sent anywhere. `agentcurfew explain <id>` prints the same text as this page.',
     '',
-    'Levels: `critical`, `high`, `medium`, `low`, `info`. `agentcurfew scan` exits with code 1 when a finding is at `--fail-on` (default `high`) or above.',
+    'Levels: `critical`, `high`, `medium`, `low`, `info`. `agentcurfew scan` exits with code 1 when a finding is at `--fail-on` (default `high`) or above. A level marked * is the usual one: some findings of that rule get another, as its section says. A policy can move levels too.',
     '',
     '| Rule | Level | OWASP | Checks |',
     '| --- | --- | --- | --- |',
-    ...rules.map((rule) => `| [\`${rule.id}\`](#${rule.id}) | ${rule.level} | ${rule.owasp.join(', ')} | ${rule.kinds.join(', ')} |`),
+    ...rules.map((rule) => `| [\`${rule.id}\`](#${rule.id}) | ${rule.level}${rule.levels === undefined ? '' : '*'} | ${rule.owasp.join(', ')} | ${rule.kinds.length === 0 ? 'the whole project' : rule.kinds.join(', ')} |`),
     ...plannedRules.map((rule) => `| \`${rule.id}\` (planned, phase ${rule.phase}) | | ${rule.owasp.join(', ')} | |`),
     '',
   ];
   for (const rule of rules) {
-    lines.push(`## ${rule.id}`, '', `**${md(rule.title)}.** Level ${rule.level}. ${owasp(rule)}.`, '', rule.description, '', `Example: \`${rule.example.replace(/`/g, "'")}\``, '', `Fix: ${rule.fix}`, '');
+    lines.push(`## ${rule.id}`, '', `**${md(rule.title)}.** Level ${rule.level}${rule.levels === undefined ? '' : `; ${md(rule.levels)}`}. ${owasp(rule)}.`, '', rule.description, '', `Example: \`${rule.example.replace(/`/g, "'")}\``, '', `Fix: ${rule.fix}`, '');
     if (rule.falsePositives !== undefined) lines.push(`False alarms: ${rule.falsePositives}`, '');
   }
   if (plannedRules.length > 0) {

@@ -127,6 +127,16 @@ describe('applying a policy', () => {
     expect(today(new Date('2026-11-06T23:59:00Z'))).toBe('2026-11-06');
   });
 
+  it('lets a valid exception win over an expired one in either order', () => {
+    const expired = { rule: 'plain-http-mcp', path: '.mcp.json', reason: 'old', until: '2026-11-06' };
+    const valid = { rule: 'plain-http-mcp', path: '*.json', reason: 'new', until: '2027-01-01' };
+    for (const exceptions of [[expired, valid], [valid, expired]]) {
+      const result = applyPolicy([finding('plain-http-mcp')], { version: 1, exceptions }, '2026-11-07');
+      expect(result.findings).toEqual([]);
+      expect(result.suppressed.map((item) => item.reason)).toEqual(['new']);
+    }
+  });
+
   it('leaves excluded paths out of the inventory and the lock', () => {
     write('CLAUDE.md', 'x');
     write('vendor/.mcp.json', { mcpServers: { a: { command: 'node' } } });

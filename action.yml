@@ -13,7 +13,7 @@ inputs:
     description: The project to check, relative to the workspace.
     default: .
   fail-on:
-    description: The lowest level that fails the step; empty uses the policy or the command's default (scan high, doctor warning). Not used by verify.
+    description: The lowest level that fails the step; empty uses the policy or the command's default. scan takes critical, high (default), medium, low or none; doctor takes error, warning (default), info or none. Not used by verify.
     default: ''
   sarif-file:
     description: Where scan writes its SARIF report.
@@ -83,12 +83,13 @@ runs:
         if [ -n "$ACF_FAIL_ON" ] && [ "$ACF_COMMAND" != verify ]; then args+=(--fail-on "$ACF_FAIL_ON"); fi
         node "$ACF_CLI" "${args[@]}"
         code=$?
-        if [ "$ACF_COMMAND" = scan ]; then
+        # A wrong input (exit 2) writes no report, so that no empty file is uploaded.
+        if [ "$ACF_COMMAND" = scan ] && [ "$code" != 2 ]; then
           node "$ACF_CLI" "${args[@]}" --sarif > "$ACF_SARIF"
         fi
         echo "exit-code=$code" >> "$GITHUB_OUTPUT"
 
-    - if: inputs.upload-sarif == 'true' && inputs.command == 'scan'
+    - if: inputs.upload-sarif == 'true' && inputs.command == 'scan' && steps.run.outputs.exit-code != '2'
       uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
       with:
         sarif_file: ${{ inputs.sarif-file }}

@@ -24,11 +24,16 @@ function result(finding: Finding, ruleIndex: number, suppressed?: Suppressed): o
     ruleIndex,
     level: SARIF_LEVEL[finding.level],
     message: { text: `${finding.message} (${finding.kind} ${finding.name})` },
-    locations: [{ physicalLocation: { artifactLocation: { uri: finding.file, uriBaseId: '%SRCROOT%' }, ...(region === undefined ? {} : { region }) } }],
+    locations: [{ physicalLocation: { artifactLocation: { uri: fileUri(finding.file), uriBaseId: '%SRCROOT%' }, ...(region === undefined ? {} : { region }) } }],
     partialFingerprints: { 'agentcurfew/v1': fingerprint(finding) },
     properties: { level: finding.level, kind: finding.kind, component: finding.name, ...(finding.policy === undefined ? {} : { policy: finding.policy }) },
     ...(suppressed === undefined ? {} : { suppressions: [{ kind: 'external', justification: suppressed.reason }] }),
   };
+}
+
+/** A relative path as a URI reference: each segment percent-encoded, so that a space, # or % in a file name stays a name. */
+function fileUri(path: string): string {
+  return path.split('/').map((segment) => encodeURIComponent(segment)).join('/');
 }
 
 /**
@@ -72,7 +77,7 @@ export function toSarif(findings: readonly Finding[], suppressed: readonly Suppr
                   toolExecutionNotifications: unchecked.map((problem) => ({
                     level: 'error',
                     message: { text: `${problem.code}: the file could not be read, so it was not checked` },
-                    locations: [{ physicalLocation: { artifactLocation: { uri: problem.file } } }],
+                    locations: [{ physicalLocation: { artifactLocation: { uri: fileUri(problem.file) } } }],
                   })),
                 },
               ],

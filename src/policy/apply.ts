@@ -56,7 +56,9 @@ export function applyPolicy(findings: readonly Finding[], policy: Policy | undef
       const level = value ? toggle.whenTrue : toggle.whenFalse;
       if (level !== undefined && level !== finding.level) finding = { ...finding, level, policy: toggle.field };
     }
-    const exception = (policy.exceptions ?? []).find((entry) => entry.rule === finding.rule && globMatch(entry.path, finding.file));
+    // A valid exception wins over an expired one, whatever their order; expired is reported only when no valid one matches.
+    const matching = (policy.exceptions ?? []).filter((entry) => entry.rule === finding.rule && globMatch(entry.path, finding.file));
+    const exception = matching.find((entry) => entry.until === undefined || entry.until >= today) ?? matching[0];
     if (exception === undefined) {
       result.findings.push(finding);
     } else if (exception.until !== undefined && exception.until < today) {

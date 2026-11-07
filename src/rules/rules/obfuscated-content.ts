@@ -13,6 +13,7 @@ export const obfuscatedContent: Rule = {
   owasp: ['AST01'],
   description:
     'Finds what a reviewer cannot read in a skill: programs (ELF, PE, Mach-O, WebAssembly) and other binary files in the skill folder, long base64 blocks (1 KB or more), and minified lines over 5000 characters in scripts and Markdown. Images, fonts and PDFs are not reported.',
+  levels: 'high for a compiled program in the skill folder',
   fix: 'Ship source code instead of binaries and encoded blobs, so that the skill can be read before it is used. If a binary is needed, document where it comes from and lock its checksum.',
   falsePositives: 'A skill may embed an image as base64 or include a generated file on purpose.',
   example: 'skills/helper/bin/tool, an ELF program next to SKILL.md',

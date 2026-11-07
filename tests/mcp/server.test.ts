@@ -110,6 +110,14 @@ describe('MCP server with the official client', () => {
     await client.close();
   });
 
+  it('refuses arguments a tool does not list', async () => {
+    const { client } = await connect('auto');
+    const result = await client.callTool({ name: 'explain_rule', arguments: { id: 'plain-http-mcp', extra: 1 } });
+    expect(result.isError).toBe(true);
+    expect(text(result)).toContain('unknown argument extra');
+    await client.close();
+  });
+
   it('explains a rule and suggests one for a typo', async () => {
     const { client } = await connect('legacy');
     expect(text(await client.callTool({ name: 'explain_rule', arguments: { id: 'hidden-unicode' } }))).toContain('hidden-unicode: Hidden Unicode characters');
@@ -191,10 +199,13 @@ describe('MCP protocol details', () => {
     input.write('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{}}}\r\n');
     input.write(`{"jsonrpc":"2.0","id":2,"method":"ping"}\n${'x'.repeat(1024 * 1024 + 10)}`);
     input.write('\n{"jsonrpc":"2.0","id":3,"method":"ping"}\n');
+    // A whole over-long line that arrives in one chunk is refused too.
+    input.write(`{"jsonrpc":"2.0","id":4,"method":"ping","x":"${'y'.repeat(1024 * 1024 + 10)}"}\n{"jsonrpc":"2.0","id":5,"method":"ping"}\n`);
     input.end();
     await done;
     const messages = lines.map((line) => JSON.parse(line) as { id: unknown; error?: { code: number } });
-    expect(messages.map((message) => message.id)).toEqual([1, 2, null, 3]);
+    expect(messages.map((message) => message.id)).toEqual([1, 2, null, 3, null, 5]);
     expect(messages[2]?.error?.code).toBe(-32700);
+    expect(messages[4]?.error?.code).toBe(-32700);
   });
 });

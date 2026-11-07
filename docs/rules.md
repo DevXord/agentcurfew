@@ -4,29 +4,29 @@
 
 Every rule reads files only. Nothing that is found is run, and nothing is sent anywhere. `agentcurfew explain <id>` prints the same text as this page.
 
-Levels: `critical`, `high`, `medium`, `low`, `info`. `agentcurfew scan` exits with code 1 when a finding is at `--fail-on` (default `high`) or above.
+Levels: `critical`, `high`, `medium`, `low`, `info`. `agentcurfew scan` exits with code 1 when a finding is at `--fail-on` (default `high`) or above. A level marked * is the usual one: some findings of that rule get another, as its section says. A policy can move levels too.
 
 | Rule | Level | OWASP | Checks |
 | --- | --- | --- | --- |
-| [`hidden-unicode`](#hidden-unicode) | high | AST04, AST08 | skill, mcp-server, hook, auto-run, context-file, permission, subagent, command |
-| [`unpinned-mcp-server`](#unpinned-mcp-server) | medium | AST02, AST07 | mcp-server |
+| [`hidden-unicode`](#hidden-unicode) | high* | AST04, AST08 | skill, mcp-server, hook, auto-run, context-file, permission, subagent, command |
+| [`unpinned-mcp-server`](#unpinned-mcp-server) | medium* | AST02, AST07 | mcp-server |
 | [`plain-http-mcp`](#plain-http-mcp) | high | AST02 | mcp-server |
 | [`secret-in-config`](#secret-in-config) | high | AST04 | mcp-server, hook, auto-run |
-| [`dangerous-hook-command`](#dangerous-hook-command) | high | AST01, AST06 | hook, auto-run |
-| [`auto-run-on-open`](#auto-run-on-open) | high | AST06 | auto-run |
-| [`permission-bypass`](#permission-bypass) | high | AST03 | permission |
-| [`broad-shell-permission`](#broad-shell-permission) | medium | AST03 | permission, skill |
+| [`dangerous-hook-command`](#dangerous-hook-command) | high* | AST01, AST06 | hook, auto-run |
+| [`auto-run-on-open`](#auto-run-on-open) | high* | AST06 | auto-run |
+| [`permission-bypass`](#permission-bypass) | high* | AST03 | permission |
+| [`broad-shell-permission`](#broad-shell-permission) | medium* | AST03 | permission, skill |
 | [`remote-instructions`](#remote-instructions) | medium | AST05 | skill, subagent, command, context-file |
-| [`obfuscated-content`](#obfuscated-content) | medium | AST01 | skill |
+| [`obfuscated-content`](#obfuscated-content) | medium* | AST01 | skill |
 | [`persistence-instruction`](#persistence-instruction) | low | AST01 | skill, subagent, command, context-file |
-| [`drift`](#drift) | high | AST07 |  |
-| [`skills-lock-mismatch`](#skills-lock-mismatch) | medium | AST07 |  |
-| [`out-of-policy`](#out-of-policy) | high | AST09 |  |
-| [`mcp-package`](#mcp-package) | high | AST02 |  |
+| [`drift`](#drift) | high | AST07 | the whole project |
+| [`skills-lock-mismatch`](#skills-lock-mismatch) | medium* | AST07 | the whole project |
+| [`out-of-policy`](#out-of-policy) | high* | AST09 | the whole project |
+| [`mcp-package`](#mcp-package) | high* | AST02 | the whole project |
 
 ## hidden-unicode
 
-**Hidden Unicode characters.** Level high. AST04 Insecure Metadata, AST08 Poor Scanning.
+**Hidden Unicode characters.** Level high; critical for Unicode Tag characters, high for variation selectors and bidirectional controls, medium for zero-width characters alone. AST04 Insecure Metadata, AST08 Poor Scanning.
 
 Finds characters that an editor does not show but a model reads: Unicode Tag characters (U+E0000 to U+E007F), which can spell out whole instructions; supplementary variation selectors; bidirectional controls, which make text display in a different order than it is read; and zero-width characters. Each finding gives the line, the column and the code points.
 
@@ -38,7 +38,7 @@ False alarms: Right-to-left languages can need bidirectional marks, and some tex
 
 ## unpinned-mcp-server
 
-**MCP server without a fixed version.** Level medium. AST02 Supply Chain Compromise, AST07 Update Drift.
+**MCP server without a fixed version.** Level medium; low when the package could not be found in the launcher arguments. AST02 Supply Chain Compromise, AST07 Update Drift.
 
 Finds MCP servers started through a launcher that downloads them at run time (npx, bunx, pnpm dlx, yarn dlx, npm exec, uvx, uv tool run, pipx run, docker run, podman run) without an exact version or an image digest. Each start may then run code that nobody reviewed, and the lockfile cannot pin it.
 
@@ -70,7 +70,7 @@ False alarms: A field named like a secret can hold something harmless, such as a
 
 ## dangerous-hook-command
 
-**Dangerous command in a hook.** Level high. AST01 Malicious Skills, AST06 Weak Isolation.
+**Dangerous command in a hook.** Level high; medium for a command that only opens a network connection. AST01 Malicious Skills, AST06 Weak Isolation.
 
 Finds hooks and automatic tasks whose command downloads code and runs it (curl ... | sh, iex (iwr ...), $(curl ...)), decodes hidden code and runs it, runs an encoded PowerShell command, writes to the files that configure an agent (CLAUDE.md, AGENTS.md, .mcp.json, .claude/settings.json and the others in the knowledge base), or opens a network connection. A hook runs with the user's rights every time its event fires, without a prompt.
 
@@ -82,7 +82,7 @@ False alarms: A hook may download from a trusted host on purpose. Writes are fou
 
 ## auto-run-on-open
 
-**Starts without a user action.** Level high. AST06 Weak Isolation.
+**Starts without a user action.** Level high; medium for a hook that runs when a session starts, high for a task that runs when the folder opens, and for a scheduled task in yolo mode. AST06 Weak Isolation.
 
 Reports every component that starts on its own: editor tasks that run when the folder is opened (runOptions.runOn folderOpen in .vscode/tasks.json), hooks on events that fire when a workspace opens or a session starts, and scheduled agent runs (Cline cron specs, which run in yolo mode unless they say otherwise). A repository that is cloned and opened can then run commands before anyone has read them.
 
@@ -94,7 +94,7 @@ False alarms: Where the knowledge base marks the fact as uncertain, the agent ma
 
 ## permission-bypass
 
-**Setting that turns approval prompts off.** Level high. AST03 Over-Privileged Skills.
+**Setting that turns approval prompts off.** Level high; low in a user or machine file, or for a setting current versions ignore in a project file; medium for a setting that approves only some actions, such as file edits. AST03 Over-Privileged Skills.
 
 Finds settings that let an agent act without asking, as the knowledge base lists them for each agent: for example Claude Code's defaultMode bypassPermissions, Codex's sandbox_mode danger-full-access or approval_policy never, Cursor's mcpAllowlist *:*, VS Code's chat.tools.global.autoApprove and Gemini CLI's trust on an MCP server. In a project file it applies to everyone who opens the repository. Where the agent ignores the setting in a project file, the finding is low and says so.
 
@@ -104,7 +104,7 @@ Fix: Remove the setting from the project. Grant narrow permissions for the comma
 
 ## broad-shell-permission
 
-**Every shell command allowed without a prompt.** Level medium. AST03 Over-Privileged Skills.
+**Every shell command allowed without a prompt.** Level medium; low in a user or machine file, which applies only to that user. AST03 Over-Privileged Skills.
 
 Finds allow lists that let an agent run any shell command without asking: Bash or Bash(*) in Claude Code's permissions.allow, a bare run_shell_command in Gemini CLI's tools.allowed, a skill whose allowed-tools frontmatter grants the whole shell, and entries that allow a shell, an interpreter or a package launcher with any arguments (Bash(npx *), Bash(node:*), Bash(sh:*)), which runs every command through it. A prompt injection in any file the agent reads can then run commands on the machine.
 
@@ -126,7 +126,7 @@ False alarms: Matched by wording and by calls in the same file, so a skill that 
 
 ## obfuscated-content
 
-**Content that cannot be reviewed.** Level medium. AST01 Malicious Skills.
+**Content that cannot be reviewed.** Level medium; high for a compiled program in the skill folder. AST01 Malicious Skills.
 
 Finds what a reviewer cannot read in a skill: programs (ELF, PE, Mach-O, WebAssembly) and other binary files in the skill folder, long base64 blocks (1 KB or more), and minified lines over 5000 characters in scripts and Markdown. Images, fonts and PDFs are not reported.
 
@@ -160,7 +160,7 @@ Fix: Review the change. If it is expected, run agentcurfew lock and commit the n
 
 ## skills-lock-mismatch
 
-**Skill differs from skills-lock.json.** Level medium. AST07 Update Drift.
+**Skill differs from skills-lock.json.** Level medium; info when skills-lock.json or a skill file could not be read, or a listed skill is not installed; low when the difference has a known cause. AST07 Update Drift.
 
 Recomputes computedHash, the checksum that the skills installer writes to skills-lock.json, over each installed skill the file lists, and reports the skills whose folder no longer matches it, and entries with no installed skill. The installer usually takes the hash at the source, not from the copy it installs, so a skill that was never touched can still differ; when the folder shows a known cause, the finding is low and names it.
 
@@ -172,7 +172,7 @@ False alarms: The installer hashes the source, drops metadata.json, __pycache__ 
 
 ## out-of-policy
 
-**Skill source or MCP server not allowed by the policy.** Level high. AST09 No Governance.
+**Skill source or MCP server not allowed by the policy.** Level high; medium for a local skill when skills.allowSources does not allow local skills. AST09 No Governance.
 
 Checks the project against the lists of agentcurfew.policy.json: skills whose source in skills-lock.json is not in skills.allowSources (medium when the skill is not in skills-lock.json at all, so its source is unknown), skills that bundle programs or scripts when skills.allowExecutables is false, and MCP servers whose package, image or address is not in mcp.allowServers. Without a policy, or without the list, it checks nothing.
 
@@ -182,7 +182,7 @@ Fix: Remove the component, or, if it was reviewed and is wanted, add its source,
 
 ## mcp-package
 
-**MCP server package refused by depcurfew.** Level high. AST02 Supply Chain Compromise.
+**MCP server package refused by depcurfew.** Level high; high for a depcurfew error, medium for a depcurfew warning. AST02 Supply Chain Compromise.
 
 When depcurfew is installed and the project has depcurfew.json, checks the package that an MCP server starts through npx, uvx and the like with depcurfew, offline: a source the policy forbids (a git repository, a tarball URL, a local folder) or a spec that is not one. An error of depcurfew is high, a warning medium. The checks that need the registry (release age, existence, install scripts, similar names, known malicious versions) are not made, since agentcurfew uses no network; run npx depcurfew check <package> for those.
 

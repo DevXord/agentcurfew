@@ -9,6 +9,7 @@ export const autoRunOnOpen: Rule = {
   owasp: ['AST06'],
   description:
     'Reports every component that starts on its own: editor tasks that run when the folder is opened (runOptions.runOn folderOpen in .vscode/tasks.json), hooks on events that fire when a workspace opens or a session starts, and scheduled agent runs (Cline cron specs, which run in yolo mode unless they say otherwise). A repository that is cloned and opened can then run commands before anyone has read them.',
+  levels: 'medium for a hook that runs when a session starts, high for a task that runs when the folder opens, and for a scheduled task in yolo mode',
   fix: 'Remove the automatic trigger, or make the task run on demand. If it must stay, keep the command short and reviewable, and make sure the editor or agent asks for trust before running it.',
   falsePositives: 'Where the knowledge base marks the fact as uncertain, the agent may in practice ask before running it; the message says so.',
   example: '"runOptions": { "runOn": "folderOpen" } in .vscode/tasks.json',

@@ -97,7 +97,7 @@
         "additionalProperties": false,
         "required": ["rule", "path", "reason"],
         "properties": {
-          "rule": { "type": "string", "pattern": "^[a-z]+(?:-[a-z]+)*$", "description": "The id of the rule." },
+          "rule": { "type": "string", "enum": ["hidden-unicode","unpinned-mcp-server","plain-http-mcp","secret-in-config","dangerous-hook-command","auto-run-on-open","permission-bypass","broad-shell-permission","remote-instructions","obfuscated-content","persistence-instruction","drift","skills-lock-mismatch","out-of-policy","mcp-package"], "description": "The id of the rule; agentcurfew explain lists what each finds." },
           "path": { "type": "string", "minLength": 1, "description": "A glob of the files the exception covers." },
           "reason": { "type": "string", "minLength": 3, "description": "Why the finding is accepted." },
           "until": { "type": "string", "format": "date", "description": "YYYY-MM-DD: from the day after, the finding is reported again." }

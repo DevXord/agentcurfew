@@ -3,7 +3,7 @@
   "$id": "https://unpkg.com/agentcurfew/schemas/inventory.json",
   "title": "agentcurfew scan --inventory --json",
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "required": [
     "schemaVersion",
     "components",
@@ -17,7 +17,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "additionalProperties": false,
+        "additionalProperties": true,
         "required": [
           "kind",
           "agents",
@@ -62,7 +62,7 @@
             "type": "array",
             "items": {
               "type": "object",
-              "additionalProperties": false,
+              "additionalProperties": true,
               "required": [
                 "path",
                 "bytes"
@@ -89,7 +89,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "additionalProperties": false,
+        "additionalProperties": true,
         "required": [
           "code",
           "file"

@@ -2,6 +2,23 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-07: A full review before 1.0.0
+
+The maintainer asked for the whole package to be checked. Five read-only reviews ran: a functional review of the packed tarball, a penetration test of the scanner, one of the MCP server and the hook (stopped early, then done in this session), a field test on 24 public repositories, and an audit of every knowledge source. What held: nothing found is ever run (strace and Node's permission model), nothing uses the network, scans are deterministic, and no crash was seen on any repository.
+
+Fixed, each with tests:
+- **Secrets:** server addresses are redacted wherever they identify a server (out-of-policy findings, hook answers, the policy init writes, policy matching); new shapes: Slack webhooks, Telegram bot tokens, Azure account keys, passwords in addresses new URL cannot read, key-like path segments. The hook denies a secret given to claude mcp add with -e or -H.
+- **Evasion and denial of service:** linear JSONC stripping (2 min 39 s to 0.2 s for 2 MB); configuration nested too deep and folders padded past the entry limit now fail the scan (too-deep, too-many-entries); doctor no longer reads through links out of the project; a large tree is walked once (37 s to 9 s for 99,000 folders); invisible characters are escaped in the lock and the policy.
+- **Hook:** any command that names an agent file gets ask unless it only reads (curl -o, dd of=, python -c, git checkout --, quoted names, agent folders), with no question for plain words or cd; a here-document is data unless a shell runs it; oversized tool calls, edits of agent files over 2 MB and calls under an invalid policy are denied; write tools it cannot read ask; a bare skills add is checked.
+- **Rules:** persistence-instruction lost most false alarms (20 of 24 in the field test); broad-shell-permission finds Bash(npx *), Bash(node:*) and other runners; permission-bypass sees settings it never inventoried (enableAllProjectMcpServers, enabledMcpjsonServers) and reports acceptEdits at medium; hooks in skill and subagent frontmatter are not auto-run; Codex SessionStart hooks are.
+- **Knowledge:** 25 discrepancies from the source audit, each checked against the page read that day (D-034).
+- **doctor:** a 13th check, unknown-hook-event.
+- **CLI and outputs:** a valid policy exception wins over an expired one; SARIF paths are percent-encoded; a missing directory and an unknown rule exit with 2; -h scan shows the help of scan; per-finding levels are documented and shown by explain; the output schemas accept new fields, as the docs promise; exception rules must be known rule ids.
+- **MCP:** unknown arguments are errors, every line is held to the 1 MB limit, and a missing path outside the server's folders is answered as one that exists.
+- **Action:** no SARIF is written or uploaded on exit 2; fail-on levels are documented per command; the action test also runs on main.
+
+Not changed, for the maintainer (Q-015, Q-016): the lock's hash of a server entry still covers secret values, and several kinds of configuration are not read yet.
+
 ## 2026-11-07: Release commit for 1.0.0
 
 - The maintainer asked for the release commit: `package.json` and `package-lock.json` hold 1.0.0, `CHANGELOG.md` has the 1.0.0 notes, and README no longer says the package is unpublished. The tag and the publish are the maintainer's, by docs/RELEASING.md. `npm view agentcurfew` answered E404 on 2026-11-07, so the name is still free (Q-002).

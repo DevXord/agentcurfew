@@ -102,7 +102,7 @@ agentcurfew: unknown option for scan: --jsn
 
 exports[`screens > errors with a suggestion 3`] = `
 "$ agentcurfew explain hiden-unicode
-[exit 1]
+[exit 2]
 [stderr]
 agentcurfew: unknown rule: hiden-unicode
   in: the command line
@@ -115,7 +115,7 @@ exports[`screens > explain 1`] = `
 [exit 0]
 hidden-unicode: Hidden Unicode characters
 
-Level: high (pattern matching: can raise false alarms)
+Level: high; critical for Unicode Tag characters, high for variation selectors and bidirectional controls, medium for zero-width characters alone (pattern matching: can raise false alarms)
 OWASP Agentic Skills Top 10: AST04 Insecure Metadata, AST08 Poor Scanning
 Checks: skill, mcp-server, hook, auto-run, context-file, permission, subagent, command
 

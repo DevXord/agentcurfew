@@ -2,6 +2,7 @@ import { homedir } from 'node:os';
 import { claudeCode } from '../knowledge/claude-code.ts';
 import type { ToolHookKnowledge } from '../knowledge/types.ts';
 import { readPolicy } from '../policy/read.ts';
+import { POLICY_FILE } from '../policy/types.ts';
 import { checkCommand } from './bash.ts';
 import { afterEdit, checkWrite, readCurrent, TOO_LARGE } from './files.ts';
 import { combine } from './types.ts';
@@ -36,8 +37,19 @@ function merge(target: Record<string, unknown>, source: Record<string, unknown>)
   return target;
 }
 
-/** The verdict on one PreToolUse input; undefined when the call is none of the hook's business. */
+/**
+ * The verdict on one PreToolUse input; undefined when the call is none of the hook's business. While the project's policy
+ * is invalid, it cannot be applied, so a call the hook has an opinion on is denied, except a write of the policy itself,
+ * which is how it gets fixed.
+ */
 export function judge(input: unknown, root: string, now?: Date, home: string = homedir()): Verdict | undefined {
+  const verdict = judgeCall(input, root, now, home);
+  if (verdict === undefined || verdict.decision === 'deny') return verdict;
+  if (readPolicy(root).status !== 'invalid' || verdict.reasons.some((reason) => reason.includes(POLICY_FILE))) return verdict;
+  return { decision: 'deny', reasons: [...verdict.reasons, `agentcurfew: ${POLICY_FILE} does not follow the schema, so the policy could not be applied; fix it first (agentcurfew doctor lists the problems).`] };
+}
+
+function judgeCall(input: unknown, root: string, now?: Date, home: string = homedir()): Verdict | undefined {
   const hook = hookFact();
   const tool = field(input, hook.toolNameField);
   const toolInput = field(input, hook.toolInputField);
@@ -83,7 +95,8 @@ export function judge(input: unknown, root: string, now?: Date, home: string = h
  */
 export function runHook(stdin: string, env: Readonly<Record<string, string | undefined>>, cwd: string, now?: Date): { stdout: string; stderr: string } {
   const hook = hookFact();
-  if (Buffer.byteLength(stdin) > MAX_HOOK_INPUT) return { stdout: '', stderr: 'agentcurfew hook: the input is over the size limit, so it was not checked\n' };
+  // A tool call too large to read may be a padded write to an agent file, so it is denied rather than let through.
+  if (Buffer.byteLength(stdin) > MAX_HOOK_INPUT) return answer(hook, { decision: 'deny', reasons: ['agentcurfew: this tool call is larger than the 4 MB agentcurfew reads, so it could not be checked.'] });
   let input: unknown;
   try {
     input = JSON.parse(stdin) as unknown;
@@ -101,6 +114,10 @@ export function runHook(stdin: string, env: Readonly<Record<string, string | und
     else return { stdout: '', stderr: 'agentcurfew hook: the check failed, so it gives no opinion\n' };
   }
   if (verdict === undefined) return { stdout: '', stderr: '' };
+  return answer(hook, verdict);
+}
+
+function answer(hook: ToolHookKnowledge, verdict: Verdict): { stdout: string; stderr: string } {
   const output = merge(merge(nest(hook.eventNameField, 'PreToolUse'), nest(hook.decisionField, verdict.decision)), nest(hook.reasonField, verdict.reasons.join(' ')));
   return { stdout: `${JSON.stringify(output)}\n`, stderr: '' };
 }

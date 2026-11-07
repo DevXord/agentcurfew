@@ -93,7 +93,7 @@ function initHook(root: string, io: CliIo, print: boolean): number {
     io.stdout(result.text);
     return EXIT_OK;
   }
-  const kept = result.others.length === 0 ? '' : ` It runs next to the ${result.others.length === 1 ? 'hook' : 'hooks'} already there (${result.others.map((command) => printable(command)).join('; ')}), which were left as they were.`;
+  const kept = result.others.length === 0 ? '' : ` It runs next to the ${result.others.length === 1 ? 'hook' : 'hooks'} already there (${result.others.map((command) => printable(command)).join('; ')}), which kept the same entries; the file is written back with two-space indentation.`;
   if (result.status === 'present') {
     io.stdout(`The agentcurfew hook is already in ${HOOK_SETTINGS}.${kept}\n`);
     return EXIT_OK;

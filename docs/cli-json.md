@@ -1,6 +1,6 @@
 # JSON and SARIF output
 
-Every command that takes `--json` prints one JSON document on stdout and nothing on stderr. Each document starts with `schemaVersion`, which grows only when a change would break a reader: a field removed, renamed or given another meaning. New fields can appear without a new version, so readers should ignore fields they do not know. The JSON Schemas are in the package under `schemas/` and at `https://unpkg.com/agentcurfew/schemas/<name>.json`; the tests check the real output of each command against them.
+Every command that takes `--json` prints one JSON document on stdout and nothing on stderr when it runs. When it cannot run (a directory that does not exist, a policy that breaks its schema, a lock that cannot be read), it prints the usual error on stderr and nothing on stdout, with exit code 2 for wrong input and 1 otherwise, so a reader should check the exit code before parsing. Each document starts with `schemaVersion`, which grows only when a change would break a reader: a field removed, renamed or given another meaning. New fields can appear without a new version, so readers should ignore fields they do not know. The JSON Schemas are in the package under `schemas/` and at `https://unpkg.com/agentcurfew/schemas/<name>.json`; the tests check the real output of each command against them.
 
 No output ever holds the content of a scanned file or a secret in full. Text that comes from scanned files (names, messages) has control and invisible characters written as `\u` escapes.
 

@@ -76,7 +76,7 @@ steps:
       persist-credentials: false
   - uses: DevXord/agentcurfew@<full commit sha> # pin to a commit, not a tag
     with:
-      command: scan          # or verify, doctor
+      command: scan          # or verify, or doctor (whose fail-on levels are error, warning, info)
       fail-on: high
 ```
 

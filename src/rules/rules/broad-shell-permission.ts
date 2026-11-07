@@ -56,6 +56,7 @@ export const broadShellPermission: Rule = {
   owasp: ['AST03'],
   description:
     'Finds allow lists that let an agent run any shell command without asking: Bash or Bash(*) in Claude Code\'s permissions.allow, a bare run_shell_command in Gemini CLI\'s tools.allowed, a skill whose allowed-tools frontmatter grants the whole shell, and entries that allow a shell, an interpreter or a package launcher with any arguments (Bash(npx *), Bash(node:*), Bash(sh:*)), which runs every command through it. A prompt injection in any file the agent reads can then run commands on the machine.',
+  levels: 'low in a user or machine file, which applies only to that user',
   fix: 'List the commands that are needed, such as Bash(npm test) or run_shell_command(git), instead of the whole tool.',
   example: '"permissions": { "allow": ["Bash"] } in .claude/settings.json',
   kinds: ['permission', 'skill'],

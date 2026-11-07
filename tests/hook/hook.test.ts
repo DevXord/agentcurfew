@@ -64,7 +64,8 @@ describe('hook input', () => {
     expect(runHook('not json', {}, tmpdir())).toEqual({ stdout: '', stderr: 'agentcurfew hook: the input is not JSON, so it was not checked\n' });
     expect(runHook('{}', {}, tmpdir())).toEqual({ stdout: '', stderr: '' });
     expect(runHook('[1,2]', {}, tmpdir()).stdout).toBe('');
-    expect(runHook('x'.repeat(5 * 1024 * 1024), {}, tmpdir()).stderr).toContain('over the size limit');
+    const oversized = JSON.parse(runHook('x'.repeat(5 * 1024 * 1024), {}, tmpdir()).stdout) as { hookSpecificOutput: { permissionDecision: string } };
+    expect(oversized.hookSpecificOutput.permissionDecision).toBe('deny');
   });
 
   it('never allows', () => {
@@ -96,6 +97,21 @@ describe('hook helpers', () => {
     expect(unwrapCommand(['cmd', '/c', 'C:\\tools\\npx.cmd', '-y', 'evil'])).toEqual([['C:\\tools\\npx.cmd', '-y', 'evil']]);
     const wrapped: Component = { kind: 'mcp-server', agents: ['claude-code'], scope: 'project', file: '.mcp.json', name: 'w', raw: JSON.stringify({ command: 'cmd', args: ['/c', 'npx', '-y', 'evil-server'] }) };
     expect(serverIdentity(wrapped)).toEqual({ names: ['evil-server'], local: false });
+  });
+
+  it('check skills add run directly, and deny while the policy is invalid', () => {
+    const policy = { version: 1 as const, skills: { allowSources: ['good/*'] } };
+    expect(checkCommand('skills add evil/repo', policy).map((verdict) => verdict.decision)).toEqual(['deny']);
+    const dir = mkdtempSync(join(tmpdir(), 'acf-badpolicy-'));
+    try {
+      writeFileSync(join(dir, 'agentcurfew.policy.json'), JSON.stringify({ version: 1, mcp: { allowServers: 'x' } }));
+      const verdict = judge({ tool_name: 'Bash', tool_input: { command: 'npx skills add some/repo' } }, dir);
+      expect(verdict?.decision).toBe('deny');
+      expect(verdict?.reasons.join(' ')).toContain('does not follow the schema');
+      expect(judge({ tool_name: 'Write', tool_input: { file_path: join(dir, 'agentcurfew.policy.json'), content: '{"version":1}' } }, dir)?.decision).toBe('ask');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('read a here-document as data, unless a shell runs it', () => {

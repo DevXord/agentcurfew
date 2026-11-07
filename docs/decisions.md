@@ -208,6 +208,11 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Date:** 2026-11-07
 - **Decision of the maintainer (Q-014):** Node 20 is dropped as well, since it ended on 2026-04-30 by the Node.js release schedule. `engines` is `>=22.23.0`, the oldest line CI tests, at the release it tests (22.23.4 on 2026-11-07), following the rule of D-032; the smoke test runs on Node 22, 24 and 26, and the test suite on 22 and 24. Node 22 is in maintenance until 2027-04-30.
 
+## D-034: Knowledge audit of 2026-11-07
+- **Date:** 2026-11-07
+- **What:** every source URL of src/knowledge/ was read again. 25 discrepancies were found; each change was checked against the saved page and dated 2026-11-07 (the facts it touched use verifiedOn('2026-11-07')). Highlights: Claude Code enabledMcpjsonServers, recursive .claude/agents, nested skills and rules, output styles, managedMcpServers, sse and ws remote types, headersHelper; Devin exec and mcp__* allow entries, legacy mcpServers in config.json, allowed-tools; Cursor Mcp(*:*) and WebFetch(*), user rule files, JSONC permissions; VS Code sandboxEnabled and task.allowAutomaticTasks on, profile settings, CLAUDE.local.md; Codex managed hooks, app approval keys and SessionStart as an automatic start; Gemini autoAddToPolicyByDefault and the policy-engine source for tools.exclude.
+- **Not added, because no source documents them:** Cursor Shell(*), .cursor/rules/<name>/RULE.md folders, .cursor/worktrees.json.
+
 ## Q-012: For the depcurfew session
 - **Status:** handed over on 2026-11-07, as the maintainer chose: [handoff-depcurfew.md](handoff-depcurfew.md) is the note to pass to depcurfew's own session; agentcurfew does not change depcurfew.
 - `popularPackages` and `popularPythonPackages` are not exported, so agentcurfew cannot check similar names of MCP server packages offline without copying them.
@@ -266,3 +271,14 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Found on 2026-11-07:** the Node.js release schedule (https://raw.githubusercontent.com/nodejs/Release/main/schedule.json) gives 2026-04-30 as the end of Node 20, so 1.0.0 would start out supporting a line that no longer gets security fixes. Node 22 is in maintenance until 2027-04-30; Node 24 and 26 are LTS.
 - **Options:** keep `>=20.20.0` (D-032), or make it `>=22` with the release CI tests, and drop 20 from the smoke matrix. Nothing in the code needs Node 22 today.
 - **Recommendation:** `>=22`, so that the first release does not promise support for an ended line.
+
+## Q-015: Should the lock hash secret values?
+- **Status:** open, maintainer's choice.
+- **Found by the pentest of 2026-11-07:** the lock shows `<redacted>` for a secret but its hash covers the real value, so a weak password can be guessed offline from a committed lock (466 guesses for a season-year-symbol password). It matters when the secret sits in a file that is not committed (`.claude/settings.local.json`) while the lock is; a committed config holds the secret in clear anyway, and scan reports it at high.
+- **Options:** (a) keep it: verify notices when a secret's value changes; (b) hash the redacted entry: no oracle, but swapping a secret's value is no longer drift.
+- **Recommendation:** (b), since the lock is meant to be committed and a secret in configuration is already a high finding.
+
+## Q-016: Configuration that agentcurfew does not read yet
+- **Status:** open, for after 1.0.0 unless the maintainer wants some before.
+- **Found by the field test and the functional review of 2026-11-07:** Claude Code statusLine.command, apiKeyHelper, env (including ANTHROPIC_BASE_URL), enabledPlugins and extraKnownMarketplaces, and Codex notify, which run commands or redirect the agent; scripts that hooks run (a hook calling .claude/hooks/x.py is locked, the script is not); plugin packages (.claude-plugin/plugin.json, gemini-extension.json); Gemini context.fileName; the executable bit of Cline hook files in the lock; unpinned launchers inside hook commands; headersHelper of remote MCP servers.
+- **Recommendation:** statusLine, apiKeyHelper and hook scripts first, since they run commands; each needs sources in the knowledge base and fixtures.

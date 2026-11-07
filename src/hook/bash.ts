@@ -25,6 +25,8 @@ function skillsFact(): SkillsInstallerKnowledge {
 /** The source of `npx skills add <source>` and its launcher variants, or undefined. */
 export function skillsSource(words: readonly string[]): string | undefined {
   const installer = skillsFact();
+  // The installer run directly, as a global install: skills add <source>.
+  if (words[0] === installer.packageName && words[1] === installer.addCommand) return skillsSource(['npx', ...words]);
   const launcher = LAUNCHERS.find((prefix) => prefix.every((part, index) => words[index] === part));
   if (launcher === undefined) return undefined;
   let index = launcher.length;

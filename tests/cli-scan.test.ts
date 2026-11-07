@@ -74,7 +74,7 @@ describe('agentcurfew scan --inventory', () => {
 
   it('says so when the directory does not exist', async () => {
     const { code, stderr } = await cli('scan', fixture('no-such-fixture'), '--inventory');
-    expect(code).toBe(EXIT_FAILURE);
+    expect(code).toBe(EXIT_USAGE);
     expect(stderr).toContain('not a directory');
     expect(stderr).toContain('fix:');
   });
@@ -182,7 +182,7 @@ describe('agentcurfew explain', () => {
 
   it('lists the rules when the id is unknown', async () => {
     const { code, stderr } = await cli('explain', 'no-such-rule');
-    expect(code).toBe(EXIT_FAILURE);
+    expect(code).toBe(EXIT_USAGE);
     expect(stderr).toContain('fix: use one of hidden-unicode,');
     expect((await cli('explain')).code).toBe(EXIT_USAGE);
   });

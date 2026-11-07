@@ -17,6 +17,7 @@ export const permissionBypass: Rule = {
   owasp: ['AST03'],
   description:
     'Finds settings that let an agent act without asking, as the knowledge base lists them for each agent: for example Claude Code\'s defaultMode bypassPermissions, Codex\'s sandbox_mode danger-full-access or approval_policy never, Cursor\'s mcpAllowlist *:*, VS Code\'s chat.tools.global.autoApprove and Gemini CLI\'s trust on an MCP server. In a project file it applies to everyone who opens the repository. Where the agent ignores the setting in a project file, the finding is low and says so.',
+  levels: 'low in a user or machine file, or for a setting current versions ignore in a project file; medium for a setting that approves only some actions, such as file edits',
   fix: 'Remove the setting from the project. Grant narrow permissions for the commands and tools that are needed instead, and let each developer decide about broader ones in their own user settings.',
   example: 'sandbox_mode = "danger-full-access" in .codex/config.toml',
   kinds: ['permission'],

@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { checks } from '../../src/doctor/checks.ts';
 import { runDoctor } from '../../src/doctor/index.ts';
 import { renderDoctor } from '../../src/doctor/render.ts';
+import { rules } from '../../src/rules/index.ts';
 
 const fixture = (path: string) => fileURLToPath(new URL(`../fixtures/doctor/${path}`, import.meta.url));
 
@@ -19,7 +20,7 @@ function hits(path: string, id: string): string[] {
 // Written by hand from each check's description.
 const POSITIVE: Readonly<Record<string, readonly string[]>> = {
   'invalid-policy': [
-    'error | agentcurfew.policy.json | policy.exceptions[0].rule: does not have the expected form',
+    `error | agentcurfew.policy.json | policy.exceptions[0].rule: expected one of ${rules.map((rule) => `"${rule.id}"`).join(', ')}`,
     'error | agentcurfew.policy.json | policy.exceptions[0].until: expected a date written YYYY-MM-DD',
     'error | agentcurfew.policy.json | policy.mcp.allowServers[1]: expected a string, got a number',
     'error | agentcurfew.policy.json | policy.unknown: is not a known setting',
@@ -94,6 +95,13 @@ describe('doctor checks', () => {
   it('are documented in docs/doctor.md, which is up to date (run npm run docs:doctor)', () => {
     const file = readFileSync(new URL('../../docs/doctor.md', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
     expect(file).toBe(renderDoctor());
+  });
+});
+
+describe('policy schema', () => {
+  it('lists every rule id, and only those, for exceptions', () => {
+    const schema = JSON.parse(readFileSync(new URL('../../schema.json', import.meta.url), 'utf8')) as { properties: { exceptions: { items: { properties: { rule: { enum: string[] } } } } } };
+    expect(schema.properties.exceptions.items.properties.rule.enum).toEqual(rules.map((rule) => rule.id));
   });
 });
 

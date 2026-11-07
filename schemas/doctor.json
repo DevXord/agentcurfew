@@ -3,7 +3,7 @@
   "$id": "https://unpkg.com/agentcurfew/schemas/doctor.json",
   "title": "agentcurfew doctor --json",
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "required": [
     "schemaVersion",
     "failOn",
@@ -29,7 +29,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "additionalProperties": false,
+        "additionalProperties": true,
         "required": [
           "id",
           "title",
@@ -58,7 +58,7 @@
             "type": "array",
             "items": {
               "type": "object",
-              "additionalProperties": false,
+              "additionalProperties": true,
               "required": [
                 "file",
                 "message",

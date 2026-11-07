@@ -3,7 +3,7 @@
   "$id": "https://unpkg.com/agentcurfew/schemas/verify.json",
   "title": "agentcurfew verify --json",
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "required": [
     "schemaVersion",
     "ok",
@@ -22,7 +22,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "additionalProperties": false,
+        "additionalProperties": true,
         "required": [
           "type",
           "kind",
@@ -69,7 +69,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "additionalProperties": false,
+        "additionalProperties": true,
         "required": [
           "kind",
           "file",
@@ -128,7 +128,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "additionalProperties": false,
+        "additionalProperties": true,
         "required": [
           "code",
           "file"

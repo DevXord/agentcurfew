@@ -20,7 +20,9 @@ export function serveStdio(input: Readable, output: Writable, options: { root: s
       while (newline !== -1) {
         const line = buffer.slice(0, newline).replace(/\r$/, '');
         buffer = buffer.slice(newline + 1);
+        // Each whole line is held to the limit too, also one that arrived complete within a chunk.
         if (dropping) dropping = false;
+        else if (Buffer.byteLength(line) > MAX_LINE_BYTES) server.receiveLine('{');
         else server.receiveLine(line);
         newline = buffer.indexOf('\n');
       }

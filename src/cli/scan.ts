@@ -71,7 +71,7 @@ function renderFindings(io: CliIo, inventory: Inventory, findings: readonly Find
   lines.push(...problemLines(inventory));
   const failing = failOn === 'none' ? 0 : findings.filter((finding) => atLeast(finding.level, failOn)).length;
   if (failing > 0) lines.push('', `${label(io, 'Failed')}: ${plural(failing, 'finding')} at level ${failOn} or above (change with --fail-on).`);
-  if (failOn !== 'none' && unchecked > 0) lines.push('', `${label(io, 'Failed')}: ${plural(unchecked, 'file')} could not be read, so ${unchecked === 1 ? 'it was' : 'they were'} not checked (see the problems above).`);
+  if (failOn !== 'none' && unchecked > 0) lines.push('', `${label(io, 'Failed')}: ${plural(unchecked, 'file')} could not be read, so ${unchecked === 1 ? 'it was' : 'they were'} not checked: the too-large, too-deep, too-many-entries and unreadable problems above.`);
   return `${lines.join('\n')}\n`;
 }
 

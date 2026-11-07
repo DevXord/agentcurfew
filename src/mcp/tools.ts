@@ -150,6 +150,11 @@ function servers(config: Record<string, unknown>, name: unknown): [string, unkno
 }
 
 export async function callTool(name: string, args: Record<string, unknown>, context: ToolContext): Promise<ToolResult> {
+  // Every input schema says additionalProperties: false; an argument it does not list is an error, as documented.
+  const tool = TOOLS.find((item) => item.name === name);
+  const allowed = new Set(Object.keys(tool?.inputSchema.properties ?? {}));
+  const extra = Object.keys(args).filter((key) => !allowed.has(key));
+  if (tool !== undefined && extra.length > 0) return error(`unknown argument ${quote(extra[0] ?? '', 40)}; ${name} takes ${[...allowed].join(', ') || 'none'}`);
   if (name === 'explain_rule') {
     if (typeof args.id !== 'string') return error('id must be a string');
     const rule = findRule(args.id);

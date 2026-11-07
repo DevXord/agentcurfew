@@ -40,6 +40,7 @@ export const unpinnedMcpServer: Rule = {
   owasp: ['AST02', 'AST07'],
   description:
     'Finds MCP servers started through a launcher that downloads them at run time (npx, bunx, pnpm dlx, yarn dlx, npm exec, uvx, uv tool run, pipx run, docker run, podman run) without an exact version or an image digest. Each start may then run code that nobody reviewed, and the lockfile cannot pin it.',
+  levels: 'low when the package could not be found in the launcher arguments',
   fix: 'Pin an exact version (npx -y package@1.2.3, uvx package==1.2.3) or an image digest (image@sha256:...). Check the package itself with depcurfew: npx depcurfew check <package>.',
   example: '"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem"]',
   kinds: ['mcp-server'],
