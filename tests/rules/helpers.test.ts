@@ -80,6 +80,12 @@ describe('rule helpers', () => {
     expect(knownSecrets(`sk-or-v1-${'0a'.repeat(16)}`).map((match) => match.what)).toEqual(['sk- API key (OpenAI and others)']);
   });
 
+  it('find allow entries that run any command through a shell, interpreter or launcher', () => {
+    const broad = (allow: string[]) => runRules({ components: [component(JSON.stringify(allow), { kind: 'permission', file: '.claude/settings.json', name: 'permissions.allow' })], problems: [] }).filter((finding) => finding.rule === 'broad-shell-permission').length;
+    for (const entry of ['Bash(npx *)', 'Bash(node:*)', 'Bash(sh:*)', 'Bash(env:*)', 'Bash(powershell -Command:*)', 'Bash(pnpm exec:*)']) expect(broad([entry]), entry).toBe(1);
+    for (const entry of ['Bash(npm run test:*)', 'Bash(git status)', 'Bash(node server.js)', 'Read']) expect(broad([entry]), entry).toBe(0);
+  });
+
   it('take agent file names from the knowledge base', () => {
     const names = agentFileNames(knowledgeBase);
     for (const name of ['CLAUDE.md', 'AGENTS.md', 'GEMINI.md', '.mcp.json', '.claude/settings.json', 'SKILL.md', 'tasks.json']) expect(names).toContain(name);

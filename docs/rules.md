@@ -106,7 +106,7 @@ Fix: Remove the setting from the project. Grant narrow permissions for the comma
 
 **Every shell command allowed without a prompt.** Level medium. AST03 Over-Privileged Skills.
 
-Finds allow lists that let an agent run any shell command without asking: Bash or Bash(*) in Claude Code's permissions.allow, a bare run_shell_command in Gemini CLI's tools.allowed, and a skill whose allowed-tools frontmatter grants the whole shell. A prompt injection in any file the agent reads can then run commands on the machine.
+Finds allow lists that let an agent run any shell command without asking: Bash or Bash(*) in Claude Code's permissions.allow, a bare run_shell_command in Gemini CLI's tools.allowed, a skill whose allowed-tools frontmatter grants the whole shell, and entries that allow a shell, an interpreter or a package launcher with any arguments (Bash(npx *), Bash(node:*), Bash(sh:*)), which runs every command through it. A prompt injection in any file the agent reads can then run commands on the machine.
 
 Example: `"permissions": { "allow": ["Bash"] } in .claude/settings.json`
 

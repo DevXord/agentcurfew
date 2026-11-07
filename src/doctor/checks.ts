@@ -441,6 +441,36 @@ export const depcurfewHookBroken: DoctorCheck = {
 };
 
 /** Every check, in the order of docs/doctor.md. */
+export const unknownHookEvent: DoctorCheck = {
+  id: 'unknown-hook-event',
+  title: 'Every hook names an event its agent knows',
+  level: 'warning',
+  description:
+    'Reports hooks filed under an event name that none of the agents reading the file lists in the knowledge base, such as post-tool-use for PostToolUse. Claude Code skips such entries ("only individual entries fail, such as a malformed permission rule or an unknown hook event name"), so the hook never runs and the check it was meant to make does not happen.',
+  fix: 'Rename the event to one the agent lists; the message names the closest one.',
+  sources: ['https://code.claude.com/docs/en/settings'],
+  applies: () => true,
+  run(context) {
+    const agents = knowledge(context);
+    const hits: DoctorHit[] = [];
+    for (const component of context.analysis.inventory.components) {
+      if (component.kind !== 'hook' || !component.name.includes('#')) continue;
+      const event = component.name.slice(0, component.name.lastIndexOf('#'));
+      const readers = agents.filter((agent) => component.agents.includes(agent.id));
+      const events = new Set(readers.flatMap((agent) => evidenceOf(agent.hooks).flatMap((item) => item.value?.events ?? [])));
+      if (events.size === 0 || events.has(event)) continue;
+      const closest = [...events].map((known) => ({ known, cost: distance(event.toLowerCase().replace(/[-_]/g, ''), known.toLowerCase(), 4) })).sort((a, b) => a.cost - b.cost || (a.known < b.known ? -1 : 1))[0];
+      const hint = closest !== undefined && closest.cost <= 4 ? `; did you mean ${closest.known}?` : '';
+      hits.push({
+        file: component.file,
+        message: `${quote(event, 60)} is not a hook event of ${readers.map((agent) => agent.name).sort().join(', ')}, so its hooks never run${hint}`,
+        sources: unique(readers.flatMap((agent) => evidenceOf(agent.hooks).map((item) => item.source))),
+      });
+    }
+    return hits;
+  },
+};
+
 export const checks: readonly DoctorCheck[] = [
   invalidPolicy,
   unparsableConfig,
@@ -450,6 +480,7 @@ export const checks: readonly DoctorCheck[] = [
   localOverridesProject,
   conflictingMcpServer,
   deprecatedFormat,
+  unknownHookEvent,
   stalePolicyEntry,
   agentcurfewHookMissing,
   depcurfewHookMissing,

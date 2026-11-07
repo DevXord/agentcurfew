@@ -42,6 +42,8 @@ export const permissionBypass: Rule = {
             hit = { message: `${what} would turn prompts off for ${agent.name}; current versions ignore it in a project file, older ones may not${doubt}`, level: 'low' };
           } else if (setting.fromProject === 'needs-trust') {
             hit = { message: `${what} turns prompts off for ${agent.name} once the folder is trusted${doubt}` };
+          } else if (setting.approves !== undefined) {
+            hit = { message: `${what} lets ${agent.name} approve ${setting.approves} without asking${doubt}`, level: 'medium' };
           } else {
             hit = { message: `${what} turns prompts off for ${agent.name}${doubt}` };
           }

@@ -16,6 +16,7 @@ Levels: `error` (it does not work), `warning` (it probably does not), `info`. Th
 | [`local-overrides-project`](#local-overrides-project) | warning | No project file silently overrides another |
 | [`conflicting-mcp-server`](#conflicting-mcp-server) | warning | No MCP server is defined twice in different ways |
 | [`deprecated-format`](#deprecated-format) | warning | No deprecated file or setting is used |
+| [`unknown-hook-event`](#unknown-hook-event) | warning | Every hook names an event its agent knows |
 | [`stale-policy-entry`](#stale-policy-entry) | info | Every entry of the policy still matches something |
 | [`agentcurfew-hook-missing`](#agentcurfew-hook-missing) | warning | The agentcurfew hook finds agentcurfew |
 | [`depcurfew-hook-missing`](#depcurfew-hook-missing) | warning | A project with depcurfew.json has the depcurfew hook |
@@ -100,6 +101,16 @@ Reports files and settings that the agent's own documentation or code calls lega
 Fix: Move the content to the replacement named in the message.
 
 Sources: the knowledge base entries named in each finding.
+
+## unknown-hook-event
+
+**Every hook names an event its agent knows.** Level warning.
+
+Reports hooks filed under an event name that none of the agents reading the file lists in the knowledge base, such as post-tool-use for PostToolUse. Claude Code skips such entries ("only individual entries fail, such as a malformed permission rule or an unknown hook event name"), so the hook never runs and the check it was meant to make does not happen.
+
+Fix: Rename the event to one the agent lists; the message names the closest one.
+
+Sources: <https://code.claude.com/docs/en/settings>.
 
 ## stale-policy-entry
 

@@ -91,7 +91,7 @@ function permissions(): PermissionsKnowledge {
     bypass: [
       { key: 'permissions.defaultMode', value: 'bypassPermissions', fromProject: 'ignored' },
       { key: 'permissions.defaultMode', value: 'auto', fromProject: 'ignored' },
-      { key: 'permissions.defaultMode', value: 'acceptEdits' },
+      { key: 'permissions.defaultMode', value: 'acceptEdits', approves: 'file edits and common file system commands in the working directories' },
       { key: 'skipDangerousModePermissionPrompt', value: true, fromProject: 'ignored' },
       { key: 'enableAllProjectMcpServers', value: true, fromProject: 'needs-trust' },
       { key: 'enabledMcpjsonServers', value: '*', fromProject: 'needs-trust' },
@@ -104,7 +104,7 @@ function permissions(): PermissionsKnowledge {
 }
 
 const PERMISSIONS_NOTE =
-  'defaultMode bypassPermissions and auto do not take effect from .claude/settings.json or .claude/settings.local.json; before v2.1.257 bypassPermissions took effect from any file. skipDangerousModePermissionPrompt is read from user, local or managed settings only. A committed enableAllProjectMcpServers, or enabledMcpjsonServers, which approves the servers it names, is ignored in an untrusted folder: Claude Code "ignores it in the shared project file". permissions.allow and additionalDirectories in .claude/settings.json need workspace trust. A bare Bash, or Bash(*), in permissions.allow matches every Bash command (https://code.claude.com/docs/en/permissions#match-all-uses-of-a-tool).';
+  'defaultMode acceptEdits "Automatically accepts file edits and common filesystem commands such as mkdir, touch, mv, and cp" in the working directories (permissions page, read on 2026-11-07). defaultMode bypassPermissions and auto do not take effect from .claude/settings.json or .claude/settings.local.json; before v2.1.257 bypassPermissions took effect from any file. skipDangerousModePermissionPrompt is read from user, local or managed settings only. A committed enableAllProjectMcpServers, or enabledMcpjsonServers, which approves the servers it names, is ignored in an untrusted folder: Claude Code "ignores it in the shared project file". permissions.allow and additionalDirectories in .claude/settings.json need workspace trust. A bare Bash, or Bash(*), in permissions.allow matches every Bash command (https://code.claude.com/docs/en/permissions#match-all-uses-of-a-tool).';
 
 export const claudeCode: AgentKnowledge = {
   id: 'claude-code',

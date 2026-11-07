@@ -28,7 +28,7 @@ const PROBLEMS: Readonly<Record<InventoryProblem['code'], string>> = {
   'too-deep': 'nested deeper than the limit, so it was not searched further',
   'too-many-entries': 'more entries than the limit, so the inventory is incomplete',
   unreadable: 'could not be read',
-  unparsable: 'could not be parsed, so nothing in it was listed',
+  unparsable: 'could not be parsed, so its settings, or the frontmatter of a skill, were not read',
 };
 
 /** What may be printed: no file contents, which can hold secrets or hostile text. */

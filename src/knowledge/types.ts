@@ -107,6 +107,8 @@ export interface BypassSetting {
    * the folder is trusted). Absent when the source says nothing more.
    */
   fromProject?: 'ignored' | 'needs-trust';
+  /** What it approves, when that is less than every prompt, such as file edits; reported at medium instead of high. */
+  approves?: string;
 }
 
 export interface PermissionsKnowledge {

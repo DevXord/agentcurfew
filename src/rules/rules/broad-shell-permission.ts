@@ -25,13 +25,37 @@ export function toolList(value: unknown): string[] {
   return tools;
 }
 
+// Programs that run whatever they are given: a shell, an interpreter, or a launcher that fetches and runs a package.
+// Allowing one with any arguments (Bash(npx *), Bash(node:*), run_shell_command(sh)) allows every command through it.
+const RUNNERS = new Set([
+  'sh', 'bash', 'zsh', 'dash', 'ksh', 'fish', 'pwsh', 'powershell', 'cmd', 'env', 'timeout', 'xargs', 'nohup', 'nice', 'sudo', 'doas', 'eval', 'exec',
+  'npx', 'bunx', 'pnpx', 'node', 'deno', 'bun', 'python', 'python3', 'perl', 'ruby', 'php', 'uvx', 'pipx',
+  'pnpm dlx', 'pnpm exec', 'npm exec', 'yarn dlx', 'go run', 'uv run', 'uv tool run',
+]);
+
+/** The runner an entry such as Bash(npx *) allows with any arguments, when its tool is one that runs shell commands. */
+function runnerOf(entry: string, shellTools: ReadonlySet<string>): string | undefined {
+  const call = /^([\w-]+)\((.*)\)$/s.exec(entry.trim());
+  if (call === null || !shellTools.has((call[1] ?? '').toLowerCase())) return undefined;
+  const inner = (call[2] ?? '').trim();
+  const words = inner.split(/[\s:]+/);
+  for (const length of [3, 2, 1]) {
+    const runner = words.slice(0, length).join(' ');
+    if (!RUNNERS.has(runner)) continue;
+    const rest = inner.slice(inner.indexOf(words[length - 1] ?? '') + (words[length - 1] ?? '').length);
+    // Any arguments: a wildcard after the runner, or the runner alone where an entry is a prefix (run_shell_command(sh)).
+    return rest.includes('*') || rest.trim() === '' ? runner : undefined;
+  }
+  return undefined;
+}
+
 export const broadShellPermission: Rule = {
   id: 'broad-shell-permission',
   title: 'Every shell command allowed without a prompt',
   level: 'medium',
   owasp: ['AST03'],
   description:
-    'Finds allow lists that let an agent run any shell command without asking: Bash or Bash(*) in Claude Code\'s permissions.allow, a bare run_shell_command in Gemini CLI\'s tools.allowed, and a skill whose allowed-tools frontmatter grants the whole shell. A prompt injection in any file the agent reads can then run commands on the machine.',
+    'Finds allow lists that let an agent run any shell command without asking: Bash or Bash(*) in Claude Code\'s permissions.allow, a bare run_shell_command in Gemini CLI\'s tools.allowed, a skill whose allowed-tools frontmatter grants the whole shell, and entries that allow a shell, an interpreter or a package launcher with any arguments (Bash(npx *), Bash(node:*), Bash(sh:*)), which runs every command through it. A prompt injection in any file the agent reads can then run commands on the machine.',
   fix: 'List the commands that are needed, such as Bash(npm test) or run_shell_command(git), instead of the whole tool.',
   example: '"permissions": { "allow": ["Bash"] } in .claude/settings.json',
   kinds: ['permission', 'skill'],
@@ -45,13 +69,22 @@ export const broadShellPermission: Rule = {
     };
     const agents = agentsOf(component, context.knowledge);
     const allowAll = agents.flatMap((agent) => permissionFacts(agent).flatMap((permissions) => (permissions.allowAllShell ?? []).map((entry) => ({ agent, entry }))));
+    // The tools that run shell commands, from the allow-all entries: Bash for Bash(*), run_shell_command, exec.
+    const shellTools = new Set(allowAll.map(({ entry }) => entry.value.replace(/\(.*$/s, '').toLowerCase()));
+    const runner = (entry: string, where: string, agent: string | undefined, level?: RuleHit['level']): void => {
+      const found = runnerOf(entry, shellTools);
+      if (found !== undefined) add(`${quote(entry, 60)} in ${where} allows ${quote(found, 20)} with any arguments, which lets ${agent ?? 'the agent'} run any command through it without asking`, level);
+    };
     if (component.kind === 'permission') {
       const value = entryValue(component);
       if (!Array.isArray(value)) return [];
       for (const { agent, entry } of allowAll) {
-        if (keyMatches(component.name, entry.key) && value.includes(entry.value)) {
+        if (!keyMatches(component.name, entry.key)) continue;
+        if (value.includes(entry.value)) {
           add(`${quote(entry.value, 40)} in ${quote(component.name, 60)} lets ${agent.name} run any shell command without asking`, component.scope === 'project' ? undefined : 'low');
+          continue;
         }
+        for (const item of value) if (typeof item === 'string') runner(item, quote(component.name, 60), agent.name, component.scope === 'project' ? undefined : 'low');
       }
       return hits;
     }
@@ -62,6 +95,7 @@ export const broadShellPermission: Rule = {
     for (const field of fields) {
       for (const tool of toolList(frontmatter.value[field])) {
         if (everything.has(tool)) add(`${field} grants ${quote(tool, 40)}, so the skill can run any shell command without asking`);
+        else runner(tool, field, 'the skill');
       }
     }
     return hits;

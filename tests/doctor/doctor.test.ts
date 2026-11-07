@@ -37,6 +37,9 @@ const POSITIVE: Readonly<Record<string, readonly string[]>> = {
   'missing-mcp-type': ['error | .mcp.json | the server remote has a url but no type, so Claude Code reads it as a local server'],
   'local-overrides-project': ['warning | .claude/settings.json | permissions.defaultMode is set here, but .claude/settings.local.json sets it to another value and wins for Claude Code'],
   'conflicting-mcp-server': ['warning | .vscode/mcp.json | the server docs is also defined in .mcp.json, differently, and copilot-vscode reads both'],
+  'unknown-hook-event': [
+    'warning | .claude/settings.json | post-tool-use is not a hook event of Claude Code, Cursor, GitHub Copilot in VS Code, Windsurf (Devin Desktop), so its hooks never run; did you mean PostToolUse?',
+  ],
   'deprecated-format': [
     'warning | .cursorrules | Cursor calls .cursorrules deprecated; use rules in .cursor/rules/*.mdc',
     'info | .gemini/settings.json | Gemini CLI calls httpUrl of the server old deprecated; use url with type http',

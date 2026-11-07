@@ -3,7 +3,7 @@
 exports[`screens > doctor and init 1`] = `
 "$ agentcurfew doctor <project>
 [exit 1]
-12 checks: 4 passed, 1 failed, 7 not applicable
+13 checks: 5 passed, 1 failed, 7 not applicable
   not applicable  agentcurfew.policy.json follows the schema [invalid-policy]
   passed          Every agent configuration file can be parsed [unparsable-config]
   passed          No file is named almost like one an agent reads [misnamed-file]
@@ -12,6 +12,7 @@ exports[`screens > doctor and init 1`] = `
   passed          No project file silently overrides another [local-overrides-project]
   not applicable  No MCP server is defined twice in different ways [conflicting-mcp-server]
   failed          No deprecated file or setting is used [deprecated-format]
+  passed          Every hook names an event its agent knows [unknown-hook-event]
   not applicable  Every entry of the policy still matches something [stale-policy-entry]
   not applicable  The agentcurfew hook finds agentcurfew [agentcurfew-hook-missing]
   not applicable  A project with depcurfew.json has the depcurfew hook [depcurfew-hook-missing]
