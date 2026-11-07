@@ -2,6 +2,10 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-07: Node 18 dropped
+
+- The maintainer dropped Node 18 (D-032): `engines` is `>=20.20.0`, the smoke test runs on Node 20, 22, 24 and 26, and README and the release notes say Node.js 20.20. Node 20 ended on 2026-04-30 too, by the official schedule, so Q-014 asks whether to drop it as well.
+
 ## 2026-11-07: Unchecked files fail the scan
 
 - The maintainer chose Q-013 option (b), recorded as D-031: `scan` exits with 1 when a file could not be read (`too-large`, `too-deep`, `unreadable`), says so in the text output, and marks the SARIF run as not successful with one notification per file. `--fail-on none` turns it off.

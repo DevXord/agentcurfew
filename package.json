@@ -30,7 +30,7 @@
     "CHANGELOG.md"
   ],
   "engines": {
-    "node": ">=18.20.0"
+    "node": ">=20.20.0"
   },
   "packageManager": "npm@11.21.1",
   "scripts": {

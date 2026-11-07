@@ -140,7 +140,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 ## D-022: CI
 - **Date:** 2026-11-06
 - **Decision of the maintainer:** the first release is 1.0.0 with phases 7 and 8 done, so phase 9 builds the release machinery now and publishes nothing; the version stays 0.0.0, which the release workflow refuses.
-- **Workflow `ci.yml`** (push to `main` and `main-wopcok`, pull requests, read-only): tests, fuzz, typecheck and `check:pkg` on Node 22 and 24; a build on Node 24 that assembles what a user gets (bundle, `package.json`, runtime dependencies from the lockfile) and runs `scripts/smoke.sh` on it under Node 18, 20, 22, 24 and 26 (Q-004); and a self-check: `scan`, `verify` and `doctor` of agentcurfew on its own repository, which now has its own `agentcurfew.lock`, and `depcurfew doctor`.
+- **Workflow `ci.yml`** (push to `main` and `main-wopcok`, pull requests, read-only): tests, fuzz, typecheck and `check:pkg` on Node 22 and 24; a build on Node 24 that assembles what a user gets (bundle, `package.json`, runtime dependencies from the lockfile) and runs `scripts/smoke.sh` on it under Node 20, 22, 24 and 26 (Q-004, D-032); and a self-check: `scan`, `verify` and `doctor` of agentcurfew on its own repository, which now has its own `agentcurfew.lock`, and `depcurfew doctor`.
 - **npm 11.21.1 everywhere** installs run, through `npx npm@11.21.1`, since the npm of Node 22 ignores `min-release-age` (Q-009).
 - **depcurfew and the cooldown (decision of the maintainer):** every release of depcurfew was younger than 7 days on 2026-11-06, so `depcurfew.json` excludes `depcurfew` from the cooldown, as a sibling project with the same maintainer, and CI pins 1.5.2. `depcurfew apply` wrote `min-release-age-exclude[]=depcurfew`. npm 11.21.1 honors it for `npm install` but not for `npm exec`/`npx`, which still refused the version, so CI installs depcurfew with `npm install --no-save`. That gap is worth a look in depcurfew, which this session does not change.
 - **Pins:** besides those of D-021, `actions/upload-artifact` v7.0.2 (`cf430e0…`) and `actions/download-artifact` v8.0.2 (`9000827…`), both commits of 2026-10-07. A first draft carried SHAs written from memory; they were wrong and were replaced by SHAs read with `git ls-remote`.
@@ -198,6 +198,11 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Date:** 2026-11-07
 - **Decision of the maintainer (Q-013, option b):** `scan` exits with 1 when the inventory has a `too-large`, `too-deep` or `unreadable` problem, since that file was not checked; `unparsable`, `outside-project` and `too-many-entries` stay warnings. The text output ends with "Failed: N files could not be read", and SARIF output gets an invocation with `executionSuccessful: false` and one notification per file. `--fail-on none` turns this off too, as it turns off every failure of `scan`. The list is `UNCHECKED_PROBLEMS` in `src/inventory/types.ts`.
 
+## D-032: Node 20.20 is the floor
+- **Date:** 2026-11-07
+- **Decision of the maintainer:** Node 18 is dropped for 1.0.0. `engines` is `>=20.20.0`, the oldest line CI tests, at the release it tests (20.20.2 on 2026-11-07); the smoke test of the assembled package runs on Node 20, 22, 24 and 26.
+- **Source:** the Node.js release schedule, https://raw.githubusercontent.com/nodejs/Release/main/schedule.json, read on 2026-11-07: Node 18 ended on 2025-04-30, Node 20 on 2026-04-30, Node 22 ends on 2027-04-30 (see Q-014).
+
 ## Q-012: For the depcurfew session
 - **Status:** open, to raise in depcurfew's own session; agentcurfew does not change depcurfew.
 - `popularPackages` and `popularPythonPackages` are not exported, so agentcurfew cannot check similar names of MCP server packages offline without copying them.
@@ -217,7 +222,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Status:** answered by D-025: no; the server needs no SDK and lives in the main package.
 
 ## Q-004: Is Node 18.3 really the floor?
-- **Status:** answered in phase 9. CI ran the assembled package (bundle and runtime dependencies) through `scripts/smoke.sh` on Node 18.20.8, 20, 22, 24 and 26 on 2026-11-06, all green; the test suite runs on 22 and 24, since the test tools need a newer Node. `engines` is now `>=18.20.0`, the oldest line tested at its last release, instead of the untested `>=18.3.0`. Node 18 is past its end of life; dropping it is a choice for 1.0.0.
+- **Status:** answered in phase 9. CI ran the assembled package (bundle and runtime dependencies) through `scripts/smoke.sh` on Node 18.20.8, 20, 22, 24 and 26 on 2026-11-06, all green; the test suite runs on 22 and 24, since the test tools need a newer Node. `engines` was then `>=18.20.0`, the oldest line tested at its last release, instead of the untested `>=18.3.0`. Node 18 is past its end of life; D-032 drops it.
 
 ## Q-006: Which TOML parser for Codex?
 - **Status:** answered by D-010. Codex keeps MCP servers, permissions, hooks and custom agents in TOML with inline tables and quoted keys, so a parser is needed.
@@ -251,3 +256,9 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Why it matters:** a hostile repository can pad a walked tree, such as many large `CLAUDE.md` files or a skill folder, so that a later skill or rule file is past the 128 MB read budget, or make a file larger than 2 MB, and `scan` then passes without checking it. Fixed config paths are always read (2026-11-07), so this only hides walked and globbed files; the hook already denies such writes.
 - **Options:** (a) keep it as it is; (b) exit with 1 when a file of the knowledge base could not be read (`too-large`, `too-deep`, `unreadable`); (c) the same through a policy setting, off by default.
 - **Recommendation:** (b), since a file that was not checked should not pass in CI; `unparsable` and `outside-project` could stay warnings.
+
+## Q-014: Drop Node 20 as well?
+- **Status:** open, maintainer's choice before 1.0.0.
+- **Found on 2026-11-07:** the Node.js release schedule (https://raw.githubusercontent.com/nodejs/Release/main/schedule.json) gives 2026-04-30 as the end of Node 20, so 1.0.0 would start out supporting a line that no longer gets security fixes. Node 22 is in maintenance until 2027-04-30; Node 24 and 26 are LTS.
+- **Options:** keep `>=20.20.0` (D-032), or make it `>=22` with the release CI tests, and drop 20 from the smoke matrix. Nothing in the code needs Node 22 today.
+- **Recommendation:** `>=22`, so that the first release does not promise support for an ended line.
