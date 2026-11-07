@@ -36,6 +36,7 @@ const EXPECTED: Readonly<Record<string, readonly string[]>> = {
     'subagent | .cursor/agents/helper.md | helper.md | cursor',
   ],
   'codex-toml': [
+    'auto-run | .codex/config.toml | SessionStart#0 | codex',
     `context-file | AGENTS.md | AGENTS.md | ${AGENTS_MD}`,
     'hook | .codex/config.toml | SessionStart#0 | codex',
     'mcp-server | .codex/config.toml | docs | codex',

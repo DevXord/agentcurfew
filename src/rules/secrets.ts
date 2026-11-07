@@ -23,6 +23,11 @@ const KNOWN: readonly { name: string; pattern: RegExp; accept?: (match: string) 
   { name: 'Google API key', pattern: /\bAIza[0-9A-Za-z_-]{35}(?![0-9A-Za-z_-])/ },
   // https://docs.slack.dev/authentication/tokens: xoxb, xoxp, xoxa, xoxr, xoxe (rotation), xapp (app-level), xwfp (workflow).
   { name: 'Slack token', pattern: /\b(?:xox[abposre]|xapp|xwfp)-[A-Za-z0-9-]{10,}/ },
+  // https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks shows hooks.slack.com/services/T…/B…/X…; the
+  // length follows the gitleaks rule slack-webhook-url (https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml).
+  { name: 'Slack webhook', pattern: /\bhooks\.slack\.com\/(?:services|workflows|triggers)\/[A-Za-z0-9+/]{43,56}/ },
+  // https://core.telegram.org/bots/api: "The token is a string, like 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11".
+  { name: 'Telegram bot token', pattern: /(?<![\w-])\d{5,16}:[A-Za-z0-9_-]{34,35}(?![\w-])/ },
   // https://docs.stripe.com/keys and https://docs.stripe.com/keys/restricted-api-keys
   { name: 'Stripe key', pattern: /\b(?:sk|rk)_live_[0-9A-Za-z]{20,}\b/ },
   // npm documents no format; this is npm's own redaction pattern, https://github.com/npm/redact/blob/main/lib/matchers.js
@@ -61,7 +66,7 @@ function dottedTokens(text: string, found: SecretMatch[]): void {
   }
 }
 
-const SECRET_KEY = /(?:^|[^a-z])(?:token|secret|passw(?:or)?d|pwd|api[_-]?key|apikey|access[_-]?key|private[_-]?key|credential|auth(?:orization)?|bearer|cookie|session)(?:$|[^a-z])/i;
+const SECRET_KEY = /(?:^|[^a-z])(?:token|secret|passw(?:or)?d|pwd|api[_-]?key|apikey|access[_-]?key|account[_-]?key|private[_-]?key|credential|auth(?:orization)?|bearer|cookie|session)(?:$|[^a-z])/i;
 // A reference to a value kept elsewhere: ${VAR}, $VAR, %VAR%, ${env:VAR}, ${input:id}, {env:VAR}, <placeholder>.
 const REFERENCE = /^(?:\$\{[^}]*\}|\$[A-Za-z_]\w*|%[A-Za-z_]\w*%|\{\{?[^}]*\}?\}|<[^>]*>)$/;
 const PLACEHOLDER = /^(?:your[\w-]*|x{3,}|\*{3,}|\.{3,}|changeme|placeholder|todo|redacted|example|none|null|true|false|\d{1,7})$/i;
@@ -120,7 +125,7 @@ export interface Pair {
 }
 
 // key=value and key: value. The value may be quoted, or follow an authorization scheme.
-const JOINED = /(?:^|[\s"'])(-{0,2}[A-Za-z][\w.-]*)(?:=|:\s*)("[^"]*"|'[^']*'|(?:(?:Bearer|Basic|Token|Bot)\s+)?[^\s"']+)/dgi;
+const JOINED = /(?:^|[\s"';])(-{0,2}[A-Za-z][\w.-]*)(?:=|:\s*)("[^"]*"|'[^']*'|(?:(?:Bearer|Basic|Token|Bot)\s+)?[^\s"';]+)/dgi;
 // --flag value: only flags whose names say they hold a secret are kept, since any flag can take an argument.
 const SPACED = /(?:^|[\s"'])(-{1,2}[A-Za-z][\w.-]*)\s+("[^"]*"|'[^']*'|[^\s"'-][^\s"']*)/dg;
 

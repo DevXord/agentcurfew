@@ -59,7 +59,9 @@ export function serverIdentity(component: Component, knowledge: readonly AgentKn
   if (entry === undefined) return { names: [], local: false };
   const started = launch(commandLine(entry));
   const ref = started === undefined ? undefined : packageRef(started);
-  const names = [...(ref === undefined ? [] : [ref.name]), ...entry.urls];
+  // Addresses with their secrets redacted: the name is printed in findings and the hook's answers, written into the
+  // policy by init, and matched against mcp.allowServers, so it must never carry a password or token.
+  const names = [...(ref === undefined ? [] : [ref.name]), ...entry.urls.map(redact)];
   return { names, local: names.length === 0 && entry.command !== undefined };
 }
 

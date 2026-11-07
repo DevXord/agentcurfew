@@ -64,10 +64,17 @@ export function addedServer(words: readonly string[]): { agent: AgentKnowledge; 
     const head = separator === -1 ? rest : rest.slice(0, separator);
     const positional: string[] = [];
     let transport = 'stdio';
+    // -e KEY=VALUE and -H "Name: value" become the server's env and headers, so a secret in them is checked like one
+    // written into .mcp.json.
+    const env: Record<string, string> = {};
+    const headers: Record<string, string> = {};
     for (let index = 0; index < head.length; index++) {
       const word = head[index] as string;
       if (mcpAdd.valueOptions.includes(word)) {
-        if (word === '--transport' || word === '-t') transport = head[index + 1] ?? transport;
+        const value = head[index + 1] ?? '';
+        if (word === '--transport' || word === '-t') transport = value || transport;
+        if ((word === '-e' || word === '--env') && value.includes('=')) env[value.slice(0, value.indexOf('='))] = value.slice(value.indexOf('=') + 1);
+        if ((word === '-H' || word === '--header') && value.includes(':')) headers[value.slice(0, value.indexOf(':')).trim()] = value.slice(value.indexOf(':') + 1).trim();
         index++;
       } else if (!word.startsWith('-')) {
         positional.push(word);
@@ -83,9 +90,9 @@ export function addedServer(words: readonly string[]): { agent: AgentKnowledge; 
       }
       return { agent, name, entry: {} };
     }
-    if (transport === 'http' || transport === 'sse') return { agent, name, entry: { type: transport, url: positional[1] ?? '' } };
+    if (transport === 'http' || transport === 'sse') return { agent, name, entry: { type: transport, url: positional[1] ?? '', headers } };
     const command = separator === -1 ? positional.slice(1) : rest.slice(separator + 1);
-    return { agent, name, entry: { command: command[0] ?? '', args: command.slice(1) } };
+    return { agent, name, entry: { command: command[0] ?? '', args: command.slice(1), env } };
   }
   return undefined;
 }

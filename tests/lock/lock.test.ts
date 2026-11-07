@@ -125,6 +125,26 @@ describe('agentcurfew lock', () => {
     expect(redactWords(['--api-key', 'Zq8vN3xLw7Rt2Kp9Hs4D', '--password', 'hunter2hunter2', '--password-file', './pass', '--port', '8080'])).toEqual(['--api-key', '<redacted>', '--password', '<redacted>', '--password-file', './pass', '--port', '8080']);
   });
 
+  it('redacts connection strings, webhooks, bot tokens, odd addresses and key-like path segments', () => {
+    const accountKey = `q83hN1x9${'Zz0vUu8yB2Wc4pLmN5sQ7tR'}==`;
+    expect(redact(`DefaultEndpointsProtocol=https;AccountName=acct;AccountKey=${accountKey};EndpointSuffix=core`)).toBe('DefaultEndpointsProtocol=https;AccountName=acct;AccountKey=<redacted>;EndpointSuffix=core');
+    expect(redact(`123456789:${'AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw'}`)).toBe('<redacted>');
+    expect(redact(`https://hooks.slack${'.com'}/services/T0AAAAAAA/B0BBBBBBB/${'c'.repeat(24)}`)).toBe('https://<redacted>');
+    expect(redact('postgres://admin:Tr0ub4dor3xyz@db.internal:99999/prod')).toBe('postgres://admin:<redacted>@db.internal:99999/prod');
+    expect(redact(`https://mcp.zapier.com/api/mcp/s/${'NzQ5YjM2ZGEtZTU1Ny00ODNmLWI2NzgtZWQ3ZDk3Yjk5OTVk'}/mcp`)).toBe('https://mcp.zapier.com/api/mcp/s/<redacted>/mcp');
+    expect(redact('https://mcp.example.com/v1/sse')).toBe('https://mcp.example.com/v1/sse');
+  });
+
+  it('keeps secrets out of findings and of the policy init writes', async () => {
+    write('.mcp.json', JSON.stringify({ mcpServers: { x: { type: 'http', url: 'https://alice:NewSecretPassw0rd99@mcp.example.com/mcp' } } }));
+    const proposed = await cli('init', root, '--print');
+    expect(proposed.stdout).toContain('https://alice:<redacted>@mcp.example.com/mcp');
+    write('agentcurfew.policy.json', JSON.stringify({ version: 1, mcp: { allowServers: ['https://other.example/*'] } }));
+    const scanned = await cli('scan', root, '--json');
+    expect(scanned.stdout).toContain('out-of-policy');
+    expect(scanned.stdout + proposed.stdout).not.toContain('NewSecretPassw0rd99');
+  });
+
   it('keeps separate secret arguments out of the lock', async () => {
     write('.mcp.json', JSON.stringify({ mcpServers: { x: { command: 'node', args: ['s.js', '--api-key', 'Zq8vN3xLw7Rt2Kp9Hs4D'] }, y: { type: 'http', url: 'https://Qm4pR8sT2vX6zB1nC5dF@api.example.com/mcp' } } }));
     await cli('lock', root);

@@ -23,15 +23,27 @@ function replaceRanges(text: string, ranges: Range[]): string {
   return result + text.slice(at);
 }
 
-/** An address with its password, a credential as its user name and secret query parameters replaced, or undefined. */
-function redactAddress(address: string): string | undefined {
+// A path segment that looks like a key rather than a name: long, with letters and digits, such as the token in
+// https://mcp.zapier.com/api/mcp/s/<token>/mcp. Erring on the wide side only masks an identifier.
+const TOKEN_SEGMENT = /^(?=[^/]*\d)(?=[^/]*[A-Za-z])[A-Za-z0-9_-]{32,}$/;
+// user:password@ at the start of an address that new URL cannot read, such as one with a port over 65535.
+const RAW_USERINFO = /^([a-z][a-z0-9+.-]*:\/\/[^/@:\s]*:)([^@/\s]+)(@)/i;
+
+/** An address with its password, a credential as its user name, secret query parameters and key-like path segments replaced, or undefined. */
+export function redactAddress(address: string): string | undefined {
   let url: URL;
   try {
     url = new URL(address);
   } catch {
-    return undefined;
+    const raw = RAW_USERINFO.exec(address);
+    return raw === null ? undefined : address.replace(RAW_USERINFO, `$1${REDACTED}$3`);
   }
   let changed = false;
+  const segments = url.pathname.split('/');
+  if (segments.some((segment) => TOKEN_SEGMENT.test(segment))) {
+    url.pathname = segments.map((segment) => (TOKEN_SEGMENT.test(segment) ? REDACTED : segment)).join('/');
+    changed = true;
+  }
   if (url.password !== '') {
     url.password = REDACTED;
     changed = true;

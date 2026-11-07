@@ -20,8 +20,50 @@ export function commands(line: string, escapes = true): string[][] {
     if (words.length > 0) result.push(words);
     words = [];
   };
+  // Here-documents (<<EOF … EOF): their lines are data for the command, such as a commit message, so they are one word
+  // of it, not commands. Only a shell runs them, as in bash <<EOF or cat <<EOF | sh; then they are commands.
+  const pending: { delimiter: string; strip: boolean }[] = [];
+  let lineStart = 0;
+  const readBodies = (newline: number): number => {
+    let at = newline + 1;
+    const runsBody = SHELL_CONSUMER.test(name(words[0] ?? '')) || PIPED_TO_SHELL.test(line.slice(lineStart, newline));
+    for (const { delimiter, strip } of pending.splice(0)) {
+      const lines: string[] = [];
+      while (at <= line.length) {
+        const end = line.indexOf('\n', at) === -1 ? line.length : line.indexOf('\n', at);
+        const text = line.slice(at, end);
+        at = end + 1;
+        if ((strip ? text.replace(/^\t+/, '') : text) === delimiter) break;
+        lines.push(text);
+      }
+      const body = lines.join('\n');
+      if (runsBody) {
+        endCommand();
+        result.push(...commands(body, escapes));
+      } else {
+        endWord();
+        words.push(body);
+      }
+    }
+    return at - 1;
+  };
   for (let index = 0; index < line.length; index++) {
     const char = line[index] as string;
+    if (quoted === undefined && char === '<' && line[index + 1] === '<' && line[index + 2] !== '<') {
+      const heredoc = /^<<(-?)[ \t]*(?:'([^'\n]*)'|"([^"\n]*)"|([^\s;&|<>()]+))/.exec(line.slice(index, index + 300));
+      if (heredoc !== null) {
+        endWord();
+        pending.push({ delimiter: heredoc[2] ?? heredoc[3] ?? heredoc[4] ?? '', strip: heredoc[1] === '-' });
+        index += heredoc[0].length - 1;
+        continue;
+      }
+    }
+    if (quoted === undefined && char === '\n' && pending.length > 0) {
+      index = readBodies(index);
+      endCommand();
+      lineStart = index + 1;
+      continue;
+    }
     if (quoted !== undefined) {
       if (char === quoted) quoted = undefined;
       else if (escapes && char === '\\' && quoted === '"' && index + 1 < line.length) word += line[++index];
@@ -35,6 +77,7 @@ export function commands(line: string, escapes = true): string[][] {
       word += line[++index];
       started = true;
     } else if (char === ';' || char === '\n' || char === '|' || char === '&' || char === '(' || char === ')' || char === '`') {
+      if (char === '\n') lineStart = index + 1;
       endCommand();
       if ((char === '|' || char === '&') && line[index + 1] === char) index++;
     } else if (/\s/.test(char)) {
@@ -52,6 +95,9 @@ export function commands(line: string, escapes = true): string[][] {
 // Shell words that run the command after them.
 const KEYWORDS = new Set(['!', '{', 'if', 'elif', 'while', 'until', 'then', 'do', 'else']);
 const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'fish', 'ash']);
+// A here-document read by a shell, directly or through a pipe, holds commands.
+const SHELL_CONSUMER = /^(?:sh|bash|zsh|dash|ksh|fish|ash|sudo|env|exec)$/;
+const PIPED_TO_SHELL = /\|\s*(?:sudo\s+)?(?:ba|z|da|k|a)?sh(?![\w-])/;
 // Programs that run the rest of their arguments as a command: their options that take a value as the next word, and how
 // many plain arguments come before the command (timeout DURATION command).
 const RUNNERS: Readonly<Record<string, { values: readonly string[]; operands?: number }>> = {

@@ -122,10 +122,15 @@ export const codex: AgentKnowledge = {
     APPROVALS,
     `.rules files are Starlark, with prefix_rule decisions of allow, prompt or forbidden (${DOCS}/agent-configuration/rules.md). The :danger-full-access built-in is from ${DOCS}/permissions.md. None of the bypass keys is on PROJECT_LOCAL_CONFIG_DENYLIST in ${CONFIG_LOADER}, so a trusted project file appears able to set them; this is read from the code and was not tested by running Codex. Read on 2026-11-07 (${DOCS}/config-file/config-reference.md): approval_policy is on-request, never or a granular table; "untrusted is unsupported, and on-failure is deprecated", so a file with either no longer asks as it used to. App tools take approval_mode auto, prompt, writes or approve, and approvals_reviewer auto_review hands eligible prompts to a reviewer subagent; whether approve skips the prompt is not stated, so they are listed as keys, not as bypasses.`,
   ),
-  autoRun: uncertain(
-    null,
-    CONFIG_ADVANCED,
-    'No page describes a command that starts when a folder is opened, but none rules it out either. The closest behaviour is inside a session: SessionStart hooks and stdio MCP servers, both covered by the hooks and mcp facts, and subject to project trust.',
+  autoRun: later.verified(
+    {
+      files: [{ path: '**/.codex/hooks.json', scope: 'project', format: 'json' }, PROJECT_CONFIG, { path: '~/.codex/hooks.json', scope: 'user', format: 'json' }, USER_CONFIG],
+      triggerKey: 'hooks.SessionStart',
+      triggerValue: 'any',
+      commandField: 'command',
+    },
+    HOOKS,
+    'No page describes a command that starts when a folder is opened. The closest is a SessionStart hook, which runs "when a session or subagent starts" with no action by the user, as Claude Code and Gemini CLI hooks of that event are counted too; any handler under the key counts. Non-managed hooks run only after review, and project layers only for trusted projects. stdio MCP servers also start with a session; the mcp fact covers them.',
   ),
   extensions: verified(
     {

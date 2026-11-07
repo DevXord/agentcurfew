@@ -159,9 +159,9 @@ export const claudeCode: AgentKnowledge = {
     `${PERMISSIONS_NOTE} The switch that removes auto mode is a top-level disableAutoMode, "Also accepted under permissions as permissions.disableAutoMode" (${SETTINGS_REFERENCE}), which settles the earlier dispute with ${PERMISSIONS}#permission-modes.`,
   ),
   autoRun: later.verified(
-    { files: [...SETTINGS_FILES, ...FRONTMATTER_HOOKS], triggerKey: 'hooks.SessionStart', triggerValue: 'any', commandField: 'command' },
+    { files: SETTINGS_FILES, triggerKey: 'hooks.SessionStart', triggerValue: 'any', commandField: 'command' },
     HOOKS,
-    'Claude Code has no run-on-folder-open tasks. The closest fact is a SessionStart hook, which fires when a session begins or resumes, so the user must start Claude Code; any handler under the key counts, hence the triggerValue any. Only command and mcp_tool handlers are supported on this event. Setup fires only with --init-only, --init or --maintenance, not on normal startup.',
+    'Claude Code has no run-on-folder-open tasks. The closest fact is a SessionStart hook, which fires when a session begins or resumes, so the user must start Claude Code; any handler under the key counts, hence the triggerValue any. Only command and mcp_tool handlers are supported on this event. Setup fires only with --init-only, --init or --maintenance, not on normal startup. Hooks in skill and subagent frontmatter are left out: "Claude Code runs them only while that subagent is running" (read on 2026-11-07), so they do not start on their own.',
   ),
   extensions: later.verified(
     {
@@ -171,12 +171,12 @@ export const claudeCode: AgentKnowledge = {
         ...managed('.claude/agents/**/*.md', 'markdown-frontmatter'),
       ],
       commands: [
-        { path: '.claude/commands/*.md', scope: 'project', format: 'markdown-frontmatter' },
-        { path: '~/.claude/commands/*.md', scope: 'user', format: 'markdown-frontmatter' },
+        { path: '.claude/commands/**/*.md', scope: 'project', format: 'markdown-frontmatter' },
+        { path: '~/.claude/commands/**/*.md', scope: 'user', format: 'markdown-frontmatter' },
       ],
     },
     SUB_AGENTS,
-    `.claude/agents/ is scanned recursively, in every folder from the working directory up to the repository root. Subagent frontmatter can set hooks, mcpServers and permissionMode, which are ignored for plugin subagents. Command paths are from ${DIRECTORY}: commands were merged into skills and share their frontmatter fields except name and paths; a skill wins over a command of the same name. That page also lists workflows/*.js, scripts that become commands, which this shape has no place for.`,
+    `.claude/agents/ is scanned recursively, in every folder from the working directory up to the repository root. Subagent frontmatter can set hooks, mcpServers and permissionMode, which are ignored for plugin subagents. Command paths are from ${DIRECTORY}; subfolders of .claude/commands namespace a command (.claude/commands/frontend/component.md is /frontend:component, ${SKILLS}, read on 2026-11-07); commands were merged into skills and share their frontmatter fields except name and paths; a skill wins over a command of the same name. That page also lists workflows/*.js, scripts that become commands, which this shape has no place for.`,
   ),
   toolHook: verified(
     {
