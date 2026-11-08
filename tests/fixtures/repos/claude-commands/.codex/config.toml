@@ -1,0 +1,2 @@
+# notify is ignored in a project config, so it is not a component here.
+notify = ["python3", ".codex/notify.py"]

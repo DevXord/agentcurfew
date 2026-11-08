@@ -4,6 +4,7 @@ import type { AgentKnowledge, AgentPath } from './types.ts';
 const { verified, uncertain, disputed, evidence } = verifiedOn('2026-11-06');
 // Facts changed after the source audit of 2026-11-07, read again that day.
 const later = verifiedOn('2026-11-07');
+const today = verifiedOn('2026-11-08');
 
 const DOCS = 'https://learn.chatgpt.com/docs';
 const CONFIG_BASIC = `${DOCS}/config-file/config-basic.md`;
@@ -147,4 +148,9 @@ export const codex: AgentKnowledge = {
     verified({ paths: ['~/.codex/prompts/*.md'], replacement: 'skills' }, `${DOCS}/custom-prompts.md`, 'Custom prompts are deprecated in favour of skills.'),
     uncertain({ paths: ['~/.codex/skills'], replacement: '~/.agents/skills' }, SKILL_ROOTS, 'Marked deprecated in the code; the documentation names only the .agents/skills roots.'),
   ],
+  commands: today.verified(
+    { files: [PROJECT_CONFIG, USER_CONFIG], settings: [{ key: 'notify', runs: 'on-demand', fromProject: 'ignored' }] },
+    `${CONFIG_ADVANCED}#notifications`,
+    `notify is a list of words, the program and its arguments, run "whenever Codex emits supported events (currently only agent-turn-complete)". Codex "ignores the following keys in project-local .codex/config.toml and prints a startup warning when it sees them", notify among them (${CONFIG_ADVANCED}); the same list is PROJECT_LOCAL_CONFIG_DENYLIST in ${CONFIG_LOADER}. MCP servers' http_headers_helper is a command too; the mcp fact notes it.`,
+  ),
 };

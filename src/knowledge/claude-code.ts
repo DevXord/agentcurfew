@@ -106,6 +106,11 @@ function permissions(): PermissionsKnowledge {
 const PERMISSIONS_NOTE =
   'defaultMode acceptEdits "Automatically accepts file edits and common filesystem commands such as mkdir, touch, mv, and cp" in the working directories (permissions page, read on 2026-11-07). defaultMode bypassPermissions and auto do not take effect from .claude/settings.json or .claude/settings.local.json; before v2.1.257 bypassPermissions took effect from any file. skipDangerousModePermissionPrompt is read from user, local or managed settings only. A committed enableAllProjectMcpServers, or enabledMcpjsonServers, which approves the servers it names, is ignored in an untrusted folder: Claude Code "ignores it in the shared project file". permissions.allow and additionalDirectories in .claude/settings.json need workspace trust. A bare Bash, or Bash(*), in permissions.allow matches every Bash command (https://code.claude.com/docs/en/permissions#match-all-uses-of-a-tool).';
 
+const today = verifiedOn('2026-11-08');
+
+const COMMANDS_NOTE =
+  'Each key is documented with Scope "Any file", so a committed .claude/settings.json can set it. statusLine is an object with type "command" and a command string; the status line script "runs once when a session starts, including when you resume one", then on events and every refreshInterval seconds (https://code.claude.com/docs/en/statusline). otelHeadersHelper runs "at startup and periodically after that". apiKeyHelper reruns after its cache lifetime or on 401 and 403; awsAuthRefresh and gcpAuthRefresh run when credentials fail; awsCredentialExport whenever Bedrock credentials are needed; fileSuggestion on @ autocomplete; subagentStatusLine on each refresh of the subagent rows. statusLine, fileSuggestion and subagentStatusLine follow "the same workspace trust rule as hooks in settings files", and are narrowed to managed values by allowManagedHooksOnly or a non-managed disableAllHooks. Helper commands such as apiKeyHelper are "Used" when only a parent folder is trusted and in claude -p, like hooks (https://code.claude.com/docs/en/permissions#what-runs-before-you-trust-a-folder). sshHostCommands, processWrapper and policyHelper are user or managed only, so a repository cannot set them, and are left out.';
+
 export const claudeCode: AgentKnowledge = {
   id: 'claude-code',
   name: 'Claude Code',
@@ -197,6 +202,23 @@ export const claudeCode: AgentKnowledge = {
     },
     HOOKS,
     `The stdin JSON also has session_id, transcript_path, cwd, permission_mode, hook_event_name and tool_use_id. "When multiple PreToolUse hooks return different decisions, precedence is deny > defer > ask > allow", and matching hooks run in parallel, so another hook on the same tool (depcurfew's) keeps working. defer needs non-interactive mode (-p). Exit code 2 blocks whatever the JSON says. hookSpecificOutput "requires a hookEventName field set to the event name"; stdout must hold nothing but the JSON object; "Exit code 0 with no output means the hook has no decision to report", and staying silent does not approve the call. Command hooks time out after 600 s by default. A matcher of letters, digits, _, -, spaces, commas and | lists exact tool names. There is no MultiEdit tool (${DOCS}/tools-reference); the input fields of NotebookEdit are not shown in the docs, so it is left out.`,
+  ),
+  commands: today.verified(
+    {
+      files: SETTINGS_FILES,
+      settings: [
+        { key: 'statusLine', commandField: 'command', runs: 'session-start' },
+        { key: 'subagentStatusLine', commandField: 'command', runs: 'on-demand' },
+        { key: 'fileSuggestion', commandField: 'command', runs: 'on-demand' },
+        { key: 'apiKeyHelper', runs: 'on-demand' },
+        { key: 'otelHeadersHelper', runs: 'session-start' },
+        { key: 'awsAuthRefresh', runs: 'on-demand' },
+        { key: 'awsCredentialExport', runs: 'on-demand' },
+        { key: 'gcpAuthRefresh', runs: 'on-demand' },
+      ],
+    },
+    `${SETTINGS_REFERENCE}#settings-index`,
+    COMMANDS_NOTE,
   ),
   mcpAdd: verified(
     { command: ['claude', 'mcp', 'add'], jsonCommand: ['claude', 'mcp', 'add-json'], separator: '--', valueOptions: ['--transport', '-t', '--env', '-e', '--scope', '-s', '--header', '-H'] },

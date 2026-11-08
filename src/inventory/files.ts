@@ -214,6 +214,12 @@ export class ScanFiles {
     return found;
   }
 
+  /** Size, link and execute bit of a file found by match; undefined when it is not a readable file. */
+  details(found: Found): { bytes: number; link: boolean; executable: boolean } | undefined {
+    const entry = this.#kind(found.area, found.path, found.file);
+    return entry?.kind === 'file' ? { bytes: entry.bytes, link: entry.link, executable: entry.executable } : undefined;
+  }
+
   isDirectory(found: Found): boolean {
     return this.#kind(found.area, found.path, found.file)?.kind === 'directory';
   }

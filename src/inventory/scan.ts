@@ -7,6 +7,8 @@ import type { AgentId, AgentKnowledge, AgentPath, Fact, FileFormat, Scope } from
 import { DEFAULT_LIMITS, ScanFiles } from './files.ts';
 import type { Area, Found, TreeFile } from './files.ts';
 import { parseFrontmatter } from './frontmatter.ts';
+import { scriptPaths } from '../rules/script-paths.ts';
+import { isIgnored, parseGitignore } from './gitignore.ts';
 import { entryText, lookup, readConfig } from './parse.ts';
 import type { Component, ComponentKind, Inventory, Limits, ScanOptions, SkillFile, SkillFileType } from './types.ts';
 
@@ -129,11 +131,79 @@ class Scan {
     return value;
   }
 
-  #add(kind: ComponentKind, agent: AgentId, scope: Scope, file: string, name: string, raw: string, files?: readonly SkillFile[]): void {
+  #add(kind: ComponentKind, agent: AgentId, scope: Scope, file: string, name: string, raw: string, files?: readonly SkillFile[], filesRoot?: 'project'): void {
     const key = `${kind}\0${file}\0${name}`;
     const known = this.#components.get(key);
-    if (known === undefined) this.#components.set(key, { kind, agents: [agent], scope, file, name, raw, ...(files === undefined ? {} : { files }) });
+    if (known === undefined) {
+      this.#components.set(key, { kind, agents: [agent], scope, file, name, raw, ...(files === undefined ? {} : { files }), ...(files === undefined || filesRoot === undefined ? {} : { filesRoot }) });
+    }
     else if (!known.agents.includes(agent)) this.#components.set(key, { ...known, agents: [...known.agents, agent].sort() });
+  }
+
+  // The variables that hold the project root in a command, from the knowledge base (CLAUDE_PROJECT_DIR).
+  readonly #projectVariables = knowledgeBase.flatMap((agent) => (agent.toolHook === undefined ? [] : factValues(agent.toolHook).map((hook) => hook.projectDirVariable)));
+  readonly #scriptCache = new Map<string, readonly SkillFile[] | undefined>();
+  #ignore: ReturnType<typeof parseGitignore> | undefined;
+
+  /**
+   * Whether a script is part of the repository: not an installed package (node_modules, which depcurfew checks) and not
+   * build output or anything else the root .gitignore ignores, which a clone does not bring and a build changes.
+   */
+  #committed(path: string): boolean {
+    if (path.split('/').some((segment) => segment === 'node_modules' || segment === '.git')) return false;
+    if (this.#ignore === undefined) {
+      const found = this.files.match(this.#root, ['.gitignore'], false)[0];
+      const text = found === undefined ? undefined : this.files.read({ ...found, exempt: true });
+      this.#ignore = parseGitignore(text ?? '');
+    }
+    return !isIgnored(this.#ignore, path);
+  }
+
+  /**
+   * The files of the project that an entry's commands run, read like the files of a skill: through the same limits, and
+   * never through a link out of the project. Only project entries: a user's hook runs from a folder the scan cannot know.
+   * The command lines are every string of the entry, and every list of strings joined as one line (Codex notify).
+   * Installed packages and files the root .gitignore ignores are left out (see #committed).
+   */
+  #scripts(scope: Scope, raw: string): readonly SkillFile[] | undefined {
+    if (scope !== 'project') return undefined;
+    if (this.#scriptCache.has(raw)) return this.#scriptCache.get(raw);
+    let value: unknown;
+    try {
+      value = JSON.parse(raw) as unknown;
+    } catch {
+      value = undefined;
+    }
+    const lines: string[] = [];
+    const walk = (item: unknown, depth: number): void => {
+      if (depth > 32) return;
+      if (typeof item === 'string') lines.push(item);
+      else if (Array.isArray(item)) {
+        if (item.length > 0 && item.every((word) => typeof word === 'string')) lines.push(item.join(' '));
+        for (const inner of item) walk(inner, depth + 1);
+      } else if (typeof item === 'object' && item !== null) for (const inner of Object.values(item)) walk(inner, depth + 1);
+    };
+    walk(value, 0);
+    const files = new Map<string, SkillFile>();
+    for (const line of lines) {
+      for (const path of scriptPaths(line, this.#projectVariables)) {
+        if (files.has(path) || !this.#committed(path)) continue;
+        const found = this.files.match(this.#root, path.split('/'), false)[0];
+        const details = found === undefined ? undefined : this.files.details(found);
+        if (found === undefined || details === undefined) continue;
+        const flags = { ...(details.link ? { link: true } : {}), ...(details.executable ? { executableBit: true } : {}) };
+        const content = this.files.readBytes(found);
+        if (content === undefined) {
+          files.set(path, { path, bytes: details.bytes, ...flags });
+          continue;
+        }
+        const type = fileType(content);
+        files.set(path, type === 'text' ? { path, bytes: details.bytes, type, raw: content.toString('utf8'), content, ...flags } : { path, bytes: details.bytes, type, content, ...flags });
+      }
+    }
+    const result = files.size === 0 ? undefined : [...files.values()].sort((a, b) => compare(a.path, b.path));
+    this.#scriptCache.set(raw, result);
+    return result;
   }
 
   #addFile(kind: ComponentKind, agent: AgentId, scope: Scope, found: Found): void {
@@ -236,8 +306,10 @@ class Scan {
       });
       handlers.forEach((handler, index) => {
         const name = `${event}#${index}`;
-        this.#add('hook', agent, scope, file, name, entryText(handler));
-        if (autoEvents.has(event)) this.#add('auto-run', agent, scope, file, name, entryText(handler));
+        const raw = entryText(handler);
+        const scripts = this.#scripts(scope, raw);
+        this.#add('hook', agent, scope, file, name, raw, scripts, 'project');
+        if (autoEvents.has(event)) this.#add('auto-run', agent, scope, file, name, raw, scripts, 'project');
       });
     }
   }
@@ -257,7 +329,8 @@ class Scan {
             value.forEach((item: unknown, index) => {
               if (!lookup(item, autoRun.triggerKey).some((trigger) => trigger.value === autoRun.triggerValue)) return;
               const label = (item as { label?: unknown }).label;
-              this.#add('auto-run', agent.id, entry.scope, found.file, typeof label === 'string' ? label : `task#${index}`, entryText(item));
+              const raw = entryText(item);
+              this.#add('auto-run', agent.id, entry.scope, found.file, typeof label === 'string' ? label : `task#${index}`, raw, this.#scripts(entry.scope, raw), 'project');
             });
           }
         }
@@ -279,6 +352,31 @@ class Scan {
           const keys = new Set([...permissions.keys, ...permissions.bypass.map((setting) => setting.key), ...(permissions.allowAllShell ?? []).map((entry) => entry.key)]);
           for (const key of keys) {
             for (const { path, value } of lookup(config, key)) this.#add('permission', agent.id, entry.scope, found.file, path, entryText(value));
+          }
+        }
+      }
+    }
+  }
+
+  #collectCommandSettings(agent: AgentKnowledge): void {
+    if (agent.commands === undefined) return;
+    for (const commands of factValues(agent.commands)) {
+      for (const entry of commands.files) {
+        const format = structured(entry.format);
+        if (format === undefined) continue;
+        for (const found of this.#find(entry)) {
+          const config = this.#config(found, format);
+          for (const setting of commands.settings) {
+            // A key the agent ignores in a project file runs nothing from there.
+            if (entry.scope === 'project' && setting.fromProject === 'ignored') continue;
+            for (const { path, value } of lookup(config, setting.key)) {
+              const command = setting.commandField === undefined ? value : typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>)[setting.commandField] : undefined;
+              if (command === undefined || command === null || command === '') continue;
+              const raw = entryText(value);
+              const scripts = this.#scripts(entry.scope, raw);
+              this.#add('command-setting', agent.id, entry.scope, found.file, path, raw, scripts, 'project');
+              if (setting.runs === 'session-start') this.#add('auto-run', agent.id, entry.scope, found.file, path, raw, scripts, 'project');
+            }
           }
         }
       }
@@ -326,6 +424,7 @@ class Scan {
       this.#collectHooks(agent);
       this.#collectAutoRun(agent);
       this.#collectPermissions(agent);
+      this.#collectCommandSettings(agent);
       this.#collectSkills(agent);
       this.#collectFiles(agent);
     }

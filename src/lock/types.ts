@@ -36,6 +36,8 @@ export interface LockedComponent {
   hash: string;
   server?: LockedServer;
   skill?: LockedSkill;
+  /** Files of the project that a hook, a task or a command setting runs, relative to the project; absent when none. */
+  scripts?: LockedSkillFile[];
 }
 
 export interface Lockfile {

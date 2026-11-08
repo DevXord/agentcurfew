@@ -2,6 +2,16 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-08: Phase 11, settings that run commands and the scripts hooks run (Q-016, part 1)
+
+- Node 20 again (D-037): engines `>=20.0.0`; the published 1.0.0 passed the smoke test, the MCP server and the hook on Node 18.20, 20.0, 20.20 and 22.0, and CI now smoke-tests 20.0.0 and the newest 20. The site's start page no longer links to itself.
+- Knowledge: a `commands` field (D-038) with eight Claude Code keys from the settings reference (statusLine, subagentStatusLine, fileSuggestion, apiKeyHelper, otelHeadersHelper, awsAuthRefresh, awsCredentialExport, gcpAuthRefresh; helper commands run like hooks, also when only a parent folder is trusted) and Codex notify (ignored in project config by PROJECT_LOCAL_CONFIG_DENYLIST). Facts read on 2026-11-08.
+- Inventory: the kind `command-setting`, and scripts of the project that hooks, tasks and command settings run (`src/rules/script-paths.ts`, D-039), read safely, skipping node_modules and files the root .gitignore ignores (`src/inventory/gitignore.ts`).
+- Rules: dangerous-hook-command, secret-in-config and hidden-unicode check command settings and scripts; auto-run-on-open reports statusLine and otelHeadersHelper at medium; findings in a script name its path and line.
+- Lock: `scripts` per component with their own checksums, `script added/changed/removed` in verify; entry hashes unchanged.
+- Tests first: knowledge, inventory fixture `claude-commands`, safety (links out, `..`, size limit, home, gitignore and node_modules), rule fixtures, lock and verify, script paths and the .gitignore subset with hostile inputs. 521 tests and 10 fuzz properties pass.
+- No new dependency (the maintainer asked for as few as possible).
+
 ## 2026-11-07: Logo and documentation site
 
 - Logo (`site/favicon.svg`), chosen by the maintainer from three rounds of drafts: depcurfew's cube turned into a speech bubble with an agent's eyes and an AI sparkle, in violet, with depcurfew's amber clock. AI agents are shown today as a bot or a friendly character, with the sparkle as the general AI mark.

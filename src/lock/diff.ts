@@ -22,6 +22,18 @@ function listDiff(what: string, before: readonly string[], after: readonly strin
   return [...added.map((item) => `${what} added: ${item}`), ...removed.map((item) => `${what} removed: ${item}`)];
 }
 
+function scriptDiff(before: readonly { path: string; hash: string }[], after: readonly { path: string; hash: string }[]): string[] {
+  const lines: string[] = [];
+  const old = new Map(before.map((file) => [file.path, file.hash]));
+  const now = new Map(after.map((file) => [file.path, file.hash]));
+  for (const [path, hash] of now) {
+    if (!old.has(path)) lines.push(`script added: ${path}`);
+    else if (old.get(path) !== hash) lines.push(`script changed: ${path}`);
+  }
+  for (const path of old.keys()) if (!now.has(path)) lines.push(`script removed: ${path}`);
+  return lines;
+}
+
 function details(before: LockedComponent, after: LockedComponent, compareBits: boolean): string[] {
   const lines: string[] = [];
   if (before.skill !== undefined && after.skill !== undefined) {
@@ -46,7 +58,7 @@ function details(before: LockedComponent, after: LockedComponent, compareBits: b
     if (lines.length === 0 && before.hash !== after.hash) lines.push('another field changed, such as a setting or the name of a variable');
     return lines;
   }
-  return before.hash === after.hash ? [] : ['the content changed'];
+  return [...(before.hash === after.hash ? [] : ['the content changed']), ...scriptDiff(before.scripts ?? [], after.scripts ?? [])];
 }
 
 /**
@@ -64,7 +76,7 @@ export function diffLocks(locked: Lockfile, current: Lockfile, options: { compar
       changes.push({ type: 'added', kind: now.kind, file: now.file, name: now.name, details: [] });
       continue;
     }
-    const found = old.hash !== now.hash || old.skill !== undefined || old.server !== undefined ? details(old, now, compareBits) : [];
+    const found = old.hash !== now.hash || old.skill !== undefined || old.server !== undefined || old.scripts !== undefined || now.scripts !== undefined ? details(old, now, compareBits) : [];
     if (found.length > 0) changes.push({ type: 'changed', kind: now.kind, file: now.file, name: now.name, details: found });
   }
   for (const [id, old] of before) if (!after.has(id)) changes.push({ type: 'removed', kind: old.kind, file: old.file, name: old.name, details: [] });

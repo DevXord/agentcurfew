@@ -8,8 +8,8 @@ export const autoRunOnOpen: Rule = {
   level: 'high',
   owasp: ['AST06'],
   description:
-    'Reports every component that starts on its own: editor tasks that run when the folder is opened (runOptions.runOn folderOpen in .vscode/tasks.json), hooks on events that fire when a workspace opens or a session starts, and scheduled agent runs (Cline cron specs, which run in yolo mode unless they say otherwise). A repository that is cloned and opened can then run commands before anyone has read them.',
-  levels: 'medium for a hook that runs when a session starts, high for a task that runs when the folder opens, and for a scheduled task in yolo mode',
+    'Reports every component that starts on its own: editor tasks that run when the folder is opened (runOptions.runOn folderOpen in .vscode/tasks.json), hooks on events that fire when a workspace opens or a session starts, settings whose command runs when a session starts (Claude Code statusLine and otelHeadersHelper), and scheduled agent runs (Cline cron specs, which run in yolo mode unless they say otherwise). A repository that is cloned and opened can then run commands before anyone has read them.',
+  levels: 'medium for a hook or a setting that runs when a session starts, high for a task that runs when the folder opens, and for a scheduled task in yolo mode',
   fix: 'Remove the automatic trigger, or make the task run on demand. If it must stay, keep the command short and reviewable, and make sure the editor or agent asks for trust before running it.',
   falsePositives: 'Where the knowledge base marks the fact as uncertain, the agent may in practice ask before running it; the message says so.',
   example: '"runOptions": { "runOn": "folderOpen" } in .vscode/tasks.json',
@@ -23,6 +23,14 @@ export const autoRunOnOpen: Rule = {
       return agent.autoRun.status === 'uncertain' && (!hook || agent.hooks.status === 'uncertain' || /^sessionstart#/i.test(component.name));
     });
     const doubt = uncertain ? '; the knowledge base marks this behaviour as uncertain' : '';
+    // A setting whose command runs when a session starts, such as statusLine.
+    const startsWithSession = component.agents.some((id) => {
+      const commands = context.knowledge.find((candidate) => candidate.id === id)?.commands;
+      if (commands === undefined) return false;
+      const values = commands.status === 'disputed' ? commands.variants.map((variant) => variant.value) : [commands.value];
+      return values.some((value) => value.settings.some((setting) => setting.key === component.name && setting.runs === 'session-start'));
+    });
+    if (startsWithSession) return [{ message: `${component.name} runs a command when an agent session starts, before the first prompt`, level: 'medium' }];
     if (/^SessionStart#/.test(component.name) || /^sessionStart#/.test(component.name)) {
       return [{ message: `runs when an agent session starts, before the first prompt${doubt}`, level: 'medium' }];
     }

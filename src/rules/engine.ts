@@ -40,7 +40,9 @@ export function applyRules(inventory: Inventory, selected: readonly Rule[], cont
       const seen = new Set<string>();
       let kept = 0;
       for (const hit of hits) {
-        const file = hit.inFile === undefined ? component.file : `${component.file.slice(0, component.file.lastIndexOf('/') + 1)}${hit.inFile}`;
+        // A script a command runs is named relative to the project, a skill's file relative to the skill's folder.
+        const folder = component.filesRoot === 'project' ? '' : component.file.slice(0, component.file.lastIndexOf('/') + 1);
+        const file = hit.inFile === undefined ? component.file : `${folder}${hit.inFile}`;
         const key = `${file}\0${hit.line ?? ''}\0${hit.column ?? ''}\0${hit.message}`;
         const global = `${rule.id}\0${component.name}\0${key}`;
         if (seen.has(key) || reported.has(global)) continue;

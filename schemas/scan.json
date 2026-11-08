@@ -48,7 +48,8 @@
               "context-file",
               "permission",
               "subagent",
-              "command"
+              "command",
+              "command-setting"
             ]
           },
           "agents": {
@@ -132,7 +133,8 @@
               "context-file",
               "permission",
               "subagent",
-              "command"
+              "command",
+              "command-setting"
             ]
           },
           "file": {
@@ -204,7 +206,8 @@
                   "context-file",
                   "permission",
                   "subagent",
-                  "command"
+                  "command",
+                  "command-setting"
                 ]
               },
               "file": {

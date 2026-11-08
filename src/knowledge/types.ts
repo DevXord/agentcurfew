@@ -151,6 +151,23 @@ export interface Deprecation {
   replacement: string;
 }
 
+/** A setting outside the hooks whose value is a command the agent runs, such as a status line or a credential helper. */
+export interface CommandSetting {
+  /** Dotted key in the settings file. */
+  key: string;
+  /** The field of the setting's object that holds the command; absent when the value itself is the command (a string or a list of words). */
+  commandField?: string;
+  /** session-start: runs when a session starts, before the first prompt. on-demand: runs when the agent needs it. */
+  runs: 'session-start' | 'on-demand';
+  /** As in BypassSetting: ignored (only user or managed files count), needs-trust. Absent when a project file can set it. */
+  fromProject?: 'ignored' | 'needs-trust';
+}
+
+export interface CommandSettingsKnowledge {
+  files: readonly AgentPath[];
+  settings: readonly CommandSetting[];
+}
+
 /** A hook that runs before a tool and can allow, deny or ask: what it reads on stdin and how it answers. */
 export interface ToolHookKnowledge {
   /** The event, e.g. PreToolUse, and where its handlers sit in the settings, as a dotted key. */
@@ -198,6 +215,8 @@ export interface AgentKnowledge {
   /** A hook before each tool call that can block it; absent when the agent has none or it is not researched. */
   toolHook?: Fact<ToolHookKnowledge>;
   mcpAdd?: Fact<McpAddKnowledge>;
+  /** Settings that run a command outside the hooks; absent when not researched for the agent. */
+  commands?: Fact<CommandSettingsKnowledge>;
   /** One fact per deprecation, each with its own source; absent when none is known. */
   deprecations?: readonly Fact<Deprecation>[];
 }

@@ -1,11 +1,11 @@
 import type { AgentId, Scope } from '../knowledge/types.ts';
 
-export type ComponentKind = 'skill' | 'mcp-server' | 'hook' | 'auto-run' | 'context-file' | 'permission' | 'subagent' | 'command';
+export type ComponentKind = 'skill' | 'mcp-server' | 'hook' | 'auto-run' | 'context-file' | 'permission' | 'subagent' | 'command' | 'command-setting';
 
 export type SkillFileType = 'text' | 'executable' | 'media' | 'binary';
 
 export interface SkillFile {
-  /** Relative to the skill folder, with / separators. */
+  /** Relative to the skill folder, or to the project for a script a command runs (filesRoot project); / separators. */
   path: string;
   bytes: number;
   /** What the first bytes show; absent when the file could not be read. Kept out of the output, like raw. */
@@ -31,8 +31,10 @@ export interface Component {
   name: string;
   /** The text of the file or the JSON of the entry. May hold secrets, so it must not reach the output as it is. */
   raw: string;
-  /** Skills only: every file of the folder, sorted. */
+  /** A skill's files, sorted; or the scripts of the project that a hook, a task or a command setting runs. */
   files?: readonly SkillFile[];
+  /** project: the paths of files are relative to the project, not to the component's folder. */
+  filesRoot?: 'project';
 }
 
 export type ProblemCode = 'outside-project' | 'too-large' | 'too-deep' | 'too-many-entries' | 'unreadable' | 'unparsable';

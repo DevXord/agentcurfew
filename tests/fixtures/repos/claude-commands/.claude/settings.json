@@ -1,0 +1,35 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": ".claude/statusline.sh",
+    "padding": 1
+  },
+  "apiKeyHelper": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/key.py",
+  "fileSuggestion": {
+    "type": "command",
+    "command": "~/.claude/file-suggestion.sh"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check.py --quiet"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c './scripts/missing.sh && ../outside.sh && /usr/local/bin/tool && $HOME/x.sh'"
+          }
+        ]
+      }
+    ]
+  }
+}

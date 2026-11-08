@@ -15,7 +15,7 @@ No output ever holds the content of a scanned file or a secret in full. Text tha
 ## scan --json (version 3)
 
 - `failOn`: the threshold in effect, from `--fail-on`, the policy or the default `high`.
-- `components`: what was scanned: `kind`, `agents`, `scope` (`project`, `user`, `managed`), `file` (relative to the project, or starting with `~/`), `name`, `bytes`, and for skills `files` (`path`, `bytes`).
+- `components`: what was scanned: `kind` (`skill`, `mcp-server`, `hook`, `auto-run`, `context-file`, `permission`, `subagent`, `command`, `command-setting`), `agents`, `scope` (`project`, `user`, `managed`), `file` (relative to the project, or starting with `~/`), `name`, `bytes`, and `files` (`path`, `bytes`): for a skill its files, relative to its folder; for a hook, a task or a command setting the scripts of the project it runs, with `filesRoot` `project` because those paths are relative to the project.
 - `findings`: `rule`, `level` (`critical`, `high`, `medium`, `low`, `info`), `kind`, `file`, `name`, `message`, and when known `line` and `column` (1-based, columns in code points), `tag` (a kind of hit within a rule, such as `network`) and `policy` (the setting of `agentcurfew.policy.json` that set the level).
 - `suppressed`: findings accepted by an exception of the policy: `finding`, `reason`, `until`.
 - `problems`: places the scanner could not fully read: `code` and `file`.

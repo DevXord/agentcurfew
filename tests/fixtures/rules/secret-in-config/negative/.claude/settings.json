@@ -1,4 +1,5 @@
 {
+  "apiKeyHelper": "op read op://vault/anthropic/key",
   "hooks": {
     "Stop": [
       {

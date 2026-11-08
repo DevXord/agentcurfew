@@ -2,12 +2,12 @@ import { lstatSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseConfig } from '../inventory/parse.ts';
 import type { ComponentKind } from '../inventory/types.ts';
-import type { LockedComponent, LockedServer, LockedSkill, Lockfile } from './types.ts';
+import type { LockedComponent, LockedServer, LockedSkill, LockedSkillFile, Lockfile } from './types.ts';
 import { LOCKFILE, LOCKFILE_VERSION } from './types.ts';
 
 export type LockRead = { status: 'missing' } | { status: 'invalid'; reason: string } | { status: 'ok'; lock: Lockfile; text: string };
 
-const KINDS: ReadonlySet<string> = new Set<ComponentKind>(['skill', 'mcp-server', 'hook', 'auto-run', 'context-file', 'permission', 'subagent', 'command']);
+const KINDS: ReadonlySet<string> = new Set<ComponentKind>(['skill', 'mcp-server', 'hook', 'auto-run', 'context-file', 'permission', 'subagent', 'command', 'command-setting']);
 const HASH = /^[0-9a-f]{64}$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -31,13 +31,20 @@ function server(value: unknown): LockedServer | undefined {
   return { command, args, urls, env, headers, package: pkg };
 }
 
-function skill(value: unknown): LockedSkill | undefined {
-  if (!isRecord(value) || !Array.isArray(value.files) || !strings(value.executables) || !strings(value.executableBits)) return undefined;
+function fileList(value: unknown): LockedSkillFile[] | undefined {
+  if (!Array.isArray(value)) return undefined;
   const files = [];
-  for (const file of value.files) {
+  for (const file of value) {
     if (!isRecord(file) || typeof file.path !== 'string' || typeof file.hash !== 'string') return undefined;
     files.push({ path: file.path, hash: file.hash });
   }
+  return files;
+}
+
+function skill(value: unknown): LockedSkill | undefined {
+  if (!isRecord(value) || !strings(value.executables) || !strings(value.executableBits)) return undefined;
+  const files = fileList(value.files);
+  if (files === undefined) return undefined;
   return { files, executables: value.executables, executableBits: value.executableBits };
 }
 
@@ -55,6 +62,11 @@ function component(value: unknown): LockedComponent | undefined {
     const parsed = skill(value.skill);
     if (parsed === undefined) return undefined;
     base.skill = parsed;
+  }
+  if (value.scripts !== undefined) {
+    const parsed = fileList(value.scripts);
+    if (parsed === undefined) return undefined;
+    base.scripts = parsed;
   }
   return base;
 }

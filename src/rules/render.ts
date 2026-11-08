@@ -63,6 +63,7 @@ export function renderRules(): string {
     '- instructions that manipulate the model in plain language, with no hidden characters, links or file names to match;',
     '- harmful behaviour inside a program or package that a skill or MCP server starts, which needs the package checked (depcurfew) or the program reviewed;',
     '- what a remote MCP server or a fetched page returns at run time, since nothing is fetched;',
+    '- scripts a hook or a command setting runs from outside the project, from a home path, through a variable, after cd, through another program (make, npm run) or from inside another script; only a script the command names directly, or gives to an interpreter, is read, and only when it is committed (not under node_modules and not ignored by the root .gitignore);',
     '- agents, files and settings that are not in the knowledge base yet ([knowledge.md](knowledge.md)).',
     '',
     'A clean scan therefore means that none of these patterns was found, not that the configuration is safe.',

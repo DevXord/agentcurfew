@@ -97,7 +97,10 @@ export function buildLock(inventory: Inventory, knowledge: readonly AgentKnowled
       continue;
     }
     const server = component.kind === 'mcp-server' ? lockServer(component, knowledge) : undefined;
-    components.push({ ...base, hash: componentHash(component), ...(server === undefined ? {} : { server }) });
+    // The scripts a command runs, each with its own checksum, like the files of a skill; the entry keeps its own hash,
+    // so the lock of a hook without a script is the same as before scripts were read.
+    const scripts = component.files?.map((file) => ({ path: file.path, hash: skillFileHash(file) ?? 'unreadable' })).sort((a, b) => compare(a.path, b.path));
+    components.push({ ...base, hash: componentHash(component), ...(server === undefined ? {} : { server }), ...(scripts === undefined ? {} : { scripts }) });
   }
   return { lockfileVersion: LOCKFILE_VERSION, algorithm: 'sha256', components };
 }
