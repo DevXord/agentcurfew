@@ -511,6 +511,8 @@ export function buildSite(outDir: string): string[] {
       // The logo and the badges belong to the README on GitHub and npm: the hero shows the logo, and the site loads nothing
       // from other hosts.
       text = text.replace(/^<img [^>]*>\n+/, '').replace(/^# .*\n+/m, '').replace(/^\[!\[.*\n/gm, '').replace(/^> .*\n+/m, '');
+      // The README links to the site; on the site itself that link would point to the page it is on.
+      text = text.replace(/ Documentation: \[agentcurfew\.github\.io\]\(https:\/\/agentcurfew\.github\.io\/\)\./, '');
       top = hero(markdown(summary, page.source).html.replace(/^<p>|<\/p>$/g, ''));
     }
     const rendered = markdown(text, page.source);

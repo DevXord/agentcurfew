@@ -62,6 +62,11 @@ describe('documentation site', () => {
     expect(readdirSync(dir)).toContain('social.png');
   });
 
+  it('does not link the start page to itself', () => {
+    expect(pages.get('index.html')).toContain('A sibling of <a href="https://depcurfew.github.io/">depcurfew</a>');
+    expect(pages.get('index.html')).not.toContain('Documentation: <a href="https://agentcurfew.github.io/">');
+  });
+
   it('escapes text from the sources', () => {
     const { html } = markdown('A `<script>` and <b>bold</b> & [link](docs/rules.md#drift).', 'README.md');
     expect(html).toBe('<p>A <code>&lt;script&gt;</code> and &lt;b&gt;bold&lt;/b&gt; &amp; <a href="rules.html#drift">link</a>.</p>');
