@@ -4,7 +4,7 @@ All notable changes to agentcurfew are written here for its users. The developme
 
 ## Unreleased
 
-Nothing yet.
+- Node.js 20 or later (`engines` `>=20.0.0`), instead of 22.23: nothing in agentcurfew needs a newer Node, and CI runs the packed CLI on Node 20.0.0, 20, 22, 24 and 26.
 
 ## 1.0.0
 

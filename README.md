@@ -4,7 +4,7 @@
 
 [![ci](https://github.com/DevXord/agentcurfew/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DevXord/agentcurfew/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/agentcurfew?color=6d28d9&label=npm)](https://www.npmjs.com/package/agentcurfew)
-[![node](https://img.shields.io/badge/node-%E2%89%A522.23-6d28d9)](https://nodejs.org/)
+[![node](https://img.shields.io/badge/node-%E2%89%A520-6d28d9)](https://nodejs.org/)
 [![license](https://img.shields.io/badge/license-MIT-6d28d9)](LICENSE)
 [![docs](https://img.shields.io/badge/docs-agentcurfew.github.io-6d28d9)](https://agentcurfew.github.io/)
 
@@ -40,7 +40,7 @@ npm install --save-dev agentcurfew
 npx agentcurfew@1 scan
 ```
 
-It needs Node.js 22.23 or later. The command is `agentcurfew`.
+It needs Node.js 20 or later. The command is `agentcurfew`.
 
 ## Use
 
