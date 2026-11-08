@@ -248,6 +248,8 @@ Ręcznie po Pana stronie: konfiguracja trusted publishing na npmjs.com, 2FA, zat
 
 ### Faza 10 (po zdobyciu użytkowników): płatna usługa dla organizacji
 
+> **Zmienione 2026-11-08 (D-040, D-041):** najpierw płatny pilot audytu z 5–10 firmami bez budowania usługi, potem jeden produkt self-hosted dla obu narzędzi; usługa hostowana dopiero na wyraźne żądanie płacących klientów. Granica MIT/PRO jest w D-040. Opis poniżej zostaje jako pierwotny pomysł.
+
 Kod w **osobnym, prywatnym repozytorium**, najlepiej wspólnym z płatną warstwą depcurfew. Darmowe CLI działa w pełni bez usługi.
 
 > Zbuduj usługę, która dla organizacji: zbiera wyniki `acf scan --json` z repozytoriów (GitHub App) i z komputerów programistów (agent instalowany przez dział IT, wysyłający wyłącznie inwentaryzację i sumy kontrolne, nigdy treść plików), pokazuje jedną inwentaryzację agentów, skilli i serwerów MCP w firmie, przechowuje centralną politykę i rejestr zatwierdzonych skilli z podpisami, wysyła alerty przy dryfie i generuje raporty audytowe dla SOC 2 i ISO 27001.
