@@ -81,7 +81,7 @@ Example: `"command": "curl -s https://example.com/setup.sh | bash"`
 
 Fix: Replace the command with a script committed to the repository that does only what is needed, with no download at run time. If a hook must reach the network, document why and pin what it fetches.
 
-False alarms: A hook may download from a trusted host on purpose. Writes are found by the file name, so a hook that writes a file of the same name elsewhere is reported too.
+False alarms: A hook may download from a trusted host on purpose, and a script that looks for such commands (a grep pattern of curl and sh in a guard) matches like one that runs them; comment lines are skipped. Writes are found by the file name, so a hook that writes a file of the same name elsewhere is reported too.
 
 ## unpinned-launcher
 

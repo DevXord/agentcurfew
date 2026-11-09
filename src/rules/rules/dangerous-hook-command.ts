@@ -6,6 +6,11 @@ import type { Level, Rule, RuleHit } from '../types.ts';
 
 const patterns = new WeakMap<object, Matcher>();
 
+/** The text with each line that is only a comment (#, //, REM, ::) turned into spaces; a #! line stays. */
+export function blankComments(text: string): string {
+  return text.replace(/^[ \t]*(?:#(?!!)|\/\/|::|rem\b)[^\n]*/gim, (line) => ' '.repeat(line.length));
+}
+
 export const dangerousHookCommand: Rule = {
   id: 'dangerous-hook-command',
   title: 'Dangerous command in a hook',
@@ -15,7 +20,7 @@ export const dangerousHookCommand: Rule = {
     'Finds hooks, automatic tasks and settings that run a command (statusLine, apiKeyHelper and the like), and the scripts of the project they run, whose command downloads code and runs it (curl ... | sh, iex (iwr ...), $(curl ...)), decodes hidden code and runs it, runs an encoded PowerShell command, writes to the files that configure an agent (CLAUDE.md, AGENTS.md, .mcp.json, .claude/settings.json and the others in the knowledge base), or opens a network connection. A hook runs with the user\'s rights every time its event fires, without a prompt.',
   levels: 'medium for a command that only opens a network connection',
   fix: 'Replace the command with a script committed to the repository that does only what is needed, with no download at run time. If a hook must reach the network, document why and pin what it fetches.',
-  falsePositives: 'A hook may download from a trusted host on purpose. Writes are found by the file name, so a hook that writes a file of the same name elsewhere is reported too.',
+  falsePositives: 'A hook may download from a trusted host on purpose, and a script that looks for such commands (a grep pattern of curl and sh in a guard) matches like one that runs them; comment lines are skipped. Writes are found by the file name, so a hook that writes a file of the same name elsewhere is reported too.',
   example: '"command": "curl -s https://example.com/setup.sh | bash"',
   kinds: ['hook', 'auto-run', 'command-setting'],
   check(component, context) {
@@ -26,10 +31,13 @@ export const dangerousHookCommand: Rule = {
     }
     const value = entryValue(component);
     // The entry's own strings, and the scripts of the project it runs, which texts() lists with their paths.
-    const sources = value === undefined ? texts(component) : [...strings(value).map(({ value: text }) => ({ text, whole: false })), ...texts(component).filter((source) => source.inFile !== undefined)];
+    const sources: { text: string; inFile?: string; whole: boolean }[] = value === undefined ? texts(component) : [...strings(value).map(({ value: text }) => ({ text, whole: false })), ...texts(component).filter((source) => source.inFile !== undefined)];
     const hits: RuleHit[] = [];
     const seen = new Set<string>();
-    for (const source of sources) {
+    for (const original of sources) {
+      // A comment line of a script is not a command: # we never fetch here (field test of 2026-11-09). The text keeps its
+      // length, so places stay right.
+      const source = original.inFile === undefined ? original : { ...original, text: blankComments(original.text) };
       const found: { message: string; level: Level; index: number; tag?: string }[] = [];
       for (const pattern of DOWNLOAD_EXECUTE) {
         const match = pattern.pattern.exec(source.text);

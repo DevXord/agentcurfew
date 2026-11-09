@@ -23,6 +23,13 @@ All notable changes to agentcurfew are written here for its users.
   - Shell writes to an agent file spelled with a glob or braces (`cp x CLAUD?.md`, `tee .claude/settings.jso{n,x}`), or named by another command (`printf x > $(echo CLAUDE.md)`, `xargs`), passed the hook without a question.
   - A repository padded with tens of thousands of skill folders made the hook's two scans of a write take longer than the 30 s timeout of `init --hook`, after which Claude Code lets the call through. The hook's scans now have a budget of 15 s, and it asks when the project is too large to check in time.
   - An own `__proto__` key in an MCP server's `env` or `headers` became the prototype of the merged entry and hid the variables below it from `secret-in-config`.
+- Fewer false alarms and misses, found by a field test on 34 public repositories:
+  - `broad-shell-permission` reports `Bash(npx*)` and the like, a runner with a wildcard joined to it, and no longer reports a runner whose entry fixes the program it runs (`Bash(pnpx vitest:*)`, `Bash(xargs kill:*)`).
+  - `dangerous-hook-command` skips comment lines of scripts, and an assignment of a download's output (`V=$(curl …)`) is reported as a network connection, not as running the download.
+  - `remote-instructions` leaves requests to this machine alone (`localhost`, `127.0.0.1`, `::1`).
+  - `obfuscated-content` no longer takes a long paragraph of prose for a minified line.
+  - `unpinned-mcp-server` leaves a server alone that npm runs only from what is installed (`npm exec --no`, `npx --no-install`), as `unpinned-launcher` does.
+  - Scripts that hooks run through `${CLAUDE_PROJECT_DIR:-…}/…`, and Gemini CLI hooks through `$GEMINI_PROJECT_DIR`, are read and locked.
 - README: in a project with a release-age delay, `npx agentcurfew@<version>` fails until the version is older than the delay; install it as a dev dependency or use the GitHub Action.
 - `verify` skips components of a kind it does not know, with a note and `unknownKinds` in its JSON, instead of refusing the whole lock. agentcurfew 1.1 refuses a lock that holds `setting` components, so upgrade every copy that verifies the same lock together.
 - After upgrading, run `agentcurfew lock` once: the lock gains the new components. No `schemaVersion` or `lockfileVersion` changed, and no dependency was added.

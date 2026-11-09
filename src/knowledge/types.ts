@@ -293,6 +293,8 @@ export interface AgentKnowledge {
   env?: Fact<EnvKnowledge>;
   /** Plugins and marketplaces in settings files; absent when not researched for the agent. */
   plugins?: Fact<PluginsKnowledge>;
+  /** Variables that hold the project root in a hook's command, besides toolHook's; absent when not researched. */
+  hookProjectDir?: Fact<readonly string[]>;
   /** A setting that turns hooks off; absent when the agent has none or it is not researched. */
   hooksOff?: Fact<HooksOffKnowledge>;
   /** A setting that adds or renames context files; absent when the agent has none or it is not researched. */

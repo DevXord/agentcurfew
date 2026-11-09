@@ -25,11 +25,25 @@ function program(word: string): string {
  * The word as a path relative to the project, or undefined when it cannot name a file of the project: an absolute or
  * home path, a drive letter, an address, a variable other than the project's own, a pattern, or a way out through ..
  */
-function projectPath(word: string, variables: readonly string[]): string | undefined {
-  let path = word;
+/** The word without a leading project variable: $VAR/, ${VAR}/, and ${VAR:-default}/ or ${VAR-default}/. */
+function withoutProjectVariable(word: string, variables: readonly string[]): string {
   for (const variable of variables) {
-    for (const prefix of [`$${variable}/`, `\${${variable}}/`]) if (path.startsWith(prefix)) path = path.slice(prefix.length);
+    for (const prefix of [`$${variable}/`, `\${${variable}}/`]) if (word.startsWith(prefix)) return word.slice(prefix.length);
+    if (word.startsWith(`\${${variable}:-`) || word.startsWith(`\${${variable}-`)) {
+      // The default may hold $(…) and braces of its own; it ends at the brace that closes the expansion.
+      let depth = 0;
+      for (let index = 2; index < word.length && index < 1024; index++) {
+        const char = word[index];
+        if (char === '{') depth++;
+        else if (char === '}' && depth-- === 0) return word[index + 1] === '/' ? word.slice(index + 2) : word;
+      }
+    }
   }
+  return word;
+}
+
+function projectPath(word: string, variables: readonly string[]): string | undefined {
+  const path = withoutProjectVariable(word, variables);
   if (/[$`*?[\]{}]/.test(path) || /^[/\\~]/.test(path) || /^[A-Za-z]:/.test(path) || path.includes('://')) return undefined;
   // No file system holds a longer path or name, and the .gitignore match must not be padded (review of 2026-11-09).
   if (path.length > MAX_PATH_LENGTH) return undefined;
@@ -78,7 +92,7 @@ export function scriptPaths(line: string, projectVariables: readonly string[]): 
       const script = scriptWord(command);
       if (script === undefined) continue;
       // A program named without a folder is looked up on PATH.
-      const stripped = projectVariables.reduce((word, variable) => word.replace(`$${variable}/`, '').replace(`\${${variable}}/`, ''), script.word);
+      const stripped = withoutProjectVariable(script.word, projectVariables);
       if (script.direct && !/[\\/]/.test(stripped) && stripped === script.word) continue;
       const path = projectPath(script.word, projectVariables);
       if (path !== undefined) found.add(path);

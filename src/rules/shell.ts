@@ -94,7 +94,8 @@ function encodedPowershell(text: string): Found | null {
 
 export const DOWNLOAD_EXECUTE: readonly CommandPattern[] = [
   { id: 'download-execute', what: 'downloads code and pipes it to an interpreter', pattern: matcher((text) => pipedInto(text, (stage) => first(FETCH_WORD, stage), INTO_SHELL)) },
-  { id: 'download-execute', what: 'runs the output of a download', pattern: new RegExp(String.raw`(?:\$\(|\x60|<\()\s*${FETCH}\b`, 'i') },
+  // V=$(curl …) only keeps the output (field test of 2026-11-09); the network pattern still reports the download.
+  { id: 'download-execute', what: 'runs the output of a download', pattern: new RegExp(String.raw`(?:(?<![\w]=["']?)(?:\$\(|\x60)|<\()\s*${FETCH}\b`, 'i') },
   { id: 'download-execute', what: 'runs downloaded code in PowerShell', pattern: new RegExp(String.raw`\b(?:iex|Invoke-Expression)\b[\s(]*(?:\(?\s*)?${FETCH}`, 'i') },
   { id: 'decode-execute', what: 'decodes hidden code and runs it', pattern: matcher((text) => pipedInto(text, decoder, INTO_DECODED)) },
   { id: 'encoded-powershell', what: 'runs an encoded PowerShell command', pattern: matcher(encodedPowershell) },

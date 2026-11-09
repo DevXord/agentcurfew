@@ -18,7 +18,8 @@ export const unpinnedMcpServer: Rule = {
     const entry = mcpEntry(component, context.knowledge);
     if (entry === undefined) return [];
     const started = launch(commandLine(entry));
-    if (started === undefined) return [];
+    // npm exec --no and npx --no-install run only what is installed (field test of 2026-11-09).
+    if (started === undefined || started.noDownload === true) return [];
     if (started.spec === undefined) return [{ message: `starts with ${started.family === 'docker' ? 'a container' : 'a package'} launcher, but the package could not be found in its arguments` , level: 'low' }];
     const what = started.family === 'docker' ? 'the image' : 'the package';
     const hits: RuleHit[] = [];

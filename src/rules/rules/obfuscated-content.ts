@@ -3,6 +3,8 @@ import type { Rule, RuleHit } from '../types.ts';
 
 const BASE64_RUN = /(?<![A-Za-z0-9+/=_-])[A-Za-z0-9+/]{1024,}={0,2}(?![A-Za-z0-9+/=])/;
 const LONG_LINE = 5000;
+// Spaces per character of a line of prose, at the least (field test of 2026-11-09: a 5082-character paragraph).
+const PROSE_SPACES = 0.14;
 // Data files where long lines are normal.
 const DATA_FILE = /\.(?:json|lock|svg|csv|tsv|map|ipynb|txt)$/i;
 
@@ -32,7 +34,8 @@ export const obfuscatedContent: Rule = {
       if (source.inFile !== undefined && DATA_FILE.test(source.inFile)) continue;
       let start = 0;
       for (const line of source.text.split('\n')) {
-        if (line.length > LONG_LINE) {
+        // A long paragraph of prose has a space every few words; minified code and packed data have few.
+        if (line.length > LONG_LINE && (line.match(/ /g)?.length ?? 0) < line.length * PROSE_SPACES) {
           hits.push({ message: `a line of ${line.length} characters, which looks minified or generated`, ...at(source, start) });
           break;
         }

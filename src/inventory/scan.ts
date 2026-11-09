@@ -167,7 +167,7 @@ class Scan {
   }
 
   // The variables that hold the project root in a command, from the knowledge base (CLAUDE_PROJECT_DIR).
-  readonly #projectVariables = knowledgeBase.flatMap((agent) => (agent.toolHook === undefined ? [] : factValues(agent.toolHook).map((hook) => hook.projectDirVariable)));
+  readonly #projectVariables = [...new Set(knowledgeBase.flatMap((agent) => [...(agent.toolHook === undefined ? [] : factValues(agent.toolHook).map((hook) => hook.projectDirVariable)), ...(agent.hookProjectDir === undefined ? [] : factValues(agent.hookProjectDir).flat())]))];
   readonly #scriptCache = new Map<string, readonly SkillFile[] | undefined>();
   #ignore: ReturnType<typeof parseGitignore> | undefined;
 

@@ -8,7 +8,8 @@ const PROSE = [
   new RegExp(String.raw`\b(?:follow|obey|execute|run|apply|carry out)\b[^.\n]{0,60}\b(?:instructions?|steps|commands?|rules|script|prompt)\b[^.\n]{0,60}\b(?:from|at|in)\b[^.\n]{0,20}${URL}`, 'i'),
 ];
 // Code: a request whose result goes to eval, exec or a shell.
-const FETCH_CALL = /\b(?:fetch|axios(?:\.get)?|got|requests\.get|urllib\.request\.urlopen|urlopen|httpx\.get|http\.get|https\.get|curl|wget|Invoke-WebRequest|Invoke-RestMethod|iwr|irm)\b\s*\(?\s*["'`]?https?:\/\//i;
+// Requests to this machine (localhost, 127.0.0.1, ::1) are left out: a local probe fetches nothing from elsewhere.
+const FETCH_CALL = /\b(?:fetch|axios(?:\.get)?|got|requests\.get|urllib\.request\.urlopen|urlopen|httpx\.get|http\.get|https\.get|curl|wget|Invoke-WebRequest|Invoke-RestMethod|iwr|irm)\b\s*\(?\s*["'`]?https?:\/\/(?!(?:localhost|127\.0\.0\.1|\[::1\])(?:[:/"'`]|$))/i;
 const EXECUTE = /\b(?:eval|exec|execSync|spawnSync|new Function|Function\(|compile|subprocess\.(?:run|call|Popen)|os\.system|iex|Invoke-Expression|child_process|vm\.run\w*)\b|\|\s*(?:ba)?sh\b/i;
 
 export const remoteInstructions: Rule = {

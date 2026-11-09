@@ -138,6 +138,7 @@ Generated from `src/knowledge/` by `npm run docs:knowledge`; do not edit by hand
 | Claude Code | setting that turns hooks off | `disableAllHooks` = `true` | verified | [source](https://code.claude.com/docs/en/settings-reference#disableallhooks) | 2026-11-09 |
 | Claude Code | add an MCP server | `claude mcp add`, `claude mcp add-json` | verified | [source](https://code.claude.com/docs/en/mcp) | 2026-11-06 |
 | OpenAI Codex CLI | settings that run a command | `notify` (when needed, ignored in a project file) | verified | [source](https://learn.chatgpt.com/docs/config-file/config-advanced.md#notifications) | 2026-11-08 |
+| Gemini CLI | project folder in hook commands | `GEMINI_PROJECT_DIR`, `CLAUDE_PROJECT_DIR` | verified | [source](https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/hooks/index.md) | 2026-11-09 |
 | Gemini CLI | context file names | `context.fileName` replaces the default; read at `~/.gemini/<name>`, `<name>`, `**/<name>` | disputed | [source](https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/cli/gemini-md.md) | 2026-11-09 |
 | Gemini CLI | context file names | `context.fileName` adds to the default; read at `~/.gemini/<name>`, `<name>`, `**/<name>` | disputed | [source](https://raw.githubusercontent.com/google-gemini/gemini-cli/main/packages/core/src/tools/memoryTool.ts) | 2026-11-09 |
 | skills installer | add a skill | `npx skills add <source>` | verified | [source](https://raw.githubusercontent.com/vercel-labs/skills/main/docs/commands.md) | 2026-11-06 |

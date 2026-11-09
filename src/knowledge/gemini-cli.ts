@@ -128,6 +128,11 @@ export const geminiCli: AgentKnowledge = {
     SUBAGENTS,
     `Commands come from ${COMMANDS}: *.toml files, a project command wins over a user one, and a prompt can run shell commands with !{...} after a confirmation. registry.ts skips project agents in an untrusted folder and registers them only after acknowledgement. experimental.enableAgents turns subagents off.`,
   ),
+  hookProjectDir: phase13.verified(
+    ['GEMINI_PROJECT_DIR', 'CLAUDE_PROJECT_DIR'],
+    `${RAW}/docs/hooks/index.md`,
+    'Section on the environment of hooks: "GEMINI_PROJECT_DIR: The absolute path to the project root" and "CLAUDE_PROJECT_DIR: (Alias) Provided for compatibility." Hooks run "with a sanitized environment". Read on 2026-11-09.',
+  ),
   contextNames: phase13.disputed<ContextNamesKnowledge>(
     'The documentation says context.fileName lets one "specify a different name or a list of names", which reads as a replacement of GEMINI.md; the code adds the names to the current ones: config.ts calls setGeminiMdFilename(settings.context.fileName), which "Adds one or more filenames to the current context filenames" and keeps the default. agentcurfew reads GEMINI.md and the configured names, so that neither reading hides a file. Each name is trimmed, normalized and may hold subfolders (memoryTool.ts: "Sanitize to prevent path traversal while allowing subdirectories"); memoryDiscovery.ts looks for it in ~/.gemini, in the working directory and its parents up to the project root, and in subfolders. Workspace settings apply only in a trusted folder.',
     phase13.evidence(
