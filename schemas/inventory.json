@@ -58,7 +58,8 @@
               "permission",
               "subagent",
               "command",
-              "command-setting"
+              "command-setting",
+              "setting"
             ]
           },
           "agents": {

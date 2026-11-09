@@ -1,0 +1,29 @@
+{
+  "enabledPlugins": {
+    "formatter@acme-tools": true,
+    "experimental@acme-tools": false
+  },
+  "extraKnownMarketplaces": {
+    "acme-tools": {
+      "source": { "source": "github", "repo": "acme-corp/claude-plugins" }
+    },
+    "nightly": {
+      "source": { "source": "github", "repo": "acme-corp/nightly-plugins" },
+      "autoUpdate": true
+    },
+    "plain": {
+      "source": { "source": "url", "url": "http://plugins.example.com/marketplace.json" }
+    },
+    "local": {
+      "source": { "source": "directory", "path": "./plugins" }
+    },
+    "inline": {
+      "source": { "source": "settings", "name": "inline", "plugins": [{ "name": "lint", "source": { "source": "github", "repo": "acme-corp/lint" } }] }
+    }
+  },
+  "additionalMarketplaces": {
+    "mirror": {
+      "source": { "source": "git", "url": "https://git.example.com/plugins.git" }
+    }
+  }
+}

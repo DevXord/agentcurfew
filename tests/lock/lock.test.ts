@@ -290,6 +290,31 @@ describe('scripts of hooks and command settings in the lock', () => {
   });
 });
 
+describe('settings in the lock', () => {
+  beforeEach(() => copy('claude-settings-extra'));
+
+  it('locks env variables, plugins and marketplaces as settings, with secrets redacted from their hashes', async () => {
+    await cli('lock', root);
+    const kinds = (JSON.parse(lockText()) as { components: { kind: string; name: string }[] }).components.filter((component) => component.kind === 'setting').map((component) => component.name);
+    expect(kinds).toContain('env.ANTHROPIC_BASE_URL');
+    expect(kinds).toContain('extraKnownMarketplaces.acme-tools');
+    const settings = JSON.parse(readFileSync(join(root, '.claude/settings.json'), 'utf8')) as { env: Record<string, string> };
+    settings.env.API_TOKEN = SECRET;
+    write('.claude/settings.json', JSON.stringify(settings, null, 2));
+    await cli('lock', root);
+    const before = lockText();
+    expect(before).not.toContain(SECRET);
+    settings.env.API_TOKEN = `${SECRET}-other`;
+    write('.claude/settings.json', JSON.stringify(settings, null, 2));
+    expect((await cli('verify', root)).code).toBe(EXIT_OK);
+    settings.env.ANTHROPIC_BASE_URL = 'https://elsewhere.example.com';
+    write('.claude/settings.json', JSON.stringify(settings, null, 2));
+    const { code, stdout } = await cli('verify', root);
+    expect(code).toBe(EXIT_FAILURE);
+    expect(stdout).toContain('changed: setting .claude/settings.json (env.ANTHROPIC_BASE_URL)');
+  });
+});
+
 describe('component ids in the lock', () => {
   beforeEach(async () => {
     copy('claude-basic');
@@ -330,6 +355,21 @@ describe('component ids in the lock', () => {
     const { stdout } = await cli('verify', root, '--json');
     const output = JSON.parse(stdout) as { lockDigest: string };
     expect(output.lockDigest).toBe(createHash('sha256').update(lockText()).digest('hex'));
+  });
+
+  it('skips components of a kind it does not know, with a note, and compares the rest', async () => {
+    const lock = JSON.parse(lockText()) as { components: Record<string, unknown>[] };
+    lock.components.push({ kind: 'from-the-future', file: 'x.json', name: 'x', agents: [], hash: 'a'.repeat(64), extra: [1] });
+    expect(parseLock(lock)).toMatchObject({ lock: { unknownKinds: 1 } });
+    write('agentcurfew.lock', `${JSON.stringify(lock, null, 2)}\n`);
+    const { code, stdout } = await cli('verify', root);
+    expect(code).toBe(EXIT_OK);
+    expect(stdout).toContain('1 component of a kind this version of agentcurfew does not know was not compared');
+    const json = JSON.parse((await cli('verify', root, '--json')).stdout) as { unknownKinds?: number; ok: boolean };
+    expect(json).toMatchObject({ ok: true, unknownKinds: 1 });
+    // Drift of the known kinds is still seen.
+    prependHook();
+    expect((await cli('verify', root)).code).toBe(EXIT_FAILURE);
   });
 
   it('ignores fields it does not know, so that an older agentcurfew reads a newer lock', () => {

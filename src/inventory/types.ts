@@ -1,6 +1,9 @@
 import type { AgentId, Scope } from '../knowledge/types.ts';
 
-export type ComponentKind = 'skill' | 'mcp-server' | 'hook' | 'auto-run' | 'context-file' | 'permission' | 'subagent' | 'command' | 'command-setting';
+export type ComponentKind = 'skill' | 'mcp-server' | 'hook' | 'auto-run' | 'context-file' | 'permission' | 'subagent' | 'command' | 'command-setting' | 'setting';
+
+/** Every kind, in the order of the type; a lock of a later version may hold others, which are skipped (D-045). */
+export const COMPONENT_KINDS: readonly ComponentKind[] = ['skill', 'mcp-server', 'hook', 'auto-run', 'context-file', 'permission', 'subagent', 'command', 'command-setting', 'setting'];
 
 export type SkillFileType = 'text' | 'executable' | 'media' | 'binary';
 

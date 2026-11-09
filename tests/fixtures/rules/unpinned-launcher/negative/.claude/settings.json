@@ -1,0 +1,30 @@
+{
+  "statusLine": { "type": "command", "command": "bunx ccstatusline@2.0.12" },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "npx prettier@3.3.3 --write . && bash .claude/hooks/fmt.sh" },
+          { "type": "command", "command": "npx --no-install prettier --check ." },
+          { "type": "command", "command": "./node_modules/.bin/eslint ." }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [{ "type": "command", "command": "uvx ruff==0.6.9 check" }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "npm exec --no -- eslint ." }]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [{ "type": "command", "command": "docker run --rm ghcr.io/acme/notify@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" }]
+      }
+    ]
+  }
+}

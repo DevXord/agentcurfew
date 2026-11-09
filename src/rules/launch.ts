@@ -1,6 +1,7 @@
 // How an MCP server is started, read from its command line only: nothing is run or resolved.
 
 import { unwrapCommand } from './command-words.ts';
+import { quote } from './mask.ts';
 
 function program(word: string): string {
   return (word.split(/[\\/]/).at(-1) ?? '').toLowerCase().replace(/\.(?:cmd|exe|bat|ps1)$/, '');
@@ -103,4 +104,42 @@ export function packageRef(started: Launch): PackageRef | undefined {
   }
   const python = /^([A-Za-z0-9][\w.-]*(?:\[[^\]]*\])?)\s*(?:==|@)\s*(.+)$/.exec(spec);
   return python === null ? { ecosystem: 'pypi', name: spec, version: null } : { ecosystem: 'pypi', name: python[1] as string, version: python[2] as string };
+}
+
+// Whether a package or image is pinned, as unpinned-mcp-server and unpinned-launcher judge it.
+
+const EXACT = /^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+
+export function npmProblem(spec: string): string | undefined {
+  if (/^(?:\.{0,2}\/|[A-Za-z]:[\\/]|file:)/.test(spec)) return undefined;
+  if (/^(?:git\+|git:|github:|gitlab:|bitbucket:|https?:)/.test(spec) || /^[\w.-]+\/[\w.-]+(?:#.*)?$/.test(spec)) {
+    return /#[0-9a-f]{40}$/.test(spec) ? undefined : 'comes from a URL or a git repository without a commit hash';
+  }
+  const at = spec.indexOf('@', spec.startsWith('@') ? 1 : 0);
+  if (at === -1) return 'has no version, so every start may fetch a newer one';
+  const version = spec.slice(at + 1);
+  if (EXACT.test(version)) return undefined;
+  return `asks for "${quote(version, 30)}", which is not an exact version`;
+}
+
+export function pythonProblem(spec: string): string | undefined {
+  if (/^(?:\.{0,2}\/|[A-Za-z]:[\\/]|file:)/.test(spec)) return undefined;
+  if (/^(?:git\+|https?:)/.test(spec)) return /@[0-9a-f]{40}(?:#.*)?$/.test(spec) ? undefined : 'comes from a URL or a git repository without a commit hash';
+  const exact = /^[A-Za-z0-9][\w.-]*(?:\[[^\]]*\])?\s*(?:==|@)\s*v?\d+(?:\.\d+)*(?:[a-z]+\d*)?$/i;
+  if (exact.test(spec) && !/@latest$/i.test(spec)) return undefined;
+  if (/[<>~!=]=?|@latest$/i.test(spec)) return 'asks for a range or for latest, not an exact version';
+  return 'has no version, so every start may fetch a newer one';
+}
+
+export function dockerProblem(image: string): string | undefined {
+  if (/@sha256:[0-9a-f]{64}$/.test(image)) return undefined;
+  const tag = /:([^/:@]+)$/.exec(image)?.[1];
+  if (tag === undefined || tag === 'latest') return 'uses no tag or latest, and no digest';
+  return `uses the tag "${quote(tag, 30)}", which can be moved to another image; only a digest is fixed`;
+}
+
+/** Why what a launcher fetches is not pinned, or undefined when it is pinned or a local path. */
+export function pinProblem(family: Launch['family'], spec: string): string | undefined {
+  if (family === 'docker') return dockerProblem(spec);
+  return family === 'npm' ? npmProblem(spec) : pythonProblem(spec);
 }

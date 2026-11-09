@@ -197,18 +197,27 @@ function namedAgentFile(line: string): string | undefined {
   const files = [...agentFileNames(knowledgeBase).filter((name) => /[./]/.test(name)), 'agentcurfew.policy.json', 'agentcurfew.lock', 'skills-lock.json'].map(escapeRegExp);
   const folders = agentFolders(knowledgeBase).map((folder) => escapeRegExp(folder.replace(/\/$/, '')));
   mentionPattern ??= new RegExp(`(?:^|[^\\w.-])((?:${files.join('|')})(?![\\w-]|\\.\\w)|(?:${folders.join('|')})(?:/|(?![\\w.-])))`, 'i');
-  for (const words of commands(line).flatMap((command) => unwrapCommand(command))) {
-    const checked = readOnly(words)
-      ? words.flatMap((word, index) => {
-          const redirect = REDIRECT.exec(word);
-          if (redirect === null) return [];
-          return [redirect[1] === '' ? (words[index + 1] ?? '') : (redirect[1] ?? '')];
-        })
-      : words;
-    for (const word of checked) {
-      const match = mentionPattern.exec(word);
-      if (match !== null) return match[1];
-    }
+  for (const word of checkedWords(line)) {
+    const match = mentionPattern.exec(word);
+    if (match !== null) return match[1];
   }
   return undefined;
+}
+
+/**
+ * The words of a command line that may name a file it changes: every word of a command not known to only read, and the
+ * targets of redirections, which always write.
+ */
+export function checkedWords(line: string): string[] {
+  return commands(line)
+    .flatMap((command) => unwrapCommand(command))
+    .flatMap((words) =>
+      readOnly(words)
+        ? words.flatMap((word, index) => {
+            const redirect = REDIRECT.exec(word);
+            if (redirect === null) return [];
+            return [redirect[1] === '' ? (words[index + 1] ?? '') : (redirect[1] ?? '')];
+          })
+        : words,
+    );
 }

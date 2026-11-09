@@ -273,3 +273,37 @@ describe('the scanner runs nothing', () => {
     for (const file of files) expect(`${file}: ${FORBIDDEN.test(readFileSync(file, 'utf8'))}`).toBe(`${file}: false`);
   });
 });
+
+describe('settings that name files or hold many entries', () => {
+  it('reads at most 32 context file names, each a plain relative path, in bounded time', () => {
+    const names = [...Array.from({ length: 5000 }, (_, index) => `n${index}.md`), 'x'.repeat(100_000), '**', '../../etc/passwd'];
+    write('.gemini/settings.json', JSON.stringify({ context: { fileName: names } }));
+    write('n1.md', '# one');
+    write('n99.md', '# past the limit');
+    const start = performance.now();
+    const { components, problems } = scanInventory({ root });
+    expect(performance.now() - start).toBeLessThan(3000);
+    expect(components.filter((c) => c.kind === 'context-file').map((c) => c.file)).toEqual(['n1.md']);
+    expect(problems.map((p) => `${p.code} ${p.file}`)).toEqual(['too-many-entries .gemini/settings.json']);
+  });
+
+  it('does not follow a context file name through a link out of the project', (context) => {
+    write('secret.md', '# outside', outside);
+    if (!linkFile(join(outside, 'secret.md'), join(root, 'AI.md'))) context.skip();
+    write('.gemini/settings.json', JSON.stringify({ context: { fileName: 'AI.md' } }));
+    const { components, problems } = scanInventory({ root });
+    expect(components.some((c) => c.file === 'AI.md')).toBe(false);
+    expect(problems.map((p) => p.code)).toContain('outside-project');
+  });
+
+  it('reads long env values and many marketplaces without slowing down', () => {
+    const env = { ANTHROPIC_BASE_URL: `https://${'a'.repeat(1_000_000)}.example.com` };
+    const extraKnownMarketplaces = Object.fromEntries(Array.from({ length: 10_000 }, (_, index) => [`m${index}`, { source: { source: 'url', url: 'https://x.example/m.json', headersHelper: `./h${index}.sh` } }]));
+    write('.claude/settings.json', JSON.stringify({ env, extraKnownMarketplaces }));
+    const start = performance.now();
+    const { components, problems } = scanInventory({ root });
+    expect(performance.now() - start).toBeLessThan(3000);
+    expect(components.filter((c) => c.kind === 'setting')).toHaveLength(257);
+    expect(problems.map((p) => p.code)).toContain('too-many-entries');
+  });
+});

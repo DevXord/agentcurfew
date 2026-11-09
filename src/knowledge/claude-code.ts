@@ -107,6 +107,14 @@ const PERMISSIONS_NOTE =
   'defaultMode acceptEdits "Automatically accepts file edits and common filesystem commands such as mkdir, touch, mv, and cp" in the working directories (permissions page, read on 2026-11-07). defaultMode bypassPermissions and auto do not take effect from .claude/settings.json or .claude/settings.local.json; before v2.1.257 bypassPermissions took effect from any file. skipDangerousModePermissionPrompt is read from user, local or managed settings only. A committed enableAllProjectMcpServers, or enabledMcpjsonServers, which approves the servers it names, is ignored in an untrusted folder: Claude Code "ignores it in the shared project file". permissions.allow and additionalDirectories in .claude/settings.json need workspace trust. A bare Bash, or Bash(*), in permissions.allow matches every Bash command (https://code.claude.com/docs/en/permissions#match-all-uses-of-a-tool).';
 
 const today = verifiedOn('2026-11-08');
+// Facts of phase 13, read on 2026-11-09.
+const phase13 = verifiedOn('2026-11-09');
+
+const ENV_NOTE =
+  'env is documented with Scope "Any file". From user, --settings and managed settings it applies at startup; from project and local settings "after you trust the workspace, or at startup in -p mode, which never shows the trust dialog" (#when-claude-code-applies-env-values), and the table of what runs before a folder is trusted lists the env block as "Used" when only a parent folder is trusted and in claude -p (https://code.claude.com/docs/en/permissions#what-runs-before-you-trust-a-folder). Variables that redirect requests, from the environment variables reference (https://code.claude.com/docs/en/env-vars): ANTHROPIC_BASE_URL "Override the API endpoint to route requests through a proxy or gateway", the Bedrock, Bedrock Mantle, Agent Platform (Vertex), Foundry and Claude Platform on AWS endpoint URLs, HTTP_PROXY and HTTPS_PROXY, and ANTHROPIC_CUSTOM_HEADERS, "Custom headers to add to requests". CLAUDE_CODE_SHELL_PREFIX is a "Command prefix that wraps shell commands Claude Code spawns: Bash tool calls, hook commands, status line commands, and stdio MCP server startup commands". Project and local settings cannot set the OpenTelemetry exporter variables whose names end in _ENDPOINT or _HEADERS (from v2.1.282), BETA_TRACING_ENDPOINT, CLAUDE_CODE_PROCESS_WRAPPER, CLAUDE_CONFIG_DIR and others listed under #variables-claude-code-ignores-in-env.';
+
+const PLUGINS_NOTE =
+  'enabledPlugins maps plugin-name@marketplace-name to a Boolean, Scope "Any file"; project settings take precedence over user settings. A plugin with an external source that only the project\'s .claude/settings.json enables is not fetched onto a machine where it is not installed, unless its marketplace entry has a relative-path source, which loads from the marketplace itself (https://code.claude.com/docs/en/plugins/loading#enabled-in-project-settings-but-not-installed). extraKnownMarketplaces (alias additionalMarketplaces) maps a name to { source, autoUpdate }; entries in a repository\'s .claude/settings.json or .claude/settings.local.json are honored "only after you accept the workspace trust dialog for that folder", and ignored without a message otherwise, also in -p. Source types: github (repo, ref, path, sparsePaths), git (url, ref, path, sparsePaths), url (a marketplace.json address, with headers and headersHelper), file and directory (local paths), and settings (plugins declared inline, which must reference external sources); a marketplace source has no sha (https://code.claude.com/docs/en/plugins/marketplace-reference). autoUpdate true refreshes the marketplace and updates its installed plugins in the background after startup; it defaults to false for third-party marketplaces. headersHelper of a url source is a command run before each fetch of marketplace.json and each plugin download from its origin, only for https:// addresses; from a project settings file only after the trust dialog for that folder (https://code.claude.com/docs/en/plugins/host-marketplace#when-a-marketplace-url-sources-command-runs). Plugin packages themselves (.claude-plugin/plugin.json, plugins under .claude/skills) are not covered by this fact.';
 
 const COMMANDS_NOTE =
   'Each key is documented with Scope "Any file", so a committed .claude/settings.json can set it. statusLine is an object with type "command" and a command string; the status line script "runs once when a session starts, including when you resume one", then on events and every refreshInterval seconds (https://code.claude.com/docs/en/statusline). otelHeadersHelper runs "at startup and periodically after that". apiKeyHelper reruns after its cache lifetime or on 401 and 403; awsAuthRefresh and gcpAuthRefresh run when credentials fail; awsCredentialExport whenever Bedrock credentials are needed; fileSuggestion on @ autocomplete; subagentStatusLine on each refresh of the subagent rows. statusLine, fileSuggestion and subagentStatusLine follow "the same workspace trust rule as hooks in settings files", and are narrowed to managed values by allowManagedHooksOnly or a non-managed disableAllHooks. Helper commands such as apiKeyHelper are "Used" when only a parent folder is trusted and in claude -p, like hooks (https://code.claude.com/docs/en/permissions#what-runs-before-you-trust-a-folder). sshHostCommands, processWrapper and policyHelper are user or managed only, so a repository cannot set them, and are left out.';
@@ -119,7 +127,7 @@ export const claudeCode: AgentKnowledge = {
     `${SETTINGS}#settings-precedence`,
     `Managed settings also arrive from MDM or the claude.ai console, and --settings ranks between managed and local; neither is a file in the repository. Files in managed-settings.d and managed-settings.json merge together (${MANAGED}). Lists such as permissions.allow merge across files instead of overriding, and a few restrictive keys are honored from lower levels.`,
   ),
-  mcp: later.verified(
+  mcp: phase13.verified(
     {
       files: [
         { path: '.mcp.json', scope: 'project', format: 'json' },
@@ -130,10 +138,10 @@ export const claudeCode: AgentKnowledge = {
       ],
       serversKey: 'mcpServers',
       local: { command: 'command', args: 'args', env: 'env' },
-      remote: { url: 'url', headers: 'headers' },
+      remote: { url: 'url', headers: 'headers', headersHelper: 'headersHelper' },
     },
     MCP,
-    'The page shows no formal schema; field names come from its examples. A remote entry also needs type (http, its alias streamable-http, sse or ws), because an entry with no type is read as a stdio server. A remote entry may set headersHelper, a command Claude Code runs when connecting to print headers; agentcurfew does not check that command yet. Managed settings can add remote servers under managedMcpServers (v2.1.259). Local-scope servers sit under projects.<path>.mcpServers in ~/.claude.json. The key inside managed-mcp.json was not checked. Interactive sessions ask before using .mcp.json servers; claude -p, SDK and some cloud sessions load them without asking. Subagent frontmatter can also declare servers (mcpServers).',
+    'The page shows no formal schema; field names come from its examples. A remote entry also needs type (http, its alias streamable-http, sse or ws), because an entry with no type is read as a stdio server. headersHelper of an http, sse or ws server is a command: Claude Code "executes a headersHelper as an arbitrary shell command" when connecting and merges the JSON it prints into the headers (#use-dynamic-headers-for-custom-authentication). For a server in .mcp.json or at local scope it runs only after the trust dialog for that project folder is accepted; trust of a parent folder and claude -p do not count, and the server is then connected with its static headers alone (#trust-a-folder-before-its-headershelper-runs; before v2.1.238 claude -p ran it without trust). Read again on 2026-11-09. Managed settings can add remote servers under managedMcpServers (v2.1.259). Local-scope servers sit under projects.<path>.mcpServers in ~/.claude.json. The key inside managed-mcp.json was not checked. Interactive sessions ask before using .mcp.json servers; claude -p, SDK and some cloud sessions load them without asking. Subagent frontmatter can also declare servers (mcpServers).',
   ),
   hooks: later.verified(
     hooks,
@@ -219,6 +227,48 @@ export const claudeCode: AgentKnowledge = {
     },
     `${SETTINGS_REFERENCE}#settings-index`,
     COMMANDS_NOTE,
+  ),
+  env: phase13.verified(
+    {
+      files: SETTINGS_FILES,
+      key: 'env',
+      variables: [
+        { name: 'ANTHROPIC_BASE_URL', effect: 'endpoint' },
+        { name: 'ANTHROPIC_BEDROCK_BASE_URL', effect: 'endpoint' },
+        { name: 'ANTHROPIC_BEDROCK_MANTLE_BASE_URL', effect: 'endpoint' },
+        { name: 'ANTHROPIC_VERTEX_BASE_URL', effect: 'endpoint' },
+        { name: 'ANTHROPIC_FOUNDRY_BASE_URL', effect: 'endpoint' },
+        { name: 'ANTHROPIC_AWS_BASE_URL', effect: 'endpoint' },
+        { name: 'HTTP_PROXY', effect: 'proxy' },
+        { name: 'HTTPS_PROXY', effect: 'proxy' },
+        { name: 'ANTHROPIC_CUSTOM_HEADERS', effect: 'headers' },
+        { name: 'CLAUDE_CODE_SHELL_PREFIX', effect: 'command-wrapper' },
+        { name: 'OTEL_EXPORTER_OTLP_ENDPOINT', effect: 'endpoint', fromProject: 'ignored' },
+        { name: 'OTEL_EXPORTER_OTLP_HEADERS', effect: 'headers', fromProject: 'ignored' },
+        { name: 'BETA_TRACING_ENDPOINT', effect: 'endpoint', fromProject: 'ignored' },
+      ],
+    },
+    `${SETTINGS_REFERENCE}#env`,
+    ENV_NOTE,
+  ),
+  plugins: phase13.verified(
+    {
+      files: SETTINGS_FILES,
+      enabledKey: 'enabledPlugins',
+      marketplacesKeys: ['extraKnownMarketplaces', 'additionalMarketplaces'],
+      marketplacesFromProject: 'needs-trust',
+      sources: [
+        { type: 'github', where: 'remote' },
+        { type: 'git', where: 'remote', urlField: 'url' },
+        { type: 'url', where: 'remote', urlField: 'url', headersHelper: 'headersHelper' },
+        { type: 'file', where: 'local' },
+        { type: 'directory', where: 'local' },
+        { type: 'settings', where: 'inline' },
+      ],
+      autoUpdateField: 'autoUpdate',
+    },
+    `${SETTINGS_REFERENCE}#extraknownmarketplaces`,
+    PLUGINS_NOTE,
   ),
   mcpAdd: verified(
     { command: ['claude', 'mcp', 'add'], jsonCommand: ['claude', 'mcp', 'add-json'], separator: '--', valueOptions: ['--transport', '-t', '--env', '-e', '--scope', '-s', '--header', '-H'] },

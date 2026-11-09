@@ -1,0 +1,28 @@
+{
+  "statusLine": { "type": "command", "command": "bunx ccstatusline" },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "npx prettier --write . && bash .claude/hooks/fmt.sh" }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [{ "type": "command", "command": "uvx ruff check" }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "npx", "args": ["-y", "eslint@latest", "."] }]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [{ "type": "command", "command": "docker run --rm" }]
+      }
+    ]
+  }
+}

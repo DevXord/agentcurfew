@@ -2,16 +2,19 @@ import { autoRunOnOpen } from './rules/auto-run-on-open.ts';
 import { broadShellPermission } from './rules/broad-shell-permission.ts';
 import { dangerousHookCommand } from './rules/dangerous-hook-command.ts';
 import { drift } from './rules/drift.ts';
+import { envOverride } from './rules/env-override.ts';
 import { hiddenUnicode } from './rules/hidden-unicode.ts';
 import { mcpPackage } from './rules/mcp-package.ts';
 import { obfuscatedContent } from './rules/obfuscated-content.ts';
 import { outOfPolicy } from './rules/out-of-policy.ts';
 import { permissionBypass } from './rules/permission-bypass.ts';
+import { pluginMarketplace } from './rules/plugin-marketplace.ts';
 import { persistenceInstruction } from './rules/persistence-instruction.ts';
 import { plainHttpMcp } from './rules/plain-http-mcp.ts';
 import { remoteInstructions } from './rules/remote-instructions.ts';
 import { secretInConfig } from './rules/secret-in-config.ts';
 import { skillsLockMismatch } from './rules/skills-lock-mismatch.ts';
+import { unpinnedLauncher } from './rules/unpinned-launcher.ts';
 import { unpinnedMcpServer } from './rules/unpinned-mcp-server.ts';
 import type { Inventory } from '../inventory/types.ts';
 import { applyRules } from './engine.ts';
@@ -24,9 +27,12 @@ export const rules: readonly Rule[] = [
   plainHttpMcp,
   secretInConfig,
   dangerousHookCommand,
+  unpinnedLauncher,
   autoRunOnOpen,
   permissionBypass,
   broadShellPermission,
+  envOverride,
+  pluginMarketplace,
   remoteInstructions,
   obfuscatedContent,
   persistenceInstruction,

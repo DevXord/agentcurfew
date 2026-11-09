@@ -21,11 +21,11 @@ export const secretInConfig: Rule = {
   level: 'high',
   owasp: ['AST04'],
   description:
-    'Finds credentials written as plain values in MCP server definitions, hooks, automatic tasks, settings that run a command (such as apiKeyHelper) and the scripts of the project they run: known token formats anywhere in them, literal values of fields whose names say they hold a secret (env, headers, --token=..., --token ...), and credentials in addresses, as a password or as a long user name (https://TOKEN@host). Such files are often committed, copied into other repositories and read by every tool that loads the configuration. Values that refer to a variable (${VAR}, $VAR, %VAR%, ${env:VAR}, ${input:id}) or to a file (./pass, ~/.token) are not reported. The secret is never printed in full.',
+    'Finds credentials written as plain values in MCP server definitions, hooks, automatic tasks, settings that run a command (such as apiKeyHelper), other settings (env variables, plugin marketplaces) and the scripts of the project they run: known token formats anywhere in them, literal values of fields whose names say they hold a secret (env, headers, --token=..., --token ...), and credentials in addresses, as a password or as a long user name (https://TOKEN@host). Such files are often committed, copied into other repositories and read by every tool that loads the configuration. Values that refer to a variable (${VAR}, $VAR, %VAR%, ${env:VAR}, ${input:id}) or to a file (./pass, ~/.token) are not reported. The secret is never printed in full.',
   fix: 'Remove the value, rotate the credential, and refer to it through an environment variable or the agent\'s input or secret mechanism instead.',
   falsePositives: 'A field named like a secret can hold something harmless, such as a token budget. Known formats are matched by shape and can match test data.',
   example: '"env": { "GITHUB_TOKEN": "ghp_..." }',
-  kinds: ['mcp-server', 'hook', 'auto-run', 'command-setting'],
+  kinds: ['mcp-server', 'hook', 'auto-run', 'command-setting', 'setting'],
   check(component, context) {
     const hits: RuleHit[] = [];
     const seen = new Set<string>();
@@ -51,6 +51,13 @@ export const secretInConfig: Rule = {
       }
     }
     const value = entryValue(component);
+    if (component.kind === 'setting') {
+      // An env variable, or a header of a marketplace, whose name says it holds a secret.
+      for (const item of strings(value)) {
+        const masked = item.key === '' ? undefined : namedSecret(item.key, item.value);
+        if (masked !== undefined) add(`${item.key.replace(/\p{C}/gu, '?')} holds a literal value: ${masked}`);
+      }
+    }
     const lines = value === undefined ? (isWholeFile(component) ? [component.raw] : []) : strings(value).map((item) => item.value);
     for (const line of lines) {
       for (const pair of pairs(line)) {

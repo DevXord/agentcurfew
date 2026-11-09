@@ -56,7 +56,7 @@ export const hiddenUnicode: Rule = {
   fix: 'Remove the characters. If the file is not yours, treat it as tampered with: find where it came from before trusting the rest of it.',
   falsePositives: 'Right-to-left languages can need bidirectional marks, and some text uses zero-width joiners between letters. Joiners between emoji and a byte order mark at the start of a file are not reported.',
   example: 'A CLAUDE.md line "Run the tests." followed by U+E0049 U+E0067 U+E006E ..., which spells "Ignore previous instructions".',
-  kinds: ['skill', 'mcp-server', 'hook', 'auto-run', 'context-file', 'permission', 'subagent', 'command', 'command-setting'],
+  kinds: ['skill', 'mcp-server', 'hook', 'auto-run', 'context-file', 'permission', 'subagent', 'command', 'command-setting', 'setting'],
   check(component) {
     const hits: RuleHit[] = [];
     for (const source of texts(component)) {

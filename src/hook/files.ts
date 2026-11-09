@@ -4,6 +4,8 @@ import { dirname, isAbsolute, join, parse, relative, resolve, sep } from 'node:p
 import { analyzeProject } from '../analyze.ts';
 import { knownPaths } from '../doctor/paths.ts';
 import { DEFAULT_LIMITS } from '../inventory/files.ts';
+import { scanInventory } from '../inventory/index.ts';
+import type { Component } from '../inventory/types.ts';
 import { knowledgeBase } from '../knowledge/index.ts';
 import { LOCKFILE } from '../lock/types.ts';
 import { globMatch } from '../policy/glob.ts';
@@ -213,8 +215,15 @@ export function checkWrite(file: string, newText: string | { why: string; deny?:
     path = spelled ?? path;
   }
   const agents = agentsOfFile(path);
-  if (agents.length === 0) return undefined;
-  const what = `${quote(path, 120)} steers ${agents.join(', ')}`;
+  let what = `${quote(path, 120)} steers ${agents.join(', ')}`;
+  if (agents.length === 0) {
+    // Not a file of the knowledge base, but one the project's configuration makes count: a script a hook runs, or a
+    // context file a setting names (D-047). The new text is read as an overlay, so a file that does not exist yet counts too.
+    if (path.startsWith('~/')) return undefined;
+    const role = runFiles(root, typeof newText === 'string' ? new Map([[path, newText]]) : undefined).get(path);
+    if (role === undefined) return undefined;
+    what = `${quote(path, 120)} ${role}`;
+  }
   if (typeof newText !== 'string') return { decision: newText.deny === true ? 'deny' : 'ask', reasons: [`agentcurfew: ${what}, and the change could not be checked: ${newText.why}.`] };
   // Text past the scanner's limit would be skipped, and the hook would see nothing in it: padding must not turn a deny into an ask.
   if (Buffer.byteLength(newText, 'utf8') > DEFAULT_LIMITS.maxFileBytes) return { decision: 'deny', reasons: [`agentcurfew: ${what}, and the new text is larger than the ${DEFAULT_LIMITS.maxFileBytes} bytes agentcurfew reads, so it cannot be checked.`] };
@@ -242,6 +251,37 @@ export function checkWrite(file: string, newText: string | { why: string; deny?:
   if (serious.length > 0) return { decision: 'deny', reasons: [`agentcurfew: ${what}, and the change would add: ${serious.map(describe).join('; ')}.`] };
   const minor = added.length > 0 ? ` It would add: ${added.map(describe).join('; ')}.` : ' The rules found nothing new in it.';
   return { decision: 'ask', reasons: [`agentcurfew: ${what}.${minor}`] };
+}
+
+function componentLabel(component: Component): string {
+  if (component.kind === 'hook' || (component.kind === 'auto-run' && /#\d+$/.test(component.name))) return `hook ${quote(component.name, 60)}`;
+  if (component.kind === 'auto-run') return `the task ${quote(component.name, 60)}`;
+  return `the setting ${quote(component.name, 80)}`;
+}
+
+/**
+ * Files of the project that steer an agent through its configuration rather than by their path: the scripts that hooks,
+ * tasks and command settings run, and context files a setting names. Each with what makes it count, for the hook's
+ * reasons. Reads the inventory only; nothing is run.
+ */
+export function runFiles(root: string, overlay?: ReadonlyMap<string, string>): Map<string, string> {
+  const roles = new Map<string, string>();
+  let inventory;
+  try {
+    inventory = scanInventory({ root, ...(overlay === undefined ? {} : { overlay }) });
+  } catch {
+    return roles;
+  }
+  const agentNames = new Map(knowledgeBase.map((agent) => [agent.id as string, agent.name]));
+  for (const component of inventory.components) {
+    if (component.filesRoot === 'project') {
+      for (const file of component.files ?? []) if (!roles.has(file.path)) roles.set(file.path, `is run by ${componentLabel(component)} of ${quote(component.file, 80)}`);
+    }
+    if (component.kind === 'context-file' && component.scope === 'project' && agentsOfFile(component.file).length === 0 && !roles.has(component.file)) {
+      roles.set(component.file, `steers ${component.agents.map((agent) => agentNames.get(agent) ?? agent).join(', ')}, through a setting that names it`);
+    }
+  }
+  return roles;
 }
 
 /** What readCurrent returns for a file over the read limit. */

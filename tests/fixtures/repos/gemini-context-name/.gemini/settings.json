@@ -1,0 +1,5 @@
+{
+  "context": {
+    "fileName": ["AGENTS.md", "docs/AI.md", "../outside.md", "**/*", "/abs.md", "  "]
+  }
+}

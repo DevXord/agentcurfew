@@ -48,6 +48,31 @@ function compare(a: string, b: string): number {
   return a < b ? -1 : 1;
 }
 
+/** Entries read from one object of settings (variables, plugins, marketplaces). */
+const MAX_SETTING_ENTRIES = 256;
+/** Names read from one context.fileName, and the length of each. */
+const MAX_CONTEXT_NAMES = 32;
+const MAX_CONTEXT_NAME_BYTES = 255;
+
+/**
+ * A context file name as a relative path with / separators; null for a blank one, which the agent skips too; undefined
+ * for one agentcurfew does not follow: not a string, too long, absolute or from home, with .. or wildcards, or with
+ * control or invisible characters. Linear in the name.
+ */
+export function contextName(item: unknown): string | null | undefined {
+  if (typeof item !== 'string') return undefined;
+  const trimmed = item.trim();
+  if (trimmed === '') return null;
+  if (Buffer.byteLength(trimmed, 'utf8') > MAX_CONTEXT_NAME_BYTES || /[\p{C}*?[\]{}!\\]/u.test(trimmed)) return undefined;
+  if (/^(?:\/|~|[A-Za-z]:)/.test(trimmed)) return undefined;
+  const segments = trimmed.split('/').filter((segment) => segment !== '' && segment !== '.');
+  if (segments.length === 0 || segments.some((segment) => segment === '..')) return undefined;
+  const name = segments.join('/');
+  // a /. would leave a name that ends in a space, which the agent's trim and normalize do not agree on.
+  // ./~ leaves ~ at the start, which reads as the home folder elsewhere.
+  return name === name.trim() && !/^(?:~|[A-Za-z]:)/.test(name) ? name : undefined;
+}
+
 const EXTENSIONS: Partial<Record<FileFormat, string>> = { json: '.json', jsonc: '.json', toml: '.toml', markdown: '.md', 'markdown-frontmatter': '.md' };
 
 class Scan {
@@ -221,7 +246,16 @@ class Scan {
           const config = this.#config(found, format);
           for (const table of this.#servers(config, entry.serversKey ?? mcp.serversKey)) {
             if (typeof table.value !== 'object' || table.value === null) continue;
-            for (const [name, server] of Object.entries(table.value)) this.#add('mcp-server', agent.id, entry.scope, found.file, name, entryText(server));
+            const tableName = (entry.serversKey ?? mcp.serversKey).split('.').at(-1) ?? mcp.serversKey;
+            for (const [name, server] of Object.entries(table.value)) {
+              this.#add('mcp-server', agent.id, entry.scope, found.file, name, entryText(server));
+              // A command the agent runs when it connects to a remote server, checked like the other settings that run one.
+              const field = mcp.remote?.headersHelper;
+              const helper = field === undefined || typeof server !== 'object' || server === null ? undefined : (server as Record<string, unknown>)[field];
+              if (typeof helper !== 'string' || helper.trim() === '') continue;
+              const raw = entryText(helper);
+              this.#add('command-setting', agent.id, entry.scope, found.file, `${tableName}.${name}.${field}`, raw, this.#scripts(entry.scope, raw), 'project');
+            }
           }
         }
       }
@@ -391,6 +425,98 @@ class Scan {
     }
   }
 
+  /** The entries of a settings object, at most MAX_SETTING_ENTRIES; past that the file is reported, so that padding cannot hide one. */
+  #entries(value: unknown, file: string): [string, unknown][] {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return [];
+    const entries = Object.entries(value);
+    if (entries.length <= MAX_SETTING_ENTRIES) return entries;
+    this.files.report('too-many-entries', file);
+    return entries.slice(0, MAX_SETTING_ENTRIES);
+  }
+
+  /** Settings files of the agent, parsed, with the scope of each. */
+  *#settingsFiles(files: readonly AgentPath[]): Generator<{ entry: AgentPath; found: Found; config: unknown }> {
+    for (const entry of files) {
+      const format = structured(entry.format);
+      if (format === undefined) continue;
+      for (const found of this.#find(entry)) yield { entry, found, config: this.#config(found, format) };
+    }
+  }
+
+  /**
+   * Settings that redirect the agent or bring code into it without running a command themselves (D-045): each variable of
+   * the env block, each plugin turned on or off, each marketplace. A variable that wraps the agent's commands
+   * (CLAUDE_CODE_SHELL_PREFIX) and a marketplace's headersHelper are also command settings, with their scripts.
+   */
+  #collectSettings(agent: AgentKnowledge): void {
+    for (const env of agent.env === undefined ? [] : factValues(agent.env)) {
+      const wrappers = new Set(env.variables.filter((variable) => variable.effect === 'command-wrapper').map((variable) => variable.name));
+      for (const { entry, found, config } of this.#settingsFiles(env.files)) {
+        for (const { path, value } of lookup(config, env.key)) {
+          for (const [name, item] of this.#entries(value, found.file)) {
+            const raw = entryText({ [name]: item });
+            this.#add('setting', agent.id, entry.scope, found.file, `${path}.${name}`, raw);
+            if (wrappers.has(name) && typeof item === 'string' && item.trim() !== '') {
+              const command = entryText(item);
+              this.#add('command-setting', agent.id, entry.scope, found.file, `${path}.${name}`, command, this.#scripts(entry.scope, command), 'project');
+            }
+          }
+        }
+      }
+    }
+    for (const plugins of agent.plugins === undefined ? [] : factValues(agent.plugins)) {
+      const helpers = new Map(plugins.sources.flatMap((source) => (source.headersHelper === undefined ? [] : [[source.type, source.headersHelper] as const])));
+      for (const { entry, found, config } of this.#settingsFiles(plugins.files)) {
+        for (const { path, value } of lookup(config, plugins.enabledKey)) {
+          for (const [name, item] of this.#entries(value, found.file)) this.#add('setting', agent.id, entry.scope, found.file, `${path}.${name}`, entryText(item));
+        }
+        for (const key of plugins.marketplacesKeys) {
+          for (const { path, value } of lookup(config, key)) {
+            for (const [name, item] of this.#entries(value, found.file)) {
+              this.#add('setting', agent.id, entry.scope, found.file, `${path}.${name}`, entryText(item));
+              const source = typeof item === 'object' && item !== null ? (item as Record<string, unknown>).source : undefined;
+              const type = typeof source === 'object' && source !== null ? (source as Record<string, unknown>).source : undefined;
+              const field = typeof type === 'string' ? helpers.get(type) : undefined;
+              const helper = field === undefined ? undefined : (source as Record<string, unknown>)[field];
+              if (typeof helper !== 'string' || helper.trim() === '') continue;
+              const raw = entryText(helper);
+              this.#add('command-setting', agent.id, entry.scope, found.file, `${path}.${name}.source.${field}`, raw, this.#scripts(entry.scope, raw), 'project');
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Context files named by a setting (Gemini CLI context.fileName), read where the default one is. A name is followed only
+   * when it is a plain relative path: one that leaves the project, starts at the root or home, holds wildcards or hidden
+   * characters is not read, and the settings file is reported, so that a name like ** cannot pull the whole tree in.
+   */
+  #collectContextNames(agent: AgentKnowledge): void {
+    for (const names of agent.contextNames === undefined ? [] : factValues(agent.contextNames)) {
+      for (const { entry, found, config } of this.#settingsFiles(names.files)) {
+        for (const { path, value } of lookup(config, names.key)) {
+          this.#add('setting', agent.id, entry.scope, found.file, path, entryText(value));
+          const list = (typeof value === 'string' ? [value] : Array.isArray(value) ? value : []).slice(0, MAX_CONTEXT_NAMES);
+          if (Array.isArray(value) && value.length > MAX_CONTEXT_NAMES) this.files.report('too-many-entries', found.file);
+          for (const item of list) {
+            const name = contextName(item);
+            if (name === null) continue;
+            if (name === undefined) {
+              this.files.report('unparsable', found.file);
+              continue;
+            }
+            for (const location of names.locations) {
+              const file = { ...location, path: location.path.replace('<name>', name) };
+              for (const match of this.#find(file)) this.#addFile('context-file', agent.id, location.scope, match);
+            }
+          }
+        }
+      }
+    }
+  }
+
   #collectSkills(agent: AgentKnowledge): void {
     for (const skills of presentValues(agent.skills)) {
       for (const directory of skills.directories) {
@@ -433,6 +559,8 @@ class Scan {
       this.#collectAutoRun(agent);
       this.#collectPermissions(agent);
       this.#collectCommandSettings(agent);
+      this.#collectSettings(agent);
+      this.#collectContextNames(agent);
       this.#collectSkills(agent);
       this.#collectFiles(agent);
     }

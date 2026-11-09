@@ -1,0 +1,8 @@
+{
+  "enabledPlugins": {
+    "experimental@acme-tools": false
+  },
+  "env": {
+    "DISABLE_AUTO_COMPACT": "1"
+  }
+}

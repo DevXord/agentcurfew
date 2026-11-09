@@ -34,7 +34,7 @@ export function runDoctor(root: string, options: { user?: boolean; now?: Date; o
       hits = [{ file: '.', message: 'the check failed on this project', level: 'info' }];
     }
     const sorted = hits
-      .map((hit) => ({ file: hit.file, message: quote(hit.message, 400), level: hit.level ?? check.level, sources: hit.sources ?? [...check.sources] }))
+      .map((hit) => ({ file: hit.file, message: quote(hit.message, 600), level: hit.level ?? check.level, sources: hit.sources ?? [...check.sources] }))
       .sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : a.message < b.message ? -1 : a.message > b.message ? 1 : 0));
     results.push({ id: check.id, title: check.title, status: !applies ? 'not applicable' : sorted.length === 0 ? 'passed' : 'failed', hits: sorted, fix: check.fix });
   }

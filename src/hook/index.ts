@@ -1,10 +1,12 @@
 import { homedir } from 'node:os';
+import { sep } from 'node:path';
 import { claudeCode } from '../knowledge/claude-code.ts';
 import type { ToolHookKnowledge } from '../knowledge/types.ts';
 import { readPolicy } from '../policy/read.ts';
 import { POLICY_FILE } from '../policy/types.ts';
-import { checkCommand } from './bash.ts';
-import { afterEdit, checkWrite, readCurrent, TOO_LARGE } from './files.ts';
+import { checkCommand, checkedWords } from './bash.ts';
+import { afterEdit, checkWrite, readCurrent, runFiles, TOO_LARGE } from './files.ts';
+import { quote } from '../rules/mask.ts';
 import { combine } from './types.ts';
 import type { Verdict } from './types.ts';
 
@@ -66,7 +68,7 @@ function judgeCall(input: unknown, root: string, now?: Date, home: string = home
     const command = field(toolInput, fields.command);
     if (typeof command !== 'string') return undefined;
     const policy = readPolicy(root);
-    return combine(checkCommand(command, policy.status === 'ok' ? policy.policy : undefined));
+    return combine([...checkCommand(command, policy.status === 'ok' ? policy.policy : undefined), checkRunFiles(command, root)]);
   }
   const file = field(toolInput, fields.path);
   if (typeof file !== 'string' || file === '') return undefined;
@@ -87,6 +89,28 @@ function judgeCall(input: unknown, root: string, now?: Date, home: string = home
     }
   }
   return checkWrite(file, text, root, now, home);
+}
+
+/**
+ * A command that names a script a hook runs, or a context file a setting names, and does not only read it: ask (D-047).
+ * The inventory is read only when the command has a word that can be a path, so that npm test costs nothing.
+ */
+function checkRunFiles(command: string, root: string): Verdict | undefined {
+  const hook = hookFact();
+  const words = checkedWords(command).filter((word) => /[./]/.test(word) && !word.startsWith('-'));
+  if (words.length === 0) return undefined;
+  const roles = runFiles(root);
+  if (roles.size === 0) return undefined;
+  const variable = hook.projectDirVariable;
+  const prefixes = ['$' + variable + '/', '${' + variable + '}/', root.split(sep).join('/') + '/'];
+  for (const word of words) {
+    let path = word.split(sep).join('/');
+    for (const prefix of prefixes) if (path.startsWith(prefix)) path = path.slice(prefix.length);
+    while (path.startsWith('./')) path = path.slice(2);
+    const role = roles.get(path);
+    if (role !== undefined) return { decision: 'ask', reasons: [`agentcurfew: this command names ${quote(path, 120)}, which ${role}, and agentcurfew cannot tell from the command whether it changes it.`] };
+  }
+  return undefined;
 }
 
 /**

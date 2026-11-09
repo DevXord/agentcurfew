@@ -64,7 +64,14 @@ export interface McpKnowledge {
   /** Field names of a server started locally; null when the agent has no local servers. */
   local: { command: string; args: string; env: string } | null;
   /** Field names of a remote server; null when the agent has no remote servers. */
-  remote: { url: string; headers: string | null; /** Further fields that hold the address in other transports. */ otherUrls?: readonly string[] } | null;
+  remote: {
+    url: string;
+    headers: string | null;
+    /** Further fields that hold the address in other transports. */
+    otherUrls?: readonly string[];
+    /** The field with a command the agent runs when connecting, to print headers; absent when the agent has none. */
+    headersHelper?: string;
+  } | null;
 }
 
 export interface HookFile extends AgentPath {
@@ -168,6 +175,64 @@ export interface CommandSettingsKnowledge {
   settings: readonly CommandSetting[];
 }
 
+/**
+ * A variable of the settings' env block that changes where the agent sends its requests or how it runs commands.
+ * endpoint: the address of the model API or of telemetry. proxy: every connection goes through it. headers: added to
+ * every API request. command-wrapper: a command that wraps the commands the agent runs.
+ */
+export interface EnvVariable {
+  name: string;
+  effect: 'endpoint' | 'proxy' | 'headers' | 'command-wrapper';
+  /** As in BypassSetting; absent when a project file can set it. */
+  fromProject?: 'ignored' | 'needs-trust';
+}
+
+/** Environment variables set from settings files for every session and the processes it starts. */
+export interface EnvKnowledge {
+  files: readonly AgentPath[];
+  /** Dotted key of the object of variables, e.g. env. */
+  key: string;
+  /** The variables that matter for security; every variable of the block is inventoried. */
+  variables: readonly EnvVariable[];
+}
+
+/** A source type of a plugin marketplace registered in settings. */
+export interface MarketplaceSource {
+  /** The value of source.source, e.g. github. */
+  type: string;
+  /** remote: fetched from the network. local: a path on the machine. inline: declared in the settings file. */
+  where: 'remote' | 'local' | 'inline';
+  /** The field of the source with an address, when it has one. */
+  urlField?: string;
+  /** The field of the source with a command the agent runs before it fetches, when it has one. */
+  headersHelper?: string;
+}
+
+/** Plugins enabled and marketplaces registered in settings files. */
+export interface PluginsKnowledge {
+  files: readonly AgentPath[];
+  /** Dotted key of the object that turns plugins on or off, keyed plugin@marketplace. */
+  enabledKey: string;
+  /** Dotted keys of the object of marketplaces by name; the first is the documented one, the others aliases. */
+  marketplacesKeys: readonly string[];
+  /** What the agent does with a marketplace from a project file. */
+  marketplacesFromProject?: 'ignored' | 'needs-trust';
+  sources: readonly MarketplaceSource[];
+  /** The field of a marketplace entry that updates its plugins on its own. */
+  autoUpdateField: string;
+}
+
+/** A setting that names further context files, read where the default one would be. */
+export interface ContextNamesKnowledge {
+  files: readonly AgentPath[];
+  /** Dotted key; its value is a string or a list of strings. */
+  key: string;
+  /** Whether the names replace the default context file, or come in addition to it. */
+  replacesDefault: boolean;
+  /** Where a configured name is looked for, with <name> standing for it. */
+  locations: readonly ContextFile[];
+}
+
 /** A hook that runs before a tool and can allow, deny or ask: what it reads on stdin and how it answers. */
 export interface ToolHookKnowledge {
   /** The event, e.g. PreToolUse, and where its handlers sit in the settings, as a dotted key. */
@@ -217,6 +282,12 @@ export interface AgentKnowledge {
   mcpAdd?: Fact<McpAddKnowledge>;
   /** Settings that run a command outside the hooks; absent when not researched for the agent. */
   commands?: Fact<CommandSettingsKnowledge>;
+  /** Environment variables from settings files; absent when not researched for the agent. */
+  env?: Fact<EnvKnowledge>;
+  /** Plugins and marketplaces in settings files; absent when not researched for the agent. */
+  plugins?: Fact<PluginsKnowledge>;
+  /** A setting that adds or renames context files; absent when the agent has none or it is not researched. */
+  contextNames?: Fact<ContextNamesKnowledge>;
   /** One fact per deprecation, each with its own source; absent when none is known. */
   deprecations?: readonly Fact<Deprecation>[];
 }

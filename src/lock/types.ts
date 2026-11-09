@@ -46,4 +46,6 @@ export interface Lockfile {
   lockfileVersion: number;
   algorithm: 'sha256';
   components: LockedComponent[];
+  /** Read only: components of a kind this version does not know, which were skipped; never written. */
+  unknownKinds?: number;
 }
