@@ -27,14 +27,25 @@ export interface Component {
   scope: Scope;
   /** Relative to the project, or starting with ~/ or a variable; never the user's real home path. */
   file: string;
-  /** Unique within kind and file. */
+  /** Unique within kind and file. For a hook it is its position (PreToolUse#0), so it shifts when one is added before it. */
   name: string;
+  /**
+   * Stable within kind and file (D-042): the name where the name is stable already, a hook's event, matcher and a hash
+   * of its handler, an unnamed task's hash. The same for the hook and auto-run copies of one entry. The scanner always
+   * sets it; a component built by hand without it counts as having its name for id (idOf).
+   */
+  id?: string;
   /** The text of the file or the JSON of the entry. May hold secrets, so it must not reach the output as it is. */
   raw: string;
   /** A skill's files, sorted; or the scripts of the project that a hook, a task or a command setting runs. */
   files?: readonly SkillFile[];
   /** project: the paths of files are relative to the project, not to the component's folder. */
   filesRoot?: 'project';
+}
+
+/** A component's id, or its name when it was built without one. */
+export function idOf(component: { id?: string; name: string }): string {
+  return component.id ?? component.name;
 }
 
 export type ProblemCode = 'outside-project' | 'too-large' | 'too-deep' | 'too-many-entries' | 'unreadable' | 'unparsable';

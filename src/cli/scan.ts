@@ -11,6 +11,9 @@ import { EXIT_FAILURE, EXIT_OK } from './io.ts';
 import type { CliIo } from './io.ts';
 import { printable, printableJson } from './printable.ts';
 import { policyError, projectRoot } from './project.ts';
+import { idOf } from '../inventory/types.ts';
+import { lockHash } from '../lock/build.ts';
+import { producer } from './producer.ts';
 import { label } from './style.ts';
 
 /** Version of the JSON that scan --inventory --json prints. */
@@ -35,7 +38,8 @@ const PROBLEMS: Readonly<Record<InventoryProblem['code'], string>> = {
 export function publicComponent(component: Component): object {
   const { raw, files, ...visible } = component;
   const listed = files === undefined ? {} : { files: files.map(({ path, bytes }) => ({ path, bytes })) };
-  return { ...visible, ...listed, bytes: Buffer.byteLength(raw) };
+  // The id and the checksum the lock holds (D-042), so that a reader of the JSON can follow a component without the lock.
+  return { ...visible, id: idOf(component), ...listed, bytes: Buffer.byteLength(raw), hash: lockHash(component) };
 }
 
 function plural(count: number, word: string): string {
@@ -99,7 +103,7 @@ export async function runScan(argv: readonly string[], io: CliIo, usageError: (w
   const failOn: FailOn = flag ?? analysis.context.policy?.failOn ?? 'high';
   if (values.inventory === true) {
     if (values.json === true) {
-      const output = { schemaVersion: INVENTORY_SCHEMA_VERSION, components: inventory.components.map(publicComponent), problems: inventory.problems };
+      const output = { schemaVersion: INVENTORY_SCHEMA_VERSION, producer: producer(), components: inventory.components.map(publicComponent), problems: inventory.problems };
       io.stdout(`${printableJson(output)}\n`);
     } else {
       io.stdout(renderText(inventory));
@@ -111,7 +115,7 @@ export async function runScan(argv: readonly string[], io: CliIo, usageError: (w
   if (values.sarif === true) {
     io.stdout(`${printableJson(toSarif(findings, suppressed, unchecked))}\n`);
   } else if (values.json === true) {
-    const output = { schemaVersion: SCAN_SCHEMA_VERSION, failOn, components: inventory.components.map(publicComponent), findings, suppressed, problems: inventory.problems };
+    const output = { schemaVersion: SCAN_SCHEMA_VERSION, producer: producer(), failOn, components: inventory.components.map(publicComponent), findings, suppressed, problems: inventory.problems };
     io.stdout(`${printableJson(output)}\n`);
   } else {
     const note = lock.status === 'invalid' ? `\nNote: ${LOCKFILE} was not compared, because ${lock.reason}.\n` : '';

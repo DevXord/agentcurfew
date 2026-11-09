@@ -31,6 +31,8 @@ export interface LockedComponent {
   kind: ComponentKind;
   file: string;
   name: string;
+  /** The component's stable id (D-042); absent in a lock written by agentcurfew 1.0, which is then compared by name. */
+  id?: string;
   /** For people reading the lock; not part of the hash, since it follows the knowledge base and not the file. */
   agents: string[];
   hash: string;

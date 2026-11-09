@@ -317,6 +317,8 @@ Drift: 4 changes since agentcurfew.lock
     the content changed
   added: context-file GEMINI.md
 
+Note: agentcurfew.lock was written before component ids; run agentcurfew lock to add them.
+
 If the changes are expected, run agentcurfew lock and commit agentcurfew.lock.
 "
 `;
@@ -325,6 +327,8 @@ exports[`screens > lock, verify and drift 2`] = `
 "$ agentcurfew verify <project>
 [exit 0]
 OK: matches agentcurfew.lock (2 components)
+
+Note: agentcurfew.lock was written before component ids; run agentcurfew lock to add them.
 "
 `;
 

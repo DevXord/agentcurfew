@@ -14,6 +14,27 @@
     "schemaVersion": {
       "const": 1
     },
+    "producer": {
+      "type": "object",
+      "description": "What made this output: the tool, its version and the date of the newest fact in its knowledge base. No time, so outputs of the same project stay comparable.",
+      "properties": {
+        "name": {
+          "const": "agentcurfew"
+        },
+        "version": {
+          "type": "string"
+        },
+        "knowledge": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "knowledge"
+      ]
+    },
     "failOn": {
       "enum": [
         "error",

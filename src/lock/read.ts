@@ -53,6 +53,10 @@ function component(value: unknown): LockedComponent | undefined {
   const { kind, file, name, agents, hash } = value;
   if (typeof kind !== 'string' || !KINDS.has(kind) || typeof file !== 'string' || typeof name !== 'string' || !strings(agents) || typeof hash !== 'string' || !HASH.test(hash)) return undefined;
   const base: LockedComponent = { kind: kind as ComponentKind, file, name, agents, hash };
+  if (value.id !== undefined) {
+    if (typeof value.id !== 'string' || value.id === '') return undefined;
+    base.id = value.id;
+  }
   if (value.server !== undefined) {
     const parsed = server(value.server);
     if (parsed === undefined) return undefined;

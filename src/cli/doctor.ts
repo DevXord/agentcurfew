@@ -5,6 +5,7 @@ import { EXIT_FAILURE, EXIT_OK } from './io.ts';
 import type { CliIo } from './io.ts';
 import { printable, printableJson } from './printable.ts';
 import { projectRoot } from './project.ts';
+import { producer } from './producer.ts';
 import { label } from './style.ts';
 
 /** Version of the JSON that doctor --json prints. */
@@ -22,7 +23,7 @@ export function runDoctorCommand(argv: readonly string[], io: CliIo, usageError:
   const failOn = flag ?? fromPolicy ?? 'warning';
   const failing = failOn === 'none' ? [] : results.flatMap((result) => result.hits).filter((hit) => doctorAtLeast(hit.level, failOn));
   if (values.json === true) {
-    io.stdout(`${printableJson({ schemaVersion: DOCTOR_SCHEMA_VERSION, failOn, ok: failing.length === 0, checks: results })}\n`);
+    io.stdout(`${printableJson({ schemaVersion: DOCTOR_SCHEMA_VERSION, producer: producer(), failOn, ok: failing.length === 0, checks: results })}\n`);
     return failing.length === 0 ? EXIT_OK : EXIT_FAILURE;
   }
   const count = (status: string) => results.filter((result) => result.status === status).length;

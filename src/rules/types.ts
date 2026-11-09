@@ -56,6 +56,7 @@ export interface ProjectHit extends RuleHit {
   kind: ComponentKind;
   file: string;
   name: string;
+  componentId?: string;
 }
 
 export interface Rule {
@@ -85,6 +86,8 @@ export interface Finding {
   kind: ComponentKind;
   file: string;
   name: string;
+  /** The component's stable id (D-042); absent for a finding about the whole project with no component. */
+  componentId?: string;
   line?: number;
   column?: number;
   message: string;

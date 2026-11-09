@@ -1,4 +1,5 @@
 import type { Inventory } from '../inventory/types.ts';
+import { idOf } from '../inventory/types.ts';
 import { knowledgeBase } from '../knowledge/index.ts';
 import { quote } from './mask.ts';
 import type { Finding, Level, ProjectHit, Rule, RuleContext } from './types.ts';
@@ -58,6 +59,7 @@ export function applyRules(inventory: Inventory, selected: readonly Rule[], cont
           kind: component.kind,
           file,
           name: component.name,
+          componentId: idOf(component),
           ...(hit.line === undefined ? {} : { line: hit.line }),
           ...(hit.column === undefined ? {} : { column: hit.column }),
           message: quote(hit.message, 400),
@@ -82,6 +84,7 @@ export function applyRules(inventory: Inventory, selected: readonly Rule[], cont
         kind: hit.kind,
         file: hit.file,
         name: hit.name,
+        ...(hit.componentId === undefined ? {} : { componentId: hit.componentId }),
         message: quote(hit.message, 400),
       });
     }

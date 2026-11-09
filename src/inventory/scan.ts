@@ -9,6 +9,7 @@ import type { Area, Found, TreeFile } from './files.ts';
 import { parseFrontmatter } from './frontmatter.ts';
 import { scriptPaths } from '../rules/script-paths.ts';
 import { isIgnored, parseGitignore } from './gitignore.ts';
+import { hookId, numbered, taskId } from './identity.ts';
 import { entryText, lookup, readConfig } from './parse.ts';
 import type { Component, ComponentKind, Inventory, Limits, ScanOptions, SkillFile, SkillFileType } from './types.ts';
 
@@ -131,11 +132,11 @@ class Scan {
     return value;
   }
 
-  #add(kind: ComponentKind, agent: AgentId, scope: Scope, file: string, name: string, raw: string, files?: readonly SkillFile[], filesRoot?: 'project'): void {
+  #add(kind: ComponentKind, agent: AgentId, scope: Scope, file: string, name: string, raw: string, files?: readonly SkillFile[], filesRoot?: 'project', id: string = name): void {
     const key = `${kind}\0${file}\0${name}`;
     const known = this.#components.get(key);
     if (known === undefined) {
-      this.#components.set(key, { kind, agents: [agent], scope, file, name, raw, ...(files === undefined ? {} : { files }), ...(files === undefined || filesRoot === undefined ? {} : { filesRoot }) });
+      this.#components.set(key, { kind, agents: [agent], scope, file, name, id, raw, ...(files === undefined ? {} : { files }), ...(files === undefined || filesRoot === undefined ? {} : { filesRoot }) });
     }
     else if (!known.agents.includes(agent)) this.#components.set(key, { ...known, agents: [...known.agents, agent].sort() });
   }
@@ -304,12 +305,14 @@ class Scan {
         const { hooks: _hooks, ...group } = item as Record<string, unknown>;
         return nested.map((handler: unknown) => ({ ...group, handler }));
       });
+      const ids = numbered(handlers.map((handler) => hookId(event, handler)));
       handlers.forEach((handler, index) => {
         const name = `${event}#${index}`;
         const raw = entryText(handler);
         const scripts = this.#scripts(scope, raw);
-        this.#add('hook', agent, scope, file, name, raw, scripts, 'project');
-        if (autoEvents.has(event)) this.#add('auto-run', agent, scope, file, name, raw, scripts, 'project');
+        const id = ids[index] ?? name;
+        this.#add('hook', agent, scope, file, name, raw, scripts, 'project', id);
+        if (autoEvents.has(event)) this.#add('auto-run', agent, scope, file, name, raw, scripts, 'project', id);
       });
     }
   }
@@ -326,11 +329,16 @@ class Scan {
           }
           for (const { value } of lookup(this.#config(found, format), autoRun.containerKey)) {
             if (!Array.isArray(value)) continue;
-            value.forEach((item: unknown, index) => {
-              if (!lookup(item, autoRun.triggerKey).some((trigger) => trigger.value === autoRun.triggerValue)) return;
+            const tasks = value.flatMap((item: unknown, index) => {
+              if (!lookup(item, autoRun.triggerKey).some((trigger) => trigger.value === autoRun.triggerValue)) return [];
               const label = (item as { label?: unknown }).label;
-              const raw = entryText(item);
-              this.#add('auto-run', agent.id, entry.scope, found.file, typeof label === 'string' ? label : `task#${index}`, raw, this.#scripts(entry.scope, raw), 'project');
+              const name = typeof label === 'string' ? label : `task#${index}`;
+              return [{ item, name, id: taskId(item, name) }];
+            });
+            const ids = numbered(tasks.map((task) => task.id));
+            tasks.forEach((task, index) => {
+              const raw = entryText(task.item);
+              this.#add('auto-run', agent.id, entry.scope, found.file, task.name, raw, this.#scripts(entry.scope, raw), 'project', ids[index] ?? task.name);
             });
           }
         }

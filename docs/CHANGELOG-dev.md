@@ -2,6 +2,14 @@
 
 A running log of what each session on agentcurfew did. Not the user-facing changelog, which starts with the first publish.
 
+## 2026-11-08: Phase 12, a stable data contract
+
+The maintainer chose this as the next free phase after the brainstorm (D-040, D-041: the MIT/PRO boundary, and a paid pilot, then self-hosted, before any hosted service), since every paid variant needs stable ids and outputs that say what made them, and the change is cheap only while users are few.
+- Component ids (D-042): `src/inventory/identity.ts`; hooks by event, matcher and a redacted hash; tasks by label or hash; `~2` for repeats. The lock writes them; `verify` matches by id and pairs edited hooks; locks of 1.0 are matched by name with a note; `lockDigest` in `verify --json`. The hook compares findings by id.
+- Producer and checksums in the JSON output, `componentId` on findings, SARIF fingerprint v2 beside v1 (D-043). Schemas describe the new fields; no schemaVersion changed; no new dependency.
+- The repository's own lock was rewritten with ids.
+- Tests first: ids (order of keys, secrets, repeats, hostile matchers), inventory ids that survive an added hook, lock and verify (only `added` for a prepended hook, old locks, digest, unknown fields), JSON contract, SARIF, and the hook with a moved risky hook. 541 tests and 10 fuzz properties pass.
+
 ## 2026-11-08: Phase 11, settings that run commands and the scripts hooks run (Q-016, part 1)
 
 - Node 20 again (D-037): engines `>=20.0.0`; the published 1.0.0 passed the smoke test, the MCP server and the hook on Node 18.20, 20.0, 20.20 and 22.0, and CI now smoke-tests 20.0.0 and the newest 20. The site's start page no longer links to itself.
