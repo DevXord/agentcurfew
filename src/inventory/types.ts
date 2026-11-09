@@ -101,4 +101,6 @@ export interface ScanOptions {
    * yet is seen as a new file. The hook checks a write this way before it happens. Nothing is written to disk.
    */
   overlay?: ReadonlyMap<string, string>;
+  /** A time (Date.now()) past which the scan stops with ScanTimeout; the hook sets one so that it answers in time. */
+  deadline?: number;
 }

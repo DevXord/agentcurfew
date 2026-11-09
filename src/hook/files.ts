@@ -3,7 +3,7 @@ import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, parse, relative, resolve, sep } from 'node:path';
 import { analyzeProject } from '../analyze.ts';
 import { knownPaths } from '../doctor/paths.ts';
-import { DEFAULT_LIMITS } from '../inventory/files.ts';
+import { DEFAULT_LIMITS, ScanTimeout } from '../inventory/files.ts';
 import { scanInventory } from '../inventory/index.ts';
 import type { Component } from '../inventory/types.ts';
 import { knowledgeBase } from '../knowledge/index.ts';
@@ -202,7 +202,24 @@ export function afterEdit(current: string | undefined, oldText: string, newText:
  * A write to a file that steers an agent: ask, with the agents it steers; deny when the new text brings a finding at high
  * or above, or one out of the policy. The new text is scanned as an overlay, so nothing is written to check it.
  */
-export function checkWrite(file: string, newText: string | { why: string; deny?: boolean }, root: string, now?: Date, home: string = homedir(), ignoreCase: boolean = CASE_INSENSITIVE): Verdict | undefined {
+/**
+ * How long the hook's scans of the project may take in all, in milliseconds. agentcurfew init --hook gives the hook a
+ * timeout of 30 s, past which Claude Code stops it and the call goes through; a project padded until its scans take
+ * longer is asked about instead (review of 2026-11-09).
+ */
+export const HOOK_BUDGET_MS = 15_000;
+
+export function checkWrite(file: string, newText: string | { why: string; deny?: boolean }, root: string, now?: Date, home: string = homedir(), ignoreCase: boolean = CASE_INSENSITIVE, budget: number = HOOK_BUDGET_MS): Verdict | undefined {
+  const deadline = Date.now() + budget;
+  try {
+    return checkWriteBefore(file, newText, root, deadline, now, home, ignoreCase);
+  } catch (error) {
+    if (!(error instanceof ScanTimeout)) throw error;
+    return { decision: 'ask', reasons: [`agentcurfew: the project is too large for agentcurfew to check this write of ${quote(file.replace(/^.*[\\/]/, ''), 80)} within the hook's time, so it was not checked.`] };
+  }
+}
+
+function checkWriteBefore(file: string, newText: string | { why: string; deny?: boolean }, root: string, deadline: number, now: Date | undefined, home: string, ignoreCase: boolean): Verdict | undefined {
   // The file the write lands on, through links and letter case, when that is a file that steers an agent; else the path as given.
   const target = writeTarget(file, root, home, ignoreCase);
   const realRoot = real(root);
@@ -221,7 +238,7 @@ export function checkWrite(file: string, newText: string | { why: string; deny?:
     // Not a file of the knowledge base, but one the project's configuration makes count: a script a hook runs, or a
     // context file a setting names (D-047). The new text is read as an overlay, so a file that does not exist yet counts too.
     if (path.startsWith('~/')) return undefined;
-    const role = runFiles(root, typeof newText === 'string' ? new Map([[path, newText]]) : undefined).get(path);
+    const role = runFiles(root, typeof newText === 'string' ? new Map([[path, newText]]) : undefined, deadline).get(path);
     if (role === undefined) return undefined;
     what = `${quote(path, 120)} ${role}`;
   }
@@ -237,7 +254,7 @@ export function checkWrite(file: string, newText: string | { why: string; deny?:
     if (first !== undefined) return { decision: 'deny', reasons: [`agentcurfew: the new ${POLICY_FILE} does not follow the schema: ${quote(first.path, 80)}: ${first.message}.`] };
     return { decision: 'ask', reasons: [`agentcurfew: ${what}: this changes what agentcurfew allows.`] };
   }
-  const options = now === undefined ? {} : { now };
+  const options = now === undefined ? { deadline } : { now, deadline };
   const before = analyzeProject(root, options);
   const after = analyzeProject(root, { ...options, overlay: new Map([[path, newText]]) });
   // Any place the scanner could not read on the way to the new text means the text was not checked: too large, too
@@ -267,12 +284,14 @@ function componentLabel(component: Component): string {
  * tasks and command settings run, and context files a setting names. Each with what makes it count, for the hook's
  * reasons. Reads the inventory only; nothing is run.
  */
-export function runFiles(root: string, overlay?: ReadonlyMap<string, string>): Map<string, string> {
+export function runFiles(root: string, overlay?: ReadonlyMap<string, string>, deadline?: number): Map<string, string> {
   const roles = new Map<string, string>();
   let inventory;
   try {
-    inventory = scanInventory({ root, ...(overlay === undefined ? {} : { overlay }) });
-  } catch {
+    inventory = scanInventory({ root, ...(overlay === undefined ? {} : { overlay }), ...(deadline === undefined ? {} : { deadline }) });
+  } catch (error) {
+    // Out of time: the caller must not take that for "not a file that steers an agent".
+    if (error instanceof ScanTimeout) throw error;
     return roles;
   }
   const agentNames = new Map(knowledgeBase.map((agent) => [agent.id as string, agent.name]));

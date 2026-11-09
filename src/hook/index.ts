@@ -5,7 +5,8 @@ import type { ToolHookKnowledge } from '../knowledge/types.ts';
 import { readPolicy } from '../policy/read.ts';
 import { POLICY_FILE } from '../policy/types.ts';
 import { checkCommand, checkedWords } from './bash.ts';
-import { afterEdit, checkWrite, readCurrent, runFiles, TOO_LARGE } from './files.ts';
+import { afterEdit, checkWrite, HOOK_BUDGET_MS, readCurrent, runFiles, TOO_LARGE } from './files.ts';
+import { ScanTimeout } from '../inventory/files.ts';
 import { quote } from '../rules/mask.ts';
 import { combine } from './types.ts';
 import type { Verdict } from './types.ts';
@@ -99,7 +100,13 @@ function checkRunFiles(command: string, root: string): Verdict | undefined {
   const hook = hookFact();
   const words = checkedWords(command).filter((word) => /[./]/.test(word) && !word.startsWith('-'));
   if (words.length === 0) return undefined;
-  const roles = runFiles(root);
+  let roles: Map<string, string>;
+  try {
+    roles = runFiles(root, undefined, Date.now() + HOOK_BUDGET_MS);
+  } catch (error) {
+    if (!(error instanceof ScanTimeout)) throw error;
+    return { decision: 'ask', reasons: ['agentcurfew: the project is too large for agentcurfew to tell within the hook\'s time whether this command changes a script a hook runs, so it was not checked.'] };
+  }
   if (roles.size === 0) return undefined;
   const variable = hook.projectDirVariable;
   const prefixes = ['$' + variable + '/', '${' + variable + '}/', root.split(sep).join('/') + '/'];

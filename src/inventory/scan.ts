@@ -92,7 +92,7 @@ class Scan {
     this.#env = options.env ?? process.env;
     const overlay = new Map<string, Buffer>();
     for (const [relative, text] of options.overlay ?? []) overlay.set(join(this.#root.base, ...relative.split('/')), Buffer.from(text, 'utf8'));
-    this.files = new ScanFiles({ ...DEFAULT_LIMITS, ...options.limits }, overlay);
+    this.files = new ScanFiles({ ...DEFAULT_LIMITS, ...options.limits }, overlay, options.deadline);
   }
 
   /** The area of a path of the knowledge base and the pattern below it; undefined when it does not apply here. */

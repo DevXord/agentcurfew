@@ -1,0 +1,9 @@
+{
+  "session_id": "s",
+  "cwd": "{{root}}",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "echo x | tee .claude/settings.jso{n,x}"
+  }
+}
