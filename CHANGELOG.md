@@ -4,6 +4,10 @@ All notable changes to agentcurfew are written here for its users. The developme
 
 ## Unreleased
 
+Nothing yet.
+
+## 1.1.0
+
 - Settings that run a command are read: Claude Code `statusLine`, `subagentStatusLine`, `fileSuggestion`, `apiKeyHelper`, `otelHeadersHelper`, `awsAuthRefresh`, `awsCredentialExport` and `gcpAuthRefresh`, as components of the new kind `command-setting`; `statusLine` and `otelHeadersHelper`, which run when a session starts, are also `auto-run`. Codex `notify` is read from the user's config only, since Codex ignores it in a project. `dangerous-hook-command`, `secret-in-config` and `hidden-unicode` check them.
 - The scripts of the project that hooks, editor tasks and these settings run (`./scripts/x.sh`, `python3 "$CLAUDE_PROJECT_DIR"/.claude/hooks/x.py`) are read with the same limits as other files, checked by the same rules, and locked with their own checksums, so `verify` reports `script changed`. Installed packages (`node_modules`) and files the root `.gitignore` ignores are left out.
 - Every component has a stable `id`. A hook's is its event, its matcher and a hash of its handler (with secrets redacted), so it no longer shifts when a hook is added before it: `verify` then reports one added hook instead of changes to every later one, and the hook check does not take a moved finding for a new one. Locks of 1.0 without ids still work, compared by name, with a note.

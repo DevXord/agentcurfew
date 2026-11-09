@@ -1,6 +1,6 @@
 {
   "name": "agentcurfew",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Local, account-less CLI that inventories what steers AI coding agents (skills, MCP servers, hooks, context files, permissions), locks it with checksums, enforces policy, and detects dangerous patterns — without running or uploading anything.",
   "license": "MIT",
   "author": "DevXord",
