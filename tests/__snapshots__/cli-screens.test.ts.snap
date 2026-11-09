@@ -117,7 +117,7 @@ hidden-unicode: Hidden Unicode characters
 
 Level: high; critical for Unicode Tag characters, high for variation selectors and bidirectional controls, medium for zero-width characters alone (pattern matching: can raise false alarms)
 OWASP Agentic Skills Top 10: AST04 Insecure Metadata, AST08 Poor Scanning
-Checks: skill, mcp-server, hook, auto-run, context-file, permission, subagent, command
+Checks: skill, mcp-server, hook, auto-run, context-file, permission, subagent, command, command-setting
 
 Finds characters that an editor does not show but a model reads: Unicode Tag characters (U+E0000 to U+E007F), which can spell out whole instructions; supplementary variation selectors; bidirectional controls, which make text display in a different order than it is read; and zero-width characters. Each finding gives the line, the column and the code points.
 
@@ -317,6 +317,8 @@ Drift: 4 changes since agentcurfew.lock
     the content changed
   added: context-file GEMINI.md
 
+Note: agentcurfew.lock was written before component ids; run agentcurfew lock to add them.
+
 If the changes are expected, run agentcurfew lock and commit agentcurfew.lock.
 "
 `;
@@ -325,6 +327,8 @@ exports[`screens > lock, verify and drift 2`] = `
 "$ agentcurfew verify <project>
 [exit 0]
 OK: matches agentcurfew.lock (2 components)
+
+Note: agentcurfew.lock was written before component ids; run agentcurfew lock to add them.
 "
 `;
 
@@ -363,11 +367,14 @@ Failed: 4 findings at level high or above (change with --fail-on).
 exports[`screens > scan 2`] = `
 "$ agentcurfew scan <project>
 [exit 1]
-6 components scanned, 6 findings (6 high)
+7 components scanned, 7 findings (7 high)
 
 HIGH  secret-in-config  .claude/settings.json (Stop#0)
   AWS access key in plain text: AKIA… (20 characters)
   more: agentcurfew explain secret-in-config
+
+HIGH  secret-in-config  .claude/settings.json (apiKeyHelper)
+  GitHub token in plain text: ghp_… (40 characters)
 
 HIGH  secret-in-config  .mcp.json (api)
   Authorization holds a literal value: abcd… (16 characters)
@@ -384,7 +391,7 @@ HIGH  secret-in-config  .mcp.json (github)
 HIGH  secret-in-config  .mcp.json (user)
   the server address holds a credential as the user name of the address
 
-Failed: 6 findings at level high or above (change with --fail-on).
+Failed: 7 findings at level high or above (change with --fail-on).
 "
 `;
 
@@ -440,7 +447,7 @@ exports[`screens > scan 4`] = `
 exports[`screens > welcome and help 1`] = `
 "$ agentcurfew 
 [exit 0]
-agentcurfew 1.0.0: inventory, lock and check what steers your AI coding agents.
+agentcurfew 1.1.0: inventory, lock and check what steers your AI coding agents.
 
 Common commands:
   agentcurfew scan    Check what steers agents in a project against the rules

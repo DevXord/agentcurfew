@@ -1,4 +1,5 @@
 {
+  "apiKeyHelper": "echo {{secret:github}}",
   "hooks": {
     "Stop": [
       {

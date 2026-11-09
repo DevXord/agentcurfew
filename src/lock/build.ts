@@ -1,13 +1,13 @@
 import { printableJson } from '../cli/printable.ts';
 import type { Component, Inventory, SkillFile } from '../inventory/types.ts';
+import { idOf } from '../inventory/types.ts';
 import { knowledgeBase } from '../knowledge/index.ts';
 import type { AgentKnowledge } from '../knowledge/types.ts';
 import { launch, packageRef } from '../rules/launch.ts';
 import { commandLine, mcpEntry } from '../rules/mcp.ts';
 import { entryValue, isWholeFile } from '../rules/text.ts';
 import { canonicalJson, normalizeText, sha256 } from './hash.ts';
-import { REDACTED, redact, redactWords } from './redact.ts';
-import { namedSecret } from '../rules/secrets.ts';
+import { redact, redactWords, redactedValue } from './redact.ts';
 import type { LockedComponent, LockedServer, LockedSkill, Lockfile } from './types.ts';
 import { LOCKFILE_VERSION } from './types.ts';
 
@@ -67,22 +67,15 @@ export function serverIdentity(component: Component, knowledge: readonly AgentKn
   return { names, local: names.length === 0 && entry.command !== undefined };
 }
 
-/**
- * A parsed entry with every secret the rules would report replaced by <redacted>. The lock is meant to be committed, so
- * its hashes must not let anyone confirm a guessed secret offline (Q-015, decision of the maintainer): a change of a
- * secret's value alone is therefore not drift, while any other change is.
- */
-function redactedValue(value: unknown, key?: string): unknown {
-  if (typeof value === 'string') return key !== undefined && namedSecret(key, value) !== undefined ? REDACTED : redact(value);
-  if (Array.isArray(value)) return value.every((item) => typeof item === 'string') ? redactWords(value as string[]) : value.map((item) => redactedValue(item));
-  if (typeof value === 'object' && value !== null) return Object.fromEntries(Object.entries(value).map(([name, item]) => [name, redactedValue(item, name)]));
-  return value;
-}
-
 function componentHash(component: Component): string {
   if (isWholeFile(component)) return sha256(redact(normalizeText(component.raw)));
   const value = entryValue(component);
   return sha256(value === undefined ? redact(normalizeText(component.raw)) : canonicalJson(redactedValue(value)));
+}
+
+/** The checksum agentcurfew.lock holds for a component, the same in the JSON output. */
+export function lockHash(component: Component): string {
+  return component.kind === 'skill' ? lockSkill(component).hash : componentHash(component);
 }
 
 /** The lock of an inventory: project components only, in the inventory's order, with nothing machine-specific. */
@@ -90,14 +83,17 @@ export function buildLock(inventory: Inventory, knowledge: readonly AgentKnowled
   const components: LockedComponent[] = [];
   for (const component of inventory.components) {
     if (component.scope !== 'project') continue;
-    const base = { kind: component.kind, file: component.file, name: component.name, agents: [...component.agents] };
+    const base = { kind: component.kind, file: component.file, name: component.name, id: idOf(component), agents: [...component.agents] };
     if (component.kind === 'skill') {
       const { hash, skill } = lockSkill(component);
       components.push({ ...base, hash, skill });
       continue;
     }
     const server = component.kind === 'mcp-server' ? lockServer(component, knowledge) : undefined;
-    components.push({ ...base, hash: componentHash(component), ...(server === undefined ? {} : { server }) });
+    // The scripts a command runs, each with its own checksum, like the files of a skill; the entry keeps its own hash,
+    // so the lock of a hook without a script is the same as before scripts were read.
+    const scripts = component.files?.map((file) => ({ path: file.path, hash: skillFileHash(file) ?? 'unreadable' })).sort((a, b) => compare(a.path, b.path));
+    components.push({ ...base, hash: componentHash(component), ...(server === undefined ? {} : { server }), ...(scripts === undefined ? {} : { scripts }) });
   }
   return { lockfileVersion: LOCKFILE_VERSION, algorithm: 'sha256', components };
 }

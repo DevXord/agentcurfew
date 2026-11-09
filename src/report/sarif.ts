@@ -17,6 +17,11 @@ function fingerprint(finding: Finding): string {
   return createHash('sha256').update([finding.rule, finding.kind, finding.file, finding.name, finding.message].join('\0')).digest('hex').slice(0, 32);
 }
 
+/** By the component's id instead of its name, so a finding keeps its identity when a hook is added before it (D-043). */
+function fingerprintById(finding: Finding): string {
+  return createHash('sha256').update([finding.rule, finding.kind, finding.file, finding.componentId ?? finding.name, finding.message].join('\0')).digest('hex').slice(0, 32);
+}
+
 function result(finding: Finding, ruleIndex: number, suppressed?: Suppressed): object {
   const region = finding.line === undefined ? undefined : { startLine: finding.line, ...(finding.column === undefined ? {} : { startColumn: finding.column }) };
   return {
@@ -25,8 +30,8 @@ function result(finding: Finding, ruleIndex: number, suppressed?: Suppressed): o
     level: SARIF_LEVEL[finding.level],
     message: { text: `${finding.message} (${finding.kind} ${finding.name})` },
     locations: [{ physicalLocation: { artifactLocation: { uri: fileUri(finding.file), uriBaseId: '%SRCROOT%' }, ...(region === undefined ? {} : { region }) } }],
-    partialFingerprints: { 'agentcurfew/v1': fingerprint(finding) },
-    properties: { level: finding.level, kind: finding.kind, component: finding.name, ...(finding.policy === undefined ? {} : { policy: finding.policy }) },
+    partialFingerprints: { 'agentcurfew/v1': fingerprint(finding), 'agentcurfew/v2': fingerprintById(finding) },
+    properties: { level: finding.level, kind: finding.kind, component: finding.name, componentId: finding.componentId ?? finding.name, ...(finding.policy === undefined ? {} : { policy: finding.policy }) },
     ...(suppressed === undefined ? {} : { suppressions: [{ kind: 'external', justification: suppressed.reason }] }),
   };
 }

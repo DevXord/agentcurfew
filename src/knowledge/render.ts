@@ -93,6 +93,15 @@ function commandLines(): string[] {
         lines.push(`| ${agent.name} | hook ${code(value.event)} | tools ${Object.keys(value.tools).map(code).join(', ')}; answer ${code(value.decisionField)} (${value.decisions.map(code).join(' > ')}) | ${agent.toolHook.status} | ${link(evidence.source)} | ${evidence.verifiedAt} |`);
       }
     }
+    if (agent.commands !== undefined) {
+      for (const evidence of evidenceOf(agent.commands)) {
+        const settings = evidence.value.settings.map((setting) => {
+          const where = setting.fromProject === 'ignored' ? ', ignored in a project file' : setting.fromProject === 'needs-trust' ? ', once the folder is trusted' : '';
+          return `${code(setting.commandField === undefined ? setting.key : `${setting.key}.${setting.commandField}`)} (${setting.runs === 'session-start' ? 'at session start' : 'when needed'}${where})`;
+        });
+        lines.push(`| ${agent.name} | settings that run a command | ${settings.join('<br>')} | ${agent.commands.status} | ${link(evidence.source)} | ${evidence.verifiedAt} |`);
+      }
+    }
     if (agent.mcpAdd !== undefined) {
       for (const evidence of evidenceOf(agent.mcpAdd)) {
         lines.push(`| ${agent.name} | add an MCP server | ${code(evidence.value.command.join(' '))}, ${code(evidence.value.jsonCommand.join(' '))} | ${agent.mcpAdd.status} | ${link(evidence.source)} | ${evidence.verifiedAt} |`);

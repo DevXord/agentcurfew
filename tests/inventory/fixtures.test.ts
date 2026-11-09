@@ -27,6 +27,14 @@ const EXPECTED: Readonly<Record<string, readonly string[]>> = {
     'skill | .claude/skills/lint/SKILL.md | lint | claude-code,cline,cursor',
     'subagent | .claude/agents/reviewer.md | reviewer.md | claude-code,copilot-vscode,cursor',
   ],
+  'claude-commands': [
+    'auto-run | .claude/settings.json | statusLine | claude-code',
+    'command-setting | .claude/settings.json | apiKeyHelper | claude-code',
+    'command-setting | .claude/settings.json | fileSuggestion | claude-code',
+    'command-setting | .claude/settings.json | statusLine | claude-code',
+    `hook | .claude/settings.json | PostToolUse#0 | ${CLAUDE_HOOK}`,
+    `hook | .claude/settings.json | Stop#0 | ${CLAUDE_HOOK}`,
+  ],
   'cursor-basic': [
     'context-file | .cursor/rules/style.mdc | style.mdc | cline,cursor',
     'context-file | .cursorrules | .cursorrules | cline,cursor',
@@ -149,6 +157,27 @@ describe('inventory of fixtures', () => {
   it('lists the files of a skill folder', () => {
     const skill = scanInventory({ root: fixture('claude-basic') }).components.find((c) => c.kind === 'skill');
     expect(skill?.files?.map((f) => f.path)).toEqual(['SKILL.md', 'scripts/run.sh']);
+  });
+
+  it('reads the scripts that hooks and command settings run, inside the project only', () => {
+    const { components, problems } = scanInventory({ root: fixture('claude-commands') });
+    const scripts = (kind: string, name: string) => components.find((c) => c.kind === kind && c.name === name)?.files?.map((f) => f.path);
+    expect(scripts('hook', 'PostToolUse#0')).toEqual(['.claude/hooks/check.py']);
+    expect(scripts('command-setting', 'statusLine')).toEqual(['.claude/statusline.sh']);
+    expect(scripts('auto-run', 'statusLine')).toEqual(['.claude/statusline.sh']);
+    expect(scripts('command-setting', 'apiKeyHelper')).toEqual(['.claude/hooks/key.py']);
+    // A home path, a missing file, a parent folder, an absolute path and a variable are not read.
+    expect(scripts('command-setting', 'fileSuggestion')).toBeUndefined();
+    expect(scripts('hook', 'Stop#0')).toBeUndefined();
+    expect(components.find((c) => c.name === 'PostToolUse#0')?.filesRoot).toBe('project');
+    expect(components.find((c) => c.name === 'PostToolUse#0')?.files?.[0]?.raw).toContain('checked');
+    expect(problems).toEqual([]);
+  });
+
+  it('leaves out command settings an agent ignores in a project file', () => {
+    // Codex ignores notify in .codex/config.toml (PROJECT_LOCAL_CONFIG_DENYLIST).
+    const { components } = scanInventory({ root: fixture('claude-commands') });
+    expect(components.filter((c) => c.agents.includes('codex'))).toEqual([]);
   });
 
   it('gives the same result twice, in a stable order', () => {

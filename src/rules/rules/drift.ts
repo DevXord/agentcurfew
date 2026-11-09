@@ -24,7 +24,7 @@ export const drift: Rule = {
       const more = change.details.length > MAX_DETAILS ? `; and ${change.details.length - MAX_DETAILS} more` : '';
       const message =
         change.type === 'added' ? 'not in agentcurfew.lock: added since it was locked' : change.type === 'removed' ? 'in agentcurfew.lock, but no longer in the project' : `changed since it was locked: ${shown.join('; ')}${more}`;
-      return { kind: change.kind, file: change.file, name: change.name, message };
+      return { kind: change.kind, file: change.file, name: change.name, ...(change.id === undefined ? {} : { componentId: change.id }), message };
     });
   },
 };

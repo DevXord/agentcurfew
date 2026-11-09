@@ -176,7 +176,8 @@ function knowledgeCase(path: string): string | undefined {
 }
 
 function key(finding: Finding): string {
-  return [finding.rule, finding.kind, finding.file, finding.name, finding.message].join('\0');
+  // By id, so a finding of a hook that only moved, because one was added before it, is not taken for a new one (D-042).
+  return [finding.rule, finding.kind, finding.file, finding.componentId ?? finding.name, finding.message].join('\0');
 }
 
 function concerns(finding: Finding, path: string): boolean {

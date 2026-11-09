@@ -184,6 +184,68 @@ describe('user scope', () => {
   });
 });
 
+describe('scripts that hooks run', () => {
+  const hook = (command: string) => JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: 'command', command }] }] } });
+  const scripts = (inventory: ReturnType<typeof scanInventory>) => inventory.components.find((c) => c.kind === 'hook')?.files?.map((f) => f.path);
+
+  it('does not read a script link that leaves the project', (context) => {
+    write('steal.sh', 'SECRET-OUTSIDE', outside);
+    if (!linkFile(join(outside, 'steal.sh'), join(root, 'scripts/run.sh'))) return context.skip();
+    write('.claude/settings.json', hook('./scripts/run.sh'));
+    const inventory = scanInventory({ root });
+    expect(JSON.stringify(inventory)).not.toContain('SECRET-OUTSIDE');
+    expect(scripts(inventory)).toBeUndefined();
+    expect(inventory.problems.map((p) => `${p.code} ${p.file}`)).toEqual(['outside-project scripts/run.sh']);
+  });
+
+  it('does not read a script through a folder link that leaves the project', (context) => {
+    write('run.sh', 'SECRET-OUTSIDE', outside);
+    try {
+      symlinkSync(outside, join(root, 'tools'), 'dir');
+    } catch {
+      return context.skip();
+    }
+    write('.claude/settings.json', hook('bash tools/run.sh'));
+    const inventory = scanInventory({ root });
+    expect(JSON.stringify(inventory)).not.toContain('SECRET-OUTSIDE');
+    expect(scripts(inventory)).toBeUndefined();
+  });
+
+  it('does not read a script outside the project by a relative path', () => {
+    write('run.sh', 'SECRET-OUTSIDE', outside);
+    write('.claude/settings.json', hook('../outside/run.sh && bash scripts/../../outside/run.sh'));
+    const inventory = scanInventory({ root });
+    expect(JSON.stringify(inventory)).not.toContain('SECRET-OUTSIDE');
+    expect(scripts(inventory)).toBeUndefined();
+  });
+
+  it('does not read a script over the size limit, says so, and that fails the scan', () => {
+    write('.claude/settings.json', hook('./scripts/big.sh'));
+    write('scripts/big.sh', 'x'.repeat(2000));
+    const inventory = scanInventory({ root, limits: { maxFileBytes: 1000 } });
+    expect(scripts(inventory)).toEqual(['scripts/big.sh']);
+    expect(inventory.components.find((c) => c.kind === 'hook')?.files?.[0]?.raw).toBeUndefined();
+    expect(inventory.problems.map((p) => `${p.code} ${p.file}`)).toEqual(['too-large scripts/big.sh']);
+  });
+
+  it('leaves out installed packages and files the root .gitignore ignores', () => {
+    write('.gitignore', '# build output\ndist/\n');
+    write('.claude/settings.json', hook('node dist/hook.js && node node_modules/tool/cli.js && bash scripts/ok.sh'));
+    write('dist/hook.js', 'built');
+    write('node_modules/tool/cli.js', 'installed');
+    write('scripts/ok.sh', 'echo ok');
+    expect(scripts(scanInventory({ root }))).toEqual(['scripts/ok.sh']);
+  });
+
+  it('reads no script of a hook in the home directory', () => {
+    const home = join(base, 'home');
+    write('.claude/settings.json', hook('./scripts/run.sh'), home);
+    write('scripts/run.sh', 'echo hi', root);
+    const inventory = scanInventory({ root, user: true, home });
+    expect(inventory.components.filter((c) => c.scope === 'user' && c.files !== undefined)).toEqual([]);
+  });
+});
+
 describe('the scanner runs nothing', () => {
   it('leaves a command in a hook unexecuted', () => {
     const canary = join(base, 'canary');
@@ -191,6 +253,9 @@ describe('the scanner runs nothing', () => {
     write('.claude/skills/a/SKILL.md', 'x');
     write('.claude/skills/a/run.sh', `#!/bin/sh\ntouch ${canary}\n`);
     chmodSync(join(root, '.claude/skills/a/run.sh'), 0o755);
+    write('.claude/settings.local.json', JSON.stringify({ statusLine: { type: 'command', command: './scripts/status.sh' }, hooks: { Stop: [{ hooks: [{ type: 'command', command: './scripts/status.sh' }] }] } }));
+    write('scripts/status.sh', `#!/bin/sh\ntouch ${canary}\n`);
+    chmodSync(join(root, 'scripts/status.sh'), 0o755);
     expect(scanInventory({ root }).components.length).toBeGreaterThan(1);
     expect(existsSync(canary)).toBe(false);
   });

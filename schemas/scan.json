@@ -16,6 +16,27 @@
     "schemaVersion": {
       "const": 3
     },
+    "producer": {
+      "type": "object",
+      "description": "What made this output: the tool, its version and the date of the newest fact in its knowledge base. No time, so outputs of the same project stay comparable.",
+      "properties": {
+        "name": {
+          "const": "agentcurfew"
+        },
+        "version": {
+          "type": "string"
+        },
+        "knowledge": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "knowledge"
+      ]
+    },
     "failOn": {
       "enum": [
         "critical",
@@ -48,7 +69,8 @@
               "context-file",
               "permission",
               "subagent",
-              "command"
+              "command",
+              "command-setting"
             ]
           },
           "agents": {
@@ -69,6 +91,11 @@
           },
           "name": {
             "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The component's stable id: its name, or for a hook its event, matcher and a hash of the handler, so it stays when a hook is added before it."
           },
           "files": {
             "type": "array",
@@ -93,6 +120,11 @@
           "bytes": {
             "type": "integer",
             "minimum": 0
+          },
+          "hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "The checksum agentcurfew.lock holds for this component."
           }
         }
       }
@@ -132,7 +164,8 @@
               "context-file",
               "permission",
               "subagent",
-              "command"
+              "command",
+              "command-setting"
             ]
           },
           "file": {
@@ -140,6 +173,11 @@
           },
           "name": {
             "type": "string"
+          },
+          "componentId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The component's stable id: its name, or for a hook its event, matcher and a hash of the handler, so it stays when a hook is added before it."
           },
           "line": {
             "type": "integer",
@@ -204,7 +242,8 @@
                   "context-file",
                   "permission",
                   "subagent",
-                  "command"
+                  "command",
+                  "command-setting"
                 ]
               },
               "file": {

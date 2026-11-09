@@ -1,6 +1,8 @@
 import { analyzeProject } from '../analyze.ts';
-import { buildLock } from '../lock/build.ts';
-import { diffLocks } from '../lock/diff.ts';
+import { buildLock, serializeLock } from '../lock/build.ts';
+import { carryExecutableBits, diffLocks, hasIds } from '../lock/diff.ts';
+import { sha256 } from '../lock/hash.ts';
+import { producer } from './producer.ts';
 import type { Change } from '../lock/diff.ts';
 import { LOCKFILE } from '../lock/types.ts';
 import { skillsLockMismatch } from '../rules/rules/skills-lock-mismatch.ts';
@@ -34,10 +36,14 @@ export function runVerify(argv: readonly string[], io: CliIo, usageError: (what:
     return EXIT_FAILURE;
   }
   const options = context.compareExecutableBits === undefined ? {} : { compareExecutableBits: context.compareExecutableBits };
-  const changes = diffLocks(lock.lock, buildLock(inventory, context.knowledge), options);
+  const current = buildLock(inventory, context.knowledge);
+  const changes = diffLocks(lock.lock, current, options);
   const skills = skillsLockMismatch.checkProject?.(inventory, context) ?? [];
+  // The checksum of the lock that agentcurfew lock would write now, to compare states without sending the lock.
+  const lockDigest = sha256(serializeLock(context.compareExecutableBits === false ? carryExecutableBits(current, lock.lock) : current));
+  const noIds = !hasIds(lock.lock);
   if (values.json === true) {
-    const output = { schemaVersion: VERIFY_SCHEMA_VERSION, ok: changes.length === 0, changes, skillsLock: skills, problems: inventory.problems };
+    const output = { schemaVersion: VERIFY_SCHEMA_VERSION, producer: producer(), ok: changes.length === 0, changes, lockDigest, ...(noIds ? { lockWithoutIds: true } : {}), skillsLock: skills, problems: inventory.problems };
     io.stdout(`${printableJson(output)}\n`);
     return changes.length === 0 ? EXIT_OK : EXIT_FAILURE;
   }
@@ -46,6 +52,7 @@ export function runVerify(argv: readonly string[], io: CliIo, usageError: (what:
     lines.push('', 'skills-lock.json (does not change the result):');
     for (const hit of skills) lines.push(`  ${label(io, (hit.level ?? 'medium').toUpperCase())}  ${printable(hit.file)}: ${printable(hit.message)}`);
   }
+  if (noIds) lines.push('', `Note: ${LOCKFILE} was written before component ids; run agentcurfew lock to add them.`);
   lines.push(...problemLines(inventory));
   if (changes.length > 0) lines.push('', `If the changes are expected, run agentcurfew lock and commit ${LOCKFILE}.`);
   io.stdout(`${lines.join('\n')}\n`);

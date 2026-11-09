@@ -131,7 +131,9 @@ Generated from `src/knowledge/` by `npm run docs:knowledge`; do not edit by hand
 | Agent | What | Value | Status | Source | Verified |
 | --- | --- | --- | --- | --- | --- |
 | Claude Code | hook `PreToolUse` | tools `Bash`, `Write`, `Edit`; answer `hookSpecificOutput.permissionDecision` (`deny` > `defer` > `ask` > `allow`) | verified | [source](https://code.claude.com/docs/en/hooks) | 2026-11-06 |
+| Claude Code | settings that run a command | `statusLine.command` (at session start)<br>`subagentStatusLine.command` (when needed)<br>`fileSuggestion.command` (when needed)<br>`apiKeyHelper` (when needed)<br>`otelHeadersHelper` (at session start)<br>`awsAuthRefresh` (when needed)<br>`awsCredentialExport` (when needed)<br>`gcpAuthRefresh` (when needed) | verified | [source](https://code.claude.com/docs/en/settings-reference#settings-index) | 2026-11-08 |
 | Claude Code | add an MCP server | `claude mcp add`, `claude mcp add-json` | verified | [source](https://code.claude.com/docs/en/mcp) | 2026-11-06 |
+| OpenAI Codex CLI | settings that run a command | `notify` (when needed, ignored in a project file) | verified | [source](https://learn.chatgpt.com/docs/config-file/config-advanced.md#notifications) | 2026-11-08 |
 | skills installer | add a skill | `npx skills add <source>` | verified | [source](https://raw.githubusercontent.com/vercel-labs/skills/main/docs/commands.md) | 2026-11-06 |
 
 ## Shared formats

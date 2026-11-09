@@ -1,4 +1,5 @@
 import type { Inventory } from '../inventory/types.ts';
+import { idOf } from '../inventory/types.ts';
 import { knowledgeBase } from '../knowledge/index.ts';
 import { quote } from './mask.ts';
 import type { Finding, Level, ProjectHit, Rule, RuleContext } from './types.ts';
@@ -40,7 +41,9 @@ export function applyRules(inventory: Inventory, selected: readonly Rule[], cont
       const seen = new Set<string>();
       let kept = 0;
       for (const hit of hits) {
-        const file = hit.inFile === undefined ? component.file : `${component.file.slice(0, component.file.lastIndexOf('/') + 1)}${hit.inFile}`;
+        // A script a command runs is named relative to the project, a skill's file relative to the skill's folder.
+        const folder = component.filesRoot === 'project' ? '' : component.file.slice(0, component.file.lastIndexOf('/') + 1);
+        const file = hit.inFile === undefined ? component.file : `${folder}${hit.inFile}`;
         const key = `${file}\0${hit.line ?? ''}\0${hit.column ?? ''}\0${hit.message}`;
         const global = `${rule.id}\0${component.name}\0${key}`;
         if (seen.has(key) || reported.has(global)) continue;
@@ -56,6 +59,7 @@ export function applyRules(inventory: Inventory, selected: readonly Rule[], cont
           kind: component.kind,
           file,
           name: component.name,
+          componentId: idOf(component),
           ...(hit.line === undefined ? {} : { line: hit.line }),
           ...(hit.column === undefined ? {} : { column: hit.column }),
           message: quote(hit.message, 400),
@@ -80,6 +84,7 @@ export function applyRules(inventory: Inventory, selected: readonly Rule[], cont
         kind: hit.kind,
         file: hit.file,
         name: hit.name,
+        ...(hit.componentId === undefined ? {} : { componentId: hit.componentId }),
         message: quote(hit.message, 400),
       });
     }

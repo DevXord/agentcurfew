@@ -91,3 +91,15 @@ export function redactWords(words: readonly string[]): string[] {
   const secret = new Set(flagSecrets(words).map((found) => found.index));
   return words.map((word, index) => (secret.has(index) ? REDACTED : redact(word)));
 }
+
+/**
+ * A parsed entry with every secret the rules would report replaced by <redacted>. The lock is meant to be committed, so
+ * its hashes must not let anyone confirm a guessed secret offline (Q-015, decision of the maintainer): a change of a
+ * secret's value alone is therefore not drift, while any other change is.
+ */
+export function redactedValue(value: unknown, key?: string): unknown {
+  if (typeof value === 'string') return key !== undefined && namedSecret(key, value) !== undefined ? REDACTED : redact(value);
+  if (Array.isArray(value)) return value.every((item) => typeof item === 'string') ? redactWords(value as string[]) : value.map((item) => redactedValue(item));
+  if (typeof value === 'object' && value !== null) return Object.fromEntries(Object.entries(value).map(([name, item]) => [name, redactedValue(item, name)]));
+  return value;
+}

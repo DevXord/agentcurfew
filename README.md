@@ -4,7 +4,7 @@
 
 [![ci](https://github.com/DevXord/agentcurfew/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DevXord/agentcurfew/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/agentcurfew?color=6d28d9&label=npm)](https://www.npmjs.com/package/agentcurfew)
-[![node](https://img.shields.io/badge/node-%E2%89%A522.23-6d28d9)](https://nodejs.org/)
+[![node](https://img.shields.io/badge/node-%E2%89%A520-6d28d9)](https://nodejs.org/)
 [![license](https://img.shields.io/badge/license-MIT-6d28d9)](LICENSE)
 [![docs](https://img.shields.io/badge/docs-agentcurfew.github.io-6d28d9)](https://agentcurfew.github.io/)
 
@@ -16,9 +16,9 @@ AI coding agents (Claude Code, Cursor, Codex CLI, Gemini CLI, Copilot in VS Code
 
 agentcurfew:
 
-- **lists** every such component in a project, for every agent it knows (`scan --inventory`);
+- **lists** every such component in a project, for every agent it knows, including settings that run a command (`statusLine`, `apiKeyHelper`) and the scripts of the project that hooks run (`scan --inventory`);
 - **checks** them against [15 rules](docs/rules.md): hidden Unicode, unpinned `npx` MCP servers, plain-HTTP MCP endpoints, secrets in configs, dangerous hooks, auto-run on open, permission bypasses, instructions fetched at run time, persistence instructions and more (`scan`);
-- **locks** them with checksums in `agentcurfew.lock`, so CI fails when one changes (`lock`, `verify`);
+- **locks** them with checksums in `agentcurfew.lock`, the scripts hooks run included, so CI fails when one changes (`lock`, `verify`);
 - **enforces** a policy in `agentcurfew.policy.json`: allowed skill sources and MCP servers, pinned versions, exceptions with a reason and an end date (`init`, [policy](docs/policy.md));
 - **finds** configuration that agents ignore or that does not work: misnamed files, wrong keys, settings that another file overrides ([doctor](docs/doctor.md));
 - **guards** the agent itself: an MCP server with read-only checks, and a Claude Code hook that stops dangerous writes to these files ([MCP server and hook](docs/mcp.md)).
@@ -40,7 +40,7 @@ npm install --save-dev agentcurfew
 npx agentcurfew@1 scan
 ```
 
-It needs Node.js 22.23 or later. The command is `agentcurfew`.
+It needs Node.js 20 or later. The command is `agentcurfew`.
 
 ## Use
 
