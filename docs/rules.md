@@ -43,7 +43,7 @@ False alarms: Right-to-left languages can need bidirectional marks, and some tex
 
 **MCP server without a fixed version.** Level medium; low when the package could not be found in the launcher arguments. AST02 Supply Chain Compromise, AST07 Update Drift.
 
-Finds MCP servers started through a launcher that downloads them at run time (npx, bunx, pnpm dlx, yarn dlx, npm exec, uvx, uv tool run, pipx run, docker run, podman run) without an exact version or an image digest. Each start may then run code that nobody reviewed, and the lockfile cannot pin it.
+Finds MCP servers started through a launcher that downloads them at run time (npx, bunx, pnpm dlx, yarn dlx, npm exec and npm x, uvx, uv tool run, pipx run, docker run, podman run, also after their global options), and every package it fetches (each -p, uvx --with), that has no exact version or image digest. Each start may then run code that nobody reviewed, and the lockfile cannot pin it.
 
 Example: `"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem"]`
 
@@ -87,7 +87,7 @@ False alarms: A hook may download from a trusted host on purpose. Writes are fou
 
 **Command fetches a package without a fixed version.** Level medium; low when the package could not be found in the launcher arguments. AST02 Supply Chain Compromise, AST07 Update Drift.
 
-Finds hooks, automatic tasks and settings that run a command (statusLine, apiKeyHelper and the like), and the scripts of the project they run, whose command starts a package through a launcher that downloads it at run time (npx, bunx, pnpm dlx, yarn dlx, npm exec, uvx, uv tool run, pipx run, docker run, podman run) without an exact version or an image digest. The hook then runs whatever version is newest when its event fires, with the user's rights and without a prompt, and the lockfile cannot pin it.
+Finds hooks, automatic tasks and settings that run a command (statusLine, apiKeyHelper and the like), and the scripts of the project they run, whose command starts a package through a launcher that downloads it at run time (npx, bunx, pnpm dlx, yarn dlx, npm exec and npm x, uvx, uv tool run, pipx run, docker run, podman run, also after their global options), and every package it fetches (each -p, uvx --with), that has no exact version or image digest. The hook then runs whatever version is newest when its event fires, with the user's rights and without a prompt, and the lockfile cannot pin it.
 
 Example: `"command": "npx prettier --write ."`
 

@@ -1,10 +1,13 @@
 // Command lines read as words: nothing is run, expanded or resolved.
 
+/** Here-documents read inside here-documents, at most; found by the review of 2026-11-09, where 8000 levels overflowed the stack. */
+const MAX_HEREDOC_DEPTH = 8;
+
 /**
  * Words of one simple command, with quotes removed; commands are split on ;, &&, ||, |, newlines, parentheses and
  * backquotes outside quotes, so that (cmd), $(cmd) and `cmd` are commands of their own.
  */
-export function commands(line: string, escapes = true): string[][] {
+export function commands(line: string, escapes = true, depth = 0): string[][] {
   const result: string[][] = [];
   let words: string[] = [];
   let word = '';
@@ -39,7 +42,7 @@ export function commands(line: string, escapes = true): string[][] {
       const body = lines.join('\n');
       if (runsBody) {
         endCommand();
-        result.push(...commands(body, escapes));
+        result.push(...commands(body, escapes, depth + 1));
       } else {
         endWord();
         words.push(body);
@@ -49,7 +52,9 @@ export function commands(line: string, escapes = true): string[][] {
   };
   for (let index = 0; index < line.length; index++) {
     const char = line[index] as string;
-    if (quoted === undefined && char === '<' && line[index + 1] === '<' && line[index + 2] !== '<') {
+    // Past MAX_HEREDOC_DEPTH nested here-documents, << is read as a word, so the lines of the deepest bodies are read as
+    // commands of their own: each is still checked, and a nesting of thousands costs neither the stack nor quadratic time.
+    if (depth < MAX_HEREDOC_DEPTH && quoted === undefined && char === '<' && line[index + 1] === '<' && line[index + 2] !== '<') {
       const heredoc = /^<<(-?)[ \t]*(?:'([^'\n]*)'|"([^"\n]*)"|([^\s;&|<>()]+))/.exec(line.slice(index, index + 300));
       if (heredoc !== null) {
         endWord();

@@ -44,6 +44,11 @@ export interface Component {
   files?: readonly SkillFile[];
   /** project: the paths of files are relative to the project, not to the component's folder. */
   filesRoot?: 'project';
+  /**
+   * Whether raw is the text of the whole file rather than one entry of it. The scanner always sets it; a component built
+   * by hand without it is judged by its name (text.ts isWholeFile). Kept out of the output.
+   */
+  whole?: boolean;
 }
 
 /** A component's id, or its name when it was built without one. */

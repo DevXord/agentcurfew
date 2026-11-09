@@ -157,11 +157,11 @@ class Scan {
     return value;
   }
 
-  #add(kind: ComponentKind, agent: AgentId, scope: Scope, file: string, name: string, raw: string, files?: readonly SkillFile[], filesRoot?: 'project', id: string = name): void {
+  #add(kind: ComponentKind, agent: AgentId, scope: Scope, file: string, name: string, raw: string, files?: readonly SkillFile[], filesRoot?: 'project', id: string = name, whole = false): void {
     const key = `${kind}\0${file}\0${name}`;
     const known = this.#components.get(key);
     if (known === undefined) {
-      this.#components.set(key, { kind, agents: [agent], scope, file, name, id, raw, ...(files === undefined ? {} : { files }), ...(files === undefined || filesRoot === undefined ? {} : { filesRoot }) });
+      this.#components.set(key, { kind, agents: [agent], scope, file, name, id, raw, whole, ...(files === undefined ? {} : { files }), ...(files === undefined || filesRoot === undefined ? {} : { filesRoot }) });
     }
     else if (!known.agents.includes(agent)) this.#components.set(key, { ...known, agents: [...known.agents, agent].sort() });
   }
@@ -213,10 +213,10 @@ class Scan {
     const files = new Map<string, SkillFile>();
     for (const line of lines) {
       for (const path of scriptPaths(line, this.#projectVariables)) {
-        if (files.has(path) || !this.#committed(path)) continue;
+        if (files.has(path)) continue;
         const found = this.files.match(this.#root, path.split('/'), false)[0];
         const details = found === undefined ? undefined : this.files.details(found);
-        if (found === undefined || details === undefined) continue;
+        if (found === undefined || details === undefined || !this.#committed(path)) continue;
         const flags = { ...(details.link ? { link: true } : {}), ...(details.executable ? { executableBit: true } : {}) };
         const content = this.files.readBytes(found);
         if (content === undefined) {
@@ -234,7 +234,7 @@ class Scan {
 
   #addFile(kind: ComponentKind, agent: AgentId, scope: Scope, found: Found): void {
     const raw = this.files.read(found);
-    if (raw !== undefined) this.#add(kind, agent, scope, found.file, baseName(found.file), raw);
+    if (raw !== undefined) this.#add(kind, agent, scope, found.file, baseName(found.file), raw, undefined, undefined, baseName(found.file), true);
   }
 
   #collectMcp(agent: AgentKnowledge): void {
@@ -513,7 +513,8 @@ class Scan {
               continue;
             }
             for (const location of names.locations) {
-              const file = { ...location, path: location.path.replace('<name>', name) };
+              // A function, so that $& and the like in a name are not replacement patterns.
+              const file = { ...location, path: location.path.replace('<name>', () => name) };
               for (const match of this.#find(file)) this.#addFile('context-file', agent.id, location.scope, match);
             }
           }
@@ -532,7 +533,7 @@ class Scan {
           const folder = found.file.slice(0, found.file.lastIndexOf('/'));
           const parent = { path: found.path.slice(0, -skills.entryFile.length - 1), file: folder, area: found.area };
           const files = this.files.tree(parent).map((inner) => this.#skillFile(inner));
-          this.#add('skill', agent.id, directory.scope, found.file, baseName(folder), raw, files);
+          this.#add('skill', agent.id, directory.scope, found.file, baseName(folder), raw, files, undefined, baseName(folder), true);
         }
       }
     }

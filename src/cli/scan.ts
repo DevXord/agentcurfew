@@ -36,7 +36,7 @@ const PROBLEMS: Readonly<Record<InventoryProblem['code'], string>> = {
 
 /** What may be printed: no file contents, which can hold secrets or hostile text. */
 export function publicComponent(component: Component): object {
-  const { raw, files, ...visible } = component;
+  const { raw, files, whole: _whole, ...visible } = component;
   const listed = files === undefined ? {} : { files: files.map(({ path, bytes }) => ({ path, bytes })) };
   // The id and the checksum the lock holds (D-042), so that a reader of the JSON can follow a component without the lock.
   return { ...visible, id: idOf(component), ...listed, bytes: Buffer.byteLength(raw), hash: lockHash(component) };

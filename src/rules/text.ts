@@ -3,6 +3,9 @@ import type { Component } from '../inventory/types.ts';
 /** True when the component's raw is the text of its file, so positions in it are positions in the file. */
 export function isWholeFile(component: Component): boolean {
   if (component.kind === 'skill') return true;
+  if (component.whole !== undefined) return component.whole;
+  // Entries of a file never are, whatever their name: an MCP server named .mcp.json is still an entry (review of 2026-11-09).
+  if (component.kind === 'mcp-server' || component.kind === 'setting' || component.kind === 'command-setting') return false;
   return component.name === component.file.slice(component.file.lastIndexOf('/') + 1);
 }
 

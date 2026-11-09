@@ -72,21 +72,26 @@ export function parseGitignore(text: string): readonly Pattern[] {
   return patterns;
 }
 
+/** Folders above a path that are matched against the patterns; deeper paths are not files a scan reads. */
+const MAX_DEPTH = 64;
+
 /** Whether a path relative to the root, with / separators, is ignored: the file itself or a folder above it. */
 export function isIgnored(patterns: readonly Pattern[], path: string): boolean {
   const segments = path.split('/');
+  // A path this deep is not read at all (script paths are capped likewise), so it is not matched: a padded path must not
+  // cost the product of its depth and the number of patterns again for each folder (review of 2026-11-09).
+  if (segments.length > MAX_DEPTH) return false;
   // A file below an ignored folder stays ignored: git does not look inside it, so a negation cannot bring it back.
   for (let end = 1; end < segments.length; end++) {
-    if (matches(patterns, segments.slice(0, end).join('/'), true)) return true;
+    if (matches(patterns, segments.slice(0, end), true)) return true;
   }
-  return matches(patterns, path, false);
+  return matches(patterns, segments, false);
 }
 
-function matches(patterns: readonly Pattern[], path: string, isFolder: boolean): boolean {
+function matches(patterns: readonly Pattern[], segments: readonly string[], isFolder: boolean): boolean {
   let ignored = false;
   for (const pattern of patterns) {
     if (pattern.folder && !isFolder) continue;
-    const segments = path.split('/');
     const hit = pattern.anchored ? pathMatches(pattern.segments, segments) : segmentMatches(pattern.segments.join('/'), segments.at(-1) ?? '');
     if (hit) ignored = !pattern.negated;
   }

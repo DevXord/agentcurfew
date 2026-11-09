@@ -307,3 +307,21 @@ describe('settings that name files or hold many entries', () => {
     expect(problems.map((p) => p.code)).toContain('too-many-entries');
   });
 });
+
+describe('script paths that pad the .gitignore match', () => {
+  it('scans a hook with a very long script path and a long .gitignore in bounded time', () => {
+    write('.claude/settings.json', JSON.stringify({ hooks: { PreToolUse: [{ hooks: [{ type: 'command', command: `./${'a/'.repeat(4000)}s.sh` }] }] } }));
+    write('.gitignore', Array.from({ length: 1000 }, (_, index) => `x${index}`).join('\n'));
+    const start = performance.now();
+    const { components } = scanInventory({ root });
+    expect(performance.now() - start).toBeLessThan(3000);
+    expect(components.filter((c) => c.kind === 'hook')).toHaveLength(1);
+  });
+
+  it('does not crash on deeply nested here-documents in a hook', () => {
+    write('.claude/settings.json', JSON.stringify({ hooks: { PreToolUse: [{ hooks: [{ type: 'command', command: `${'bash <<A\n'.repeat(8000)}./run.sh` }] }] } }));
+    write('run.sh', 'echo hi');
+    const { components } = scanInventory({ root });
+    expect(components.filter((c) => c.kind === 'hook')).toHaveLength(1);
+  });
+});

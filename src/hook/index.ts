@@ -133,9 +133,9 @@ export function runHook(stdin: string, env: Readonly<Record<string, string | und
   try {
     verdict = judge(input, root, now, env.HOME ?? env.USERPROFILE ?? homedir());
   } catch {
-    const tool = field(input, hook.toolNameField);
-    if (tool === 'Write' || tool === 'Edit') verdict = { decision: 'ask', reasons: ['agentcurfew: this write could not be checked because of an error in agentcurfew.'] };
-    else return { stdout: '', stderr: 'agentcurfew hook: the check failed, so it gives no opinion\n' };
+    // A failed check asks, also for shell commands: silence would let a command padded to break the check through
+    // (review of 2026-11-09). Calls the hook has no business with return before any check, so they cannot get here.
+    verdict = { decision: 'ask', reasons: ['agentcurfew: this call could not be checked because of an error in agentcurfew.'] };
   }
   if (verdict === undefined) return { stdout: '', stderr: '' };
   return answer(hook, verdict);

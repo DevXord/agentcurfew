@@ -12,6 +12,11 @@ const INLINE = new Set(['-c', '-e', '-m', '-p', '--eval', '--print', '-command',
 /** Options whose value is the file: pwsh -File x.ps1. */
 const FILE_OPTIONS = new Set(['-file', '-f']);
 
+/** The longest path, file name and depth of a script that is read: about the limits of common file systems. */
+const MAX_PATH_LENGTH = 4096;
+const MAX_NAME_LENGTH = 255;
+const MAX_SEGMENTS = 64;
+
 function program(word: string): string {
   return (word.split(/[\\/]/).at(-1) ?? word).toLowerCase().replace(/\.exe$/, '');
 }
@@ -26,8 +31,11 @@ function projectPath(word: string, variables: readonly string[]): string | undef
     for (const prefix of [`$${variable}/`, `\${${variable}}/`]) if (path.startsWith(prefix)) path = path.slice(prefix.length);
   }
   if (/[$`*?[\]{}]/.test(path) || /^[/\\~]/.test(path) || /^[A-Za-z]:/.test(path) || path.includes('://')) return undefined;
+  // No file system holds a longer path or name, and the .gitignore match must not be padded (review of 2026-11-09).
+  if (path.length > MAX_PATH_LENGTH) return undefined;
   const kept: string[] = [];
   for (const segment of path.replaceAll('\\', '/').split('/')) {
+    if (segment.length > MAX_NAME_LENGTH || kept.length >= MAX_SEGMENTS) return undefined;
     if (segment === '' || segment === '.') continue;
     if (segment === '..') {
       if (kept.pop() === undefined) return undefined;
