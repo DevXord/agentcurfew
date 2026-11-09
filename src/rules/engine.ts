@@ -68,6 +68,9 @@ export function applyRules(inventory: Inventory, selected: readonly Rule[], cont
       }
     }
   }
+  // A project rule names a component by kind, file and name; its id is looked up, so that findings say which component
+  // they are about (review of 2026-11-09). drift names components of the lock too, which give their own.
+  const ids = new Map(inventory.components.map((component) => [`${component.kind}\0${component.file}\0${component.name}`, idOf(component)]));
   for (const rule of selected) {
     if (rule.checkProject === undefined) continue;
     let hits: readonly ProjectHit[];
@@ -84,7 +87,10 @@ export function applyRules(inventory: Inventory, selected: readonly Rule[], cont
         kind: hit.kind,
         file: hit.file,
         name: hit.name,
-        ...(hit.componentId === undefined ? {} : { componentId: hit.componentId }),
+        ...(() => {
+          const componentId = hit.componentId ?? ids.get(`${hit.kind}\0${hit.file}\0${hit.name}`);
+          return componentId === undefined ? {} : { componentId };
+        })(),
         message: quote(hit.message, 400),
       });
     }

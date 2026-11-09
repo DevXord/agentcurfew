@@ -54,6 +54,7 @@ const EXPECTED: Readonly<Record<string, readonly string[]>> = {
   'gemini-context-name': [
     'context-file | AGENTS.md | AGENTS.md | claude-code,cline,codex,copilot-vscode,cursor,gemini-cli,windsurf',
     'context-file | GEMINI.md | GEMINI.md | gemini-cli',
+    'context-file | abs.md | abs.md | gemini-cli',
     'context-file | docs/AI.md | AI.md | gemini-cli',
     'context-file | sub/docs/AI.md | AI.md | gemini-cli',
     'setting | .gemini/settings.json | context.fileName | gemini-cli',
@@ -210,9 +211,10 @@ describe('inventory of fixtures', () => {
 
   it('reads the context file names of Gemini CLI, and refuses names it cannot follow safely', () => {
     const { components, problems } = scanInventory({ root: fixture('gemini-context-name') });
-    // ../outside.md, **/* and /abs.md are not followed: other.md and abs.md stay out.
-    expect(components.some((c) => c.file === 'other.md' || c.file === 'abs.md')).toBe(false);
-    expect(problems.map((p) => `${p.code} ${p.file}`)).toEqual(['unparsable .gemini/settings.json']);
+    // ../outside.md and **/* are not followed, so other.md stays out; /abs.md is abs.md in the folder, as Gemini CLI joins it.
+    expect(components.some((c) => c.file === 'other.md')).toBe(false);
+    expect(components.some((c) => c.file === 'abs.md')).toBe(true);
+    expect(problems.map((p) => `${p.code} ${p.file}`)).toEqual(['not-followed .gemini/settings.json']);
   });
 
   it('caps the entries read from one settings object', () => {

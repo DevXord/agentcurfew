@@ -215,7 +215,7 @@ Checks the project against the lists of agentcurfew.policy.json: skills whose so
 
 Example: `mcp.allowServers is ["@modelcontextprotocol/*"], and .mcp.json starts npx -y random-server@1.0.0`
 
-Fix: Remove the component, or, if it was reviewed and is wanted, add its source, package or address to the policy. local allows skills that skills-lock.json does not list and servers started from a local command.
+Fix: Remove the component, or, if it was reviewed and is wanted, add its source, package or address to the policy. local allows skills that skills-lock.json does not list and servers started from a local command; a server a launcher fetches from git or an address (npx -y github:org/repo) is named by that spec, not local.
 
 ## mcp-package
 

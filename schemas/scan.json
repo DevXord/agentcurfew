@@ -301,7 +301,8 @@
               "too-deep",
               "too-many-entries",
               "unreadable",
-              "unparsable"
+              "unparsable",
+              "not-followed"
             ]
           },
           "file": {
@@ -309,6 +310,33 @@
           }
         }
       }
+    },
+    "depcurfew": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "status",
+        "reason",
+        "servers"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "missing",
+            "unsupported",
+            "no-policy",
+            "invalid-policy"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "servers": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "description": "Present when mcp-package did not check the packages of MCP servers: why, and how many servers it would have checked."
     }
   }
 }

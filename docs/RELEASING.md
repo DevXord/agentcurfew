@@ -23,8 +23,8 @@ Facts below come from npm's documentation sources (`npm/documentation`, `content
 
 1. Make sure CI on `main` is green, including `agentcurfew verify .` and `depcurfew doctor`.
 2. Write the user-facing notes in [CHANGELOG.md](../CHANGELOG.md).
-3. Set the version without creating a tag: `npm version 1.0.0 --no-git-tag-version`, commit `package.json`, `package-lock.json` and `CHANGELOG.md`, and push.
-4. Tag that commit and push the tag: `git tag -s v1.0.0 -m v1.0.0 && git push origin v1.0.0`.
+3. Set the version without creating a tag: `npm version <version> --no-git-tag-version`, update the welcome-screen snapshot (`tests/__snapshots__/cli-screens.test.ts.snap`, which shows the version), commit `package.json`, `package-lock.json`, the snapshot and `CHANGELOG.md`, and push.
+4. Tag that commit and push the tag: `git tag -s v<version> -m v<version> && git push origin v<version>` (or `git -c tag.gpgSign=false tag -a …` without a signing key).
 5. The workflow checks that the tag matches the version, runs the tests, packs the tarball and prints its SHA-256.
 6. Approve the job `publish` in GitHub (environment `npm`). It checks the tarball's SHA-256 and runs `npm stage publish`; nothing is public yet.
 7. Inspect the staged package: `npm stage list agentcurfew`, `npm stage view <id>`, `npm stage download <id>` (compare its SHA-256 with step 5).
@@ -43,7 +43,7 @@ Read again on 2026-11-07: a trusted publisher can be configured only for a packa
 5. Set **Publishing access** to disallow tokens (step 4 of "Once, before the first release") right away. Add the trusted publisher (step 3), with stage publishing allowed, on the day of the next release, not now: a new configuration that sees no publish within 2 days expires. From 1.0.1 on, releases follow "Every release" with OIDC and provenance.
 6. Optionally, create a GitHub release from the tag `v1.0.0` with the notes of [CHANGELOG.md](../CHANGELOG.md), so that the repository page shows it.
 
-## Open points for the first release
+## Seen on the first release through the workflow (1.1.0, 2026-11-09)
 
-- `npm stage publish` is given the tarball built and tested by the job `build`. Whether staged publishing accepts a tarball, and whether the staged package keeps its provenance, is not stated in the documentation that was read; check it on the first run.
-- npm 11.21.1 honors `min-release-age-exclude` for `npm install` but not for `npm exec` (seen on 2026-11-06); the action therefore uses `npm install` in a temporary folder.
+- `npm stage publish` takes the tarball the job `build` tested, and the staged package keeps its provenance: the log of the job `publish` shows "Signed provenance statement with source and build information from GitHub Actions" and a transparency log entry. The SHA-1 shasum npm prints there can be compared with `npm stage download <id>`.
+- npm 11.21.1 honors `min-release-age-exclude` for `npm install` but not for `npm exec`/`npx`; the action therefore uses `npm install` in a temporary folder, and a project with a release-age delay cannot run a new version through `npx` until it is older than the delay.

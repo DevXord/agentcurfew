@@ -92,7 +92,7 @@ steps:
       fail-on: high
 ```
 
-Inputs: `command`, `directory`, `fail-on`, `sarif-file`, `upload-sarif` (needs `security-events: write`) and `build-from-source` (for tests of the action itself). Output: `exit-code`. A released commit runs the matching version of agentcurfew from npm. How releases are made: [docs/RELEASING.md](docs/RELEASING.md).
+Inputs: `command`, `directory`, `fail-on`, `sarif-file`, `upload-sarif` (needs `security-events: write`) and `build-from-source` (for tests of the action itself). Output: `exit-code`. A released commit runs the matching version of agentcurfew from npm, so pin the commit of a release tag: a later commit of `main` still runs the last released version. The action does not install depcurfew, so `mcp-package` does not run in it; `scan` then says so in a note. How releases are made: [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Development
 

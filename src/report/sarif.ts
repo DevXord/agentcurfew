@@ -29,11 +29,22 @@ function result(finding: Finding, ruleIndex: number, suppressed?: Suppressed): o
     ruleIndex,
     level: SARIF_LEVEL[finding.level],
     message: { text: `${finding.message} (${finding.kind} ${finding.name})` },
-    locations: [{ physicalLocation: { artifactLocation: { uri: fileUri(finding.file), uriBaseId: '%SRCROOT%' }, ...(region === undefined ? {} : { region }) } }],
+    locations: [{ physicalLocation: { artifactLocation: artifactLocation(finding.file), ...(region === undefined ? {} : { region }) } }],
     partialFingerprints: { 'agentcurfew/v1': fingerprint(finding), 'agentcurfew/v2': fingerprintById(finding) },
     properties: { level: finding.level, kind: finding.kind, component: finding.name, componentId: finding.componentId ?? finding.name, ...(finding.policy === undefined ? {} : { policy: finding.policy }) },
     ...(suppressed === undefined ? {} : { suppressions: [{ kind: 'external', justification: suppressed.reason }] }),
   };
+}
+
+/**
+ * Where a file is, for SARIF: relative to the repository (%SRCROOT%), to the user's home folder (HOME, for --user files
+ * that start with ~/), or an absolute file: URI for machine files (review of 2026-11-09: ~/ under %SRCROOT% named a path
+ * inside the repository that does not exist).
+ */
+function artifactLocation(file: string): { uri: string; uriBaseId?: string } {
+  if (file.startsWith('~/')) return { uri: fileUri(file.slice(2)), uriBaseId: 'HOME' };
+  if (/^(?:\/|[A-Za-z]:\/)/.test(file)) return { uri: `file://${file.startsWith('/') ? '' : '/'}${fileUri(file)}` };
+  return { uri: fileUri(file), uriBaseId: '%SRCROOT%' };
 }
 
 /** A relative path as a URI reference: each segment percent-encoded, so that a space, # or % in a file name stays a name. */
@@ -82,11 +93,12 @@ export function toSarif(findings: readonly Finding[], suppressed: readonly Suppr
                   toolExecutionNotifications: unchecked.map((problem) => ({
                     level: 'error',
                     message: { text: `${problem.code}: the file could not be read, so it was not checked` },
-                    locations: [{ physicalLocation: { artifactLocation: { uri: fileUri(problem.file) } } }],
+                    locations: [{ physicalLocation: { artifactLocation: artifactLocation(problem.file) } }],
                   })),
                 },
               ],
             }),
+        ...([...findings, ...suppressed.map((item) => item.finding)].some((finding) => finding.file.startsWith('~/')) ? { originalUriBaseIds: { HOME: { description: { text: "The user's home folder." } } } } : {}),
         columnKind: 'unicodeCodePoints',
         results: [
           ...findings.map((finding) => result(finding, index.get(finding.rule) ?? 0)),

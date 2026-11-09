@@ -100,6 +100,8 @@ export function workingGuards(inventory: Inventory): { depcurfew: Component[]; a
     if (!isRecord(value) || !isRecord(value.handler)) return false;
     const handler = value.handler;
     if (handler.type !== undefined && handler.type !== 'command') return false;
+    // if limits the handler to the calls that match a permission rule, so the guard may never run.
+    if (handler.if !== undefined) return false;
     if (handler.timeout !== undefined && (typeof handler.timeout !== 'number' || handler.timeout < MIN_GUARD_TIMEOUT)) return false;
     const words = handlerWords(handler);
     return words !== undefined && startsGuard(words, name) && covers(value.matcher, tools);

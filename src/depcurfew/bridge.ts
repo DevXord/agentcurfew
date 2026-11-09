@@ -74,6 +74,18 @@ export function depcurfewSpec(family: string, spec: string): string | undefined 
  * offline, against the project's depcurfew.json. Reports are keyed by file and server name. Without depcurfew, with
  * another major version, or without depcurfew.json, nothing is checked and the state says why.
  */
+/** How many project MCP servers start a package that mcp-package would give depcurfew to check. */
+export function checkableServers(inventory: Inventory): number {
+  let count = 0;
+  for (const component of inventory.components) {
+    if (component.kind !== 'mcp-server' || component.scope !== 'project') continue;
+    const entry = mcpEntry(component, knowledgeBase);
+    const started = entry === undefined ? undefined : launch(commandLine(entry));
+    if (started?.spec !== undefined && depcurfewSpec(started.family, started.spec) !== undefined) count++;
+  }
+  return count;
+}
+
 export async function checkMcpPackages(inventory: Inventory, root: string, now: Date = new Date()): Promise<{ state: DepcurfewState; reports: Map<string, PackageReport> }> {
   const reports = new Map<string, PackageReport>();
   cached ??= loader();

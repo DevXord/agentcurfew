@@ -258,6 +258,8 @@ export interface ToolHookKnowledge {
   decisions: readonly string[];
   /** The variable that holds the project root in a hook command. */
   projectDirVariable: string;
+  /** Tools that write files but whose input fields the docs do not show; a hook matches them and asks by the file named. */
+  otherWriteTools?: readonly string[];
 }
 
 /** A command of the agent's own CLI that adds an MCP server. */

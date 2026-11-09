@@ -64,7 +64,9 @@ export function contextName(item: unknown): string | null | undefined {
   const trimmed = item.trim();
   if (trimmed === '') return null;
   if (Buffer.byteLength(trimmed, 'utf8') > MAX_CONTEXT_NAME_BYTES || /[\p{C}*?[\]{}!\\]/u.test(trimmed)) return undefined;
-  if (/^(?:\/|~|[A-Za-z]:)/.test(trimmed)) return undefined;
+  // Gemini CLI joins the name to each folder (path.join), so a leading slash is still a path in the folder: /.prompts/x.md
+  // is .prompts/x.md there (field test of 2026-11-09). Home and drive paths are not.
+  if (/^(?:~|[A-Za-z]:)/.test(trimmed)) return undefined;
   const segments = trimmed.split('/').filter((segment) => segment !== '' && segment !== '.');
   if (segments.length === 0 || segments.some((segment) => segment === '..')) return undefined;
   const name = segments.join('/');
@@ -509,7 +511,7 @@ class Scan {
             const name = contextName(item);
             if (name === null) continue;
             if (name === undefined) {
-              this.files.report('unparsable', found.file);
+              this.files.report('not-followed', found.file);
               continue;
             }
             for (const location of names.locations) {

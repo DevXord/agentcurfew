@@ -56,7 +56,7 @@ export function idOf(component: { id?: string; name: string }): string {
   return component.id ?? component.name;
 }
 
-export type ProblemCode = 'outside-project' | 'too-large' | 'too-deep' | 'too-many-entries' | 'unreadable' | 'unparsable';
+export type ProblemCode = 'outside-project' | 'too-large' | 'too-deep' | 'too-many-entries' | 'unreadable' | 'unparsable' | 'not-followed';
 
 /**
  * Problems that leave a file of the knowledge base unchecked, so that `scan` fails on them (Q-013, decision of the

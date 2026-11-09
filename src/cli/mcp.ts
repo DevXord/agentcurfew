@@ -2,7 +2,7 @@ import { realpathSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { serveStdio } from '../mcp/stdio.ts';
 import { parseCommand } from './commands.ts';
-import { EXIT_FAILURE, EXIT_OK } from './io.ts';
+import { EXIT_FAILURE, EXIT_OK, EXIT_USAGE } from './io.ts';
 import type { CliIo } from './io.ts';
 import { printable } from './printable.ts';
 
@@ -17,7 +17,7 @@ export async function runMcp(argv: readonly string[], io: CliIo, usageError: (wh
       roots.push(realpathSync.native(resolve(given)));
     } catch {
       io.stderr(`agentcurfew: not a directory: ${printable(given)}\n  in: --root\n  fix: pass a folder that exists\n`);
-      return EXIT_FAILURE;
+      return EXIT_USAGE;
     }
   }
   if (io.streams === undefined) {

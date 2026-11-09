@@ -22,7 +22,8 @@ Every document also has `producer`: `name` (`agentcurfew`), `version` and `knowl
 - `components`: what was scanned: `kind` (`skill`, `mcp-server`, `hook`, `auto-run`, `context-file`, `permission`, `subagent`, `command`, `command-setting`, `setting`), `id`, `agents`, `scope` (`project`, `user`, `managed`), `file` (relative to the project, or starting with `~/`), `name`, `bytes`, `hash` (the checksum `agentcurfew.lock` holds for it), and `files` (`path`, `bytes`): for a skill its files, relative to its folder; for a hook, a task or a command setting the scripts of the project it runs, with `filesRoot` `project` because those paths are relative to the project.
 - `findings`: `rule`, `level` (`critical`, `high`, `medium`, `low`, `info`), `kind`, `file`, `name`, `componentId` (the `id` of the component, absent for a finding about the whole project with no component), `message`, and when known `line` and `column` (1-based, columns in code points), `tag` (a kind of hit within a rule, such as `network`) and `policy` (the setting of `agentcurfew.policy.json` that set the level).
 - `suppressed`: findings accepted by an exception of the policy: `finding`, `reason`, `until`.
-- `problems`: places the scanner could not fully read: `code` and `file`.
+- `problems`: places the scanner could not fully read: `code` (`outside-project`, `too-large`, `too-deep`, `too-many-entries`, `unreadable`, `unparsable`, `not-followed`) and `file`. `too-large`, `too-deep`, `too-many-entries` and `unreadable` fail `scan` and `verify`.
+- `depcurfew`: present when `mcp-package` did not check the packages of MCP servers: `status` (`missing`, `unsupported`, `no-policy`, `invalid-policy`), `reason` and `servers`, the number of servers it would have checked.
 
 Version 2 had no `suppressed`, `tag` or `policy`; version 1 is the inventory.
 

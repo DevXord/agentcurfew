@@ -202,6 +202,8 @@ function namedAgentFile(line: string): string | undefined {
   for (const word of checkedWords(line)) {
     const match = mentionPattern.exec(word);
     if (match !== null) return match[1];
+    const folder = word.replaceAll('\\', '/').replace(/^\.\/+/, '').replace(/\/+\.?$/, '');
+    if (agentRootFolders().includes(folder)) return folder;
     // A glob or braces the shell expands into an agent file: CLAUD?.md, .claude/settings.jso{n,x} (review of 2026-11-09).
     if (GLOB.test(word) && globbed++ < MAX_GLOB_WORDS) {
       const named = globbedAgentFile(word, globNames);
@@ -226,7 +228,23 @@ export function checkedWords(line: string): string[] {
   // A file name that comes from another command (a redirect to $(echo X), xargs, parallel) is a word of a command that
   // only reads, so then every word of the line counts (review of 2026-11-09).
   const dynamic = all.some((words) => DYNAMIC.has(program(words[0] ?? ''))) || all.some((words) => targets(words).some((target) => target === '' || /[$`]/.test(target)));
-  return all.flatMap((words) => (dynamic || !readOnly(words) ? words : targets(words)));
+  const checked = all.flatMap((words) => (dynamic || !readOnly(words) ? words : targets(words)));
+  // cd into an agent folder, then a write by a relative name: cd .claude && echo x > settings.json (review of 2026-11-09).
+  // The folder counts only when the line writes anything.
+  const writes = all.some((words) => program(words[0] ?? '') !== 'cd' && (!readOnly(words) || targets(words).length > 0));
+  if (writes) for (const words of all) if (program(words[0] ?? '') === 'cd' && words[1] !== undefined) checked.push(words[1]);
+  return checked;
+}
+
+// Folders of the project that hold only agent configuration, named alone: rm -rf .claude, cp -r x/. .claude/. Shared
+// folders (.github, .vscode, .config) are left out: a command that writes there is no change of an agent by itself.
+const SHARED_FOLDERS = new Set(['.github', '.vscode', '.config']);
+let agentRoots: readonly string[] | undefined;
+function agentRootFolders(): readonly string[] {
+  agentRoots ??= [...new Set([...agentFolders(knowledgeBase), ...agentFileNames(knowledgeBase)].filter((path) => path.startsWith('.') && path.includes('/')).map((path) => path.slice(0, path.indexOf('/'))))]
+    .filter((folder) => !SHARED_FOLDERS.has(folder))
+    .sort();
+  return agentRoots;
 }
 
 // Programs that take the names of the files they act on from another command.

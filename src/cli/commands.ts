@@ -67,7 +67,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     summary: 'Write agentcurfew.policy.json from what the project has now',
     usage: 'init [directory] [options]',
     description:
-      'Proposes a policy that the project passes as it is: the skill sources and MCP servers it has now, and the strict value of each setting it already meets. Lists what it left loose. With --hook it adds the agentcurfew hook for Claude Code to .claude/settings.json instead, keeping every other hook, such as depcurfew\'s.',
+      'Proposes a policy from the project as it is: the skill sources and MCP servers it has now, and the strict value of each setting it already meets; a setting a current finding breaks is written loose (such as contextFiles.denyHiddenUnicode false, which lowers hidden-unicode to info) and listed, so review those before you commit. Findings the settings do not cover still fail scan. With --hook it adds the agentcurfew hook for Claude Code to .claude/settings.json instead, keeping every other hook, such as depcurfew\'s.',
     options: [
       { name: 'print', type: 'boolean', description: 'Print the result instead of writing it' },
       { name: 'force', type: 'boolean', description: 'Replace an existing policy' },

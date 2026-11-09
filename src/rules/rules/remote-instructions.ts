@@ -9,7 +9,9 @@ const PROSE = [
 ];
 // Code: a request whose result goes to eval, exec or a shell.
 // Requests to this machine (localhost, 127.0.0.1, ::1) are left out: a local probe fetches nothing from elsewhere.
-const FETCH_CALL = /\b(?:fetch|axios(?:\.get)?|got|requests\.get|urllib\.request\.urlopen|urlopen|httpx\.get|http\.get|https\.get|curl|wget|Invoke-WebRequest|Invoke-RestMethod|iwr|irm)\b\s*\(?\s*["'`]?https?:\/\/(?!(?:localhost|127\.0\.0\.1|\[::1\])(?:[:/"'`]|$))/i;
+// curl and wget take options before the address (curl -fsSL https://…, review of 2026-11-09): up to 200 characters of the
+// same command, a bounded window that keeps the match linear.
+const FETCH_CALL = /(?:\b(?:fetch|axios(?:\.get)?|got|requests\.get|urllib\.request\.urlopen|urlopen|httpx\.get|http\.get|https\.get|Invoke-WebRequest|Invoke-RestMethod|iwr|irm)\b\s*\(?\s*["'`]?|\b(?:curl|wget)\b[^\n|;&]{0,200}?["'`]?)https?:\/\/(?!(?:localhost|127\.0\.0\.1|\[::1\])(?:[:/"'`]|$))/i;
 const EXECUTE = /\b(?:eval|exec|execSync|spawnSync|new Function|Function\(|compile|subprocess\.(?:run|call|Popen)|os\.system|iex|Invoke-Expression|child_process|vm\.run\w*)\b|\|\s*(?:ba)?sh\b/i;
 
 export const remoteInstructions: Rule = {

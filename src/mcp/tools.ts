@@ -160,7 +160,7 @@ export async function callTool(name: string, args: Record<string, unknown>, cont
     const rule = findRule(args.id);
     if (rule === undefined) {
       const near = closest(args.id, rules.map((item) => item.id));
-      return error(`unknown rule ${quote(args.id, 60)}${near === undefined ? '' : `; did you mean ${near}?`} The rules are ${rules.map((item) => item.id).join(', ')}.`);
+      return error(`unknown rule ${quote(args.id, 60)}${near === undefined ? '.' : `; did you mean ${near}?`} The rules are ${rules.map((item) => item.id).join(', ')}.`);
     }
     return { content: [{ type: 'text', text: explainText(rule) }], structuredContent: { id: rule.id, title: rule.title, level: rule.level, owasp: [...rule.owasp], description: rule.description, fix: rule.fix } };
   }

@@ -16,7 +16,7 @@ export function hookEntry(): { matcher: string; hooks: { type: 'command'; comman
   const fact = hookFact();
   // With args, Claude Code spawns the program without a shell (knowledge base, hooks fact), as depcurfew's hook does.
   return {
-    matcher: Object.keys(fact.tools).join('|'),
+    matcher: [...Object.keys(fact.tools), ...(fact.otherWriteTools ?? [])].join('|'),
     hooks: [{ type: 'command', command: 'node', args: [`\${${fact.projectDirVariable}}/node_modules/agentcurfew/dist/cli.js`, 'hook'], timeout: 30 }],
   };
 }
