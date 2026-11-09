@@ -13,3 +13,10 @@ dist-site/
 !tests/fixtures/doctor/depcurfew-hook-broken/negative/node_modules/
 !tests/fixtures/doctor/depcurfew-hook-broken/negative/node_modules/depcurfew/dist/
 dist-site/
+# Development documents stay with the maintainer, outside the public repository
+docs/PLAN.md
+docs/PLAN-*.md
+docs/decisions.md
+docs/CHANGELOG-dev.md
+docs/HANDOFF.md
+docs/handoff-*.md
