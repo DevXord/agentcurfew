@@ -1,5 +1,5 @@
 import { verifiedOn } from './define.ts';
-import type { AgentKnowledge, AgentPath } from './types.ts';
+import type { AgentKnowledge, AgentPath, ContextFile, ContextNamesKnowledge } from './types.ts';
 
 const { verified, uncertain } = verifiedOn('2026-11-06');
 // Facts changed after the source audit of 2026-11-07, read again that day.
@@ -28,6 +28,16 @@ const SYSTEM_DEFAULTS: readonly AgentPath[] = [
   { path: 'C:/ProgramData/gemini-cli/system-defaults.json', scope: 'managed', format: 'json', platforms: ['win32'] },
 ];
 const SETTINGS_FILES: readonly AgentPath[] = [...SYSTEM_SETTINGS, PROJECT_SETTINGS, USER_SETTINGS, ...SYSTEM_DEFAULTS];
+
+// Facts of phase 13, read on 2026-11-09.
+const phase13 = verifiedOn('2026-11-09');
+
+// Where a name from context.fileName is looked for; <name> stands for it.
+const CONTEXT_NAME_LOCATIONS: readonly ContextFile[] = [
+  { path: '~/.gemini/<name>', scope: 'user', format: 'markdown', loading: 'always' },
+  { path: '<name>', scope: 'project', format: 'markdown', loading: 'always' },
+  { path: '**/<name>', scope: 'project', format: 'markdown', loading: 'conditional' },
+];
 
 export const geminiCli: AgentKnowledge = {
   id: 'gemini-cli',
@@ -78,7 +88,7 @@ export const geminiCli: AgentKnowledge = {
       { path: '**/GEMINI.md', scope: 'project', format: 'markdown', loading: 'conditional' },
     ],
     CONTEXT,
-    'The name is only the default: context.fileName (a string or a list, e.g. AGENTS.md) replaces it in every location, so a scanner must read that setting. Parent directories of the workspace are searched too, bounded by context.memoryBoundaryMarkers (default .git). A file can import others with @file.md, relative or absolute. How several names in the list interact is not documented.',
+    'The name is only the default: context.fileName (a string or a list, e.g. AGENTS.md) names other files, read in the same locations (see contextNames, where the sources disagree on whether GEMINI.md is still read). Parent directories of the workspace are searched too, bounded by context.memoryBoundaryMarkers (default .git). A file can import others with @file.md, relative or absolute. How several names in the list interact is not documented.',
   ),
   permissions: later.verified(
     {
@@ -117,6 +127,19 @@ export const geminiCli: AgentKnowledge = {
     },
     SUBAGENTS,
     `Commands come from ${COMMANDS}: *.toml files, a project command wins over a user one, and a prompt can run shell commands with !{...} after a confirmation. registry.ts skips project agents in an untrusted folder and registers them only after acknowledgement. experimental.enableAgents turns subagents off.`,
+  ),
+  contextNames: phase13.disputed<ContextNamesKnowledge>(
+    'The documentation says context.fileName lets one "specify a different name or a list of names", which reads as a replacement of GEMINI.md; the code adds the names to the current ones: config.ts calls setGeminiMdFilename(settings.context.fileName), which "Adds one or more filenames to the current context filenames" and keeps the default. agentcurfew reads GEMINI.md and the configured names, so that neither reading hides a file. Each name is trimmed, normalized and may hold subfolders (memoryTool.ts: "Sanitize to prevent path traversal while allowing subdirectories"); memoryDiscovery.ts looks for it in ~/.gemini, in the working directory and its parents up to the project root, and in subfolders. Workspace settings apply only in a trusted folder.',
+    phase13.evidence(
+      { files: [PROJECT_SETTINGS, USER_SETTINGS, ...SYSTEM_SETTINGS, ...SYSTEM_DEFAULTS], key: 'context.fileName', replacesDefault: true, locations: CONTEXT_NAME_LOCATIONS },
+      CONTEXT,
+      'Section "Customize the context file name"; the configuration reference (docs/reference/configuration.md) calls it "The name of the context file or files to load into memory" and reads files from ~/.gemini/<configured-context-filename>.',
+    ),
+    phase13.evidence(
+      { files: [PROJECT_SETTINGS, USER_SETTINGS, ...SYSTEM_SETTINGS, ...SYSTEM_DEFAULTS], key: 'context.fileName', replacesDefault: false, locations: CONTEXT_NAME_LOCATIONS },
+      `${RAW}/packages/core/src/tools/memoryTool.ts`,
+      'setGeminiMdFilename merges the new names with getAllGeminiMdFilenames(), which starts as DEFAULT_CONTEXT_FILENAME (GEMINI.md); packages/cli/src/config/config.ts calls it when settings.context.fileName is set. Read at main on 2026-11-09.',
+    ),
   ),
   deprecations: [
     later.verified(

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Component } from '../../src/inventory/index.ts';
 import { redact } from '../../src/lock/redact.ts';
-import { runRules } from '../../src/rules/index.ts';
+import { rules, runRules } from '../../src/rules/index.ts';
+import { contextName } from '../../src/inventory/scan.ts';
 import { knownSecrets, pairs } from '../../src/rules/secrets.ts';
 import { DOWNLOAD_EXECUTE, NETWORK, writesTo } from '../../src/rules/shell.ts';
 import { launch } from '../../src/rules/launch.ts';
@@ -38,6 +39,18 @@ describe('patterns read hostile text in linear time', () => {
     expect(timed(() => write.exec(hostile(unit)))).toBeLessThan(LIMIT_MS);
   });
 
+  it.each(['npx a; ', "npx 'a''b'; ", 'npx -y ', 'docker run ', 'uvx --from ', 'npx --no-install a\n'])('unpinned-launcher over %j, in a command and in a script', (unit) => {
+    const text = hostile(unit);
+    const hook = component('hook', JSON.stringify({ type: 'command', command: text }), { file: '.claude/settings.json', name: 'PreToolUse#0' });
+    const script = component('hook', JSON.stringify({ type: 'command', command: 'sh x.sh' }), { file: '.claude/settings.json', name: 'Stop#0', filesRoot: 'project', files: [{ path: 'x.sh', bytes: text.length, type: 'text', raw: text }] });
+    const rule = rules.filter((item) => item.id === 'unpinned-launcher');
+    expect(timed(() => runRules({ components: [hook, script], problems: [] }, { rules: rule }))).toBeLessThan(LIMIT_MS);
+  });
+
+  it.each(['a/', '../', '*', 'a'.repeat(300), '\u200B'])('context file names over %j', (unit) => {
+    expect(timed(() => contextName(hostile(unit)))).toBeLessThan(LIMIT_MS);
+  });
+
   it('launch over many launcher words', () => {
     expect(timed(() => launch(['x', ...Array.from({ length: 200_000 }, () => 'npm')]))).toBeLessThan(LIMIT_MS);
   });
@@ -48,6 +61,10 @@ describe('patterns read hostile text in linear time', () => {
       component('context-file', text),
       component('mcp-server', JSON.stringify({ command: 'node', args: [text] }), { file: '.mcp.json', name: 'x' }),
       component('hook', JSON.stringify({ type: 'command', command: text }), { file: '.claude/settings.json', name: 'PreToolUse#0' }),
+      component('command-setting', JSON.stringify(text), { file: '.claude/settings.json', name: 'env.CLAUDE_CODE_SHELL_PREFIX' }),
+      component('setting', JSON.stringify({ ANTHROPIC_BASE_URL: text }), { file: '.claude/settings.json', name: 'env.ANTHROPIC_BASE_URL' }),
+      component('setting', JSON.stringify({ source: { source: 'url', url: text, headers: { Authorization: text } }, autoUpdate: true }), { file: '.claude/settings.json', name: 'extraKnownMarketplaces.x' }),
+      component('setting', 'true', { file: '.claude/settings.json', name: `enabledPlugins.${text}` }),
     ];
     expect(timed(() => runRules({ components, problems: [] }))).toBeLessThan(LIMIT_MS);
   });

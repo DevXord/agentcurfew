@@ -102,6 +102,25 @@ function commandLines(): string[] {
         lines.push(`| ${agent.name} | settings that run a command | ${settings.join('<br>')} | ${agent.commands.status} | ${link(evidence.source)} | ${evidence.verifiedAt} |`);
       }
     }
+    if (agent.env !== undefined) {
+      for (const evidence of evidenceOf(agent.env)) {
+        const variables = evidence.value.variables.map((variable) => `${code(variable.name)} (${variable.effect}${variable.fromProject === 'ignored' ? ', ignored in a project file' : ''})`);
+        lines.push(`| ${agent.name} | variables of ${code(evidence.value.key)} that redirect it | ${variables.join('<br>')} | ${agent.env.status} | ${link(evidence.source)} | ${evidence.verifiedAt} |`);
+      }
+    }
+    if (agent.plugins !== undefined) {
+      for (const evidence of evidenceOf(agent.plugins)) {
+        const value = evidence.value;
+        const sources = value.sources.map((source) => `${code(source.type)} (${source.where}${source.headersHelper === undefined ? '' : `, command in ${code(source.headersHelper)}`})`);
+        lines.push(`| ${agent.name} | plugins and marketplaces | ${code(value.enabledKey)}, ${value.marketplacesKeys.map(code).join(' or ')}${value.marketplacesFromProject === 'needs-trust' ? ' (from a project file once the folder is trusted)' : ''}; sources ${sources.join(', ')} | ${agent.plugins.status} | ${link(evidence.source)} | ${evidence.verifiedAt} |`);
+      }
+    }
+    if (agent.contextNames !== undefined) {
+      for (const evidence of evidenceOf(agent.contextNames)) {
+        const value = evidence.value;
+        lines.push(`| ${agent.name} | context file names | ${code(value.key)} ${value.replacesDefault ? 'replaces the default' : 'adds to the default'}; read at ${value.locations.map((location) => code(location.path)).join(', ')} | ${agent.contextNames.status} | ${link(evidence.source)} | ${evidence.verifiedAt} |`);
+      }
+    }
     if (agent.mcpAdd !== undefined) {
       for (const evidence of evidenceOf(agent.mcpAdd)) {
         lines.push(`| ${agent.name} | add an MCP server | ${code(evidence.value.command.join(' '))}, ${code(evidence.value.jsonCommand.join(' '))} | ${agent.mcpAdd.status} | ${link(evidence.source)} | ${evidence.verifiedAt} |`);
@@ -124,6 +143,13 @@ function openFacts(): string[] {
         .map((evidence) => link(evidence.source))
         .join(', ');
       lines.push(`- **${agent.name}, ${LABELS[field]}** (${fact.status}): ${cell(fact.note)} ${sources}`);
+    }
+    for (const [label, fact] of [['context file names', agent.contextNames], ['env variables', agent.env], ['plugins and marketplaces', agent.plugins]] as const) {
+      if (fact === undefined || fact.status === 'verified') continue;
+      const sources = evidenceOf<unknown>(fact)
+        .map((evidence) => link(evidence.source))
+        .join(', ');
+      lines.push(`- **${agent.name}, ${label}** (${fact.status}): ${cell(fact.note)} ${sources}`);
     }
   }
   return lines;

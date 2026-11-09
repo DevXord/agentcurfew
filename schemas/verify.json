@@ -69,7 +69,8 @@
               "permission",
               "subagent",
               "command",
-              "command-setting"
+              "command-setting",
+              "setting"
             ]
           },
           "file": {
@@ -101,6 +102,11 @@
       "const": true,
       "description": "Present when the lock was written before component ids (agentcurfew 1.0) and was compared by name; run agentcurfew lock to add them."
     },
+    "unknownKinds": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Present when the lock holds components of kinds this version does not know, written by a newer agentcurfew; they were skipped and not compared."
+    },
     "skillsLock": {
       "type": "array",
       "items": {
@@ -123,7 +129,8 @@
               "permission",
               "subagent",
               "command",
-              "command-setting"
+              "command-setting",
+              "setting"
             ]
           },
           "file": {

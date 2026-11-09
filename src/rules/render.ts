@@ -64,6 +64,8 @@ export function renderRules(): string {
     '- harmful behaviour inside a program or package that a skill or MCP server starts, which needs the package checked (depcurfew) or the program reviewed;',
     '- what a remote MCP server or a fetched page returns at run time, since nothing is fetched;',
     '- scripts a hook or a command setting runs from outside the project, from a home path, through a variable, after cd, through another program (make, npm run) or from inside another script; only a script the command names directly, or gives to an interpreter, is read, and only when it is committed (not under node_modules and not ignored by the root .gitignore);',
+    '- the plugins a marketplace brings and the contents of plugin packages (.claude-plugin/plugin.json, gemini-extension.json): a marketplace and the plugins a setting turns on are reported, but what the plugins hold is fetched by the agent, not read here;',
+    '- context file names a setting gives that are not plain relative paths (absolute, from home, with .. or wildcards): they are not followed, and the settings file is reported as unparsable;',
     '- agents, files and settings that are not in the knowledge base yet ([knowledge.md](knowledge.md)).',
     '',
     'A clean scan therefore means that none of these patterns was found, not that the configuration is safe.',

@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { scanInventory } from '../../src/inventory/index.ts';
@@ -34,6 +37,26 @@ const EXPECTED: Readonly<Record<string, readonly string[]>> = {
     'command-setting | .claude/settings.json | statusLine | claude-code',
     `hook | .claude/settings.json | PostToolUse#0 | ${CLAUDE_HOOK}`,
     `hook | .claude/settings.json | Stop#0 | ${CLAUDE_HOOK}`,
+  ],
+  'claude-settings-extra': [
+    'command-setting | .claude/settings.json | env.CLAUDE_CODE_SHELL_PREFIX | claude-code',
+    'command-setting | .claude/settings.json | extraKnownMarketplaces.internal.source.headersHelper | claude-code',
+    'command-setting | .mcp.json | mcpServers.api.headersHelper | claude-code',
+    'mcp-server | .mcp.json | api | claude-code,copilot-vscode',
+    'setting | .claude/settings.json | enabledPlugins.formatter@acme-tools | claude-code',
+    'setting | .claude/settings.json | enabledPlugins.old@acme-tools | claude-code',
+    'setting | .claude/settings.json | env.ANTHROPIC_BASE_URL | claude-code',
+    'setting | .claude/settings.json | env.CLAUDE_CODE_SHELL_PREFIX | claude-code',
+    'setting | .claude/settings.json | env.DISABLE_AUTO_COMPACT | claude-code',
+    'setting | .claude/settings.json | extraKnownMarketplaces.acme-tools | claude-code',
+    'setting | .claude/settings.json | extraKnownMarketplaces.internal | claude-code',
+  ],
+  'gemini-context-name': [
+    'context-file | AGENTS.md | AGENTS.md | claude-code,cline,codex,copilot-vscode,cursor,gemini-cli,windsurf',
+    'context-file | GEMINI.md | GEMINI.md | gemini-cli',
+    'context-file | docs/AI.md | AI.md | gemini-cli',
+    'context-file | sub/docs/AI.md | AI.md | gemini-cli',
+    'setting | .gemini/settings.json | context.fileName | gemini-cli',
   ],
   'cursor-basic': [
     'context-file | .cursor/rules/style.mdc | style.mdc | cline,cursor',
@@ -172,6 +195,38 @@ describe('inventory of fixtures', () => {
     expect(components.find((c) => c.name === 'PostToolUse#0')?.filesRoot).toBe('project');
     expect(components.find((c) => c.name === 'PostToolUse#0')?.files?.[0]?.raw).toContain('checked');
     expect(problems).toEqual([]);
+  });
+
+  it('reads the scripts that headersHelper and CLAUDE_CODE_SHELL_PREFIX run', () => {
+    const { components, problems } = scanInventory({ root: fixture('claude-settings-extra') });
+    const scripts = (name: string) => components.find((c) => c.kind === 'command-setting' && c.name === name)?.files?.map((f) => f.path);
+    expect(scripts('env.CLAUDE_CODE_SHELL_PREFIX')).toEqual(['scripts/wrap.sh']);
+    expect(scripts('extraKnownMarketplaces.internal.source.headersHelper')).toEqual(['scripts/auth.sh']);
+    expect(scripts('mcpServers.api.headersHelper')).toEqual(['scripts/auth.sh']);
+    // An env value keeps its variable's name, so that the lock can redact a secret by name.
+    expect(JSON.parse(components.find((c) => c.name === 'env.ANTHROPIC_BASE_URL')?.raw ?? '')).toEqual({ ANTHROPIC_BASE_URL: 'https://gateway.example.com' });
+    expect(problems).toEqual([]);
+  });
+
+  it('reads the context file names of Gemini CLI, and refuses names it cannot follow safely', () => {
+    const { components, problems } = scanInventory({ root: fixture('gemini-context-name') });
+    // ../outside.md, **/* and /abs.md are not followed: other.md and abs.md stay out.
+    expect(components.some((c) => c.file === 'other.md' || c.file === 'abs.md')).toBe(false);
+    expect(problems.map((p) => `${p.code} ${p.file}`)).toEqual(['unparsable .gemini/settings.json']);
+  });
+
+  it('caps the entries read from one settings object', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'acf-settings-'));
+    try {
+      mkdirSync(join(dir, '.claude'));
+      const env = Object.fromEntries(Array.from({ length: 300 }, (_, index) => [`VAR_${index}`, 'x']));
+      writeFileSync(join(dir, '.claude', 'settings.json'), JSON.stringify({ env }));
+      const { components, problems } = scanInventory({ root: dir });
+      expect(components.filter((c) => c.kind === 'setting')).toHaveLength(256);
+      expect(problems.map((p) => `${p.code} ${p.file}`)).toEqual(['too-many-entries .claude/settings.json']);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('leaves out command settings an agent ignores in a project file', () => {

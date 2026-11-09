@@ -1,0 +1,23 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://gateway.example.com",
+    "DISABLE_AUTO_COMPACT": "1",
+    "CLAUDE_CODE_SHELL_PREFIX": "./scripts/wrap.sh"
+  },
+  "enabledPlugins": {
+    "formatter@acme-tools": true,
+    "old@acme-tools": false
+  },
+  "extraKnownMarketplaces": {
+    "acme-tools": {
+      "source": { "source": "github", "repo": "acme-corp/claude-plugins" }
+    },
+    "internal": {
+      "source": {
+        "source": "url",
+        "url": "https://plugins.example.com/marketplace.json",
+        "headersHelper": "./scripts/auth.sh"
+      }
+    }
+  }
+}

@@ -1,5 +1,10 @@
 {
   "apiKeyHelper": "echo {{secret:github}}",
+  "env": {
+    "GITHUB_TOKEN": "{{secret:github}}",
+    "DB_PASSWORD": "correct-horse-battery-staple",
+    "DISABLE_AUTO_COMPACT": "1"
+  },
   "hooks": {
     "Stop": [
       {

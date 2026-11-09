@@ -1,0 +1,10 @@
+{
+  "env": {
+    "DISABLE_AUTO_COMPACT": "1",
+    "ANTHROPIC_MODEL": "claude-sonnet-4-6",
+    "ANTHROPIC_BASE_URL": ""
+  },
+  "permissions": {
+    "allow": ["Read"]
+  }
+}

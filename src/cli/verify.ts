@@ -43,7 +43,7 @@ export function runVerify(argv: readonly string[], io: CliIo, usageError: (what:
   const lockDigest = sha256(serializeLock(context.compareExecutableBits === false ? carryExecutableBits(current, lock.lock) : current));
   const noIds = !hasIds(lock.lock);
   if (values.json === true) {
-    const output = { schemaVersion: VERIFY_SCHEMA_VERSION, producer: producer(), ok: changes.length === 0, changes, lockDigest, ...(noIds ? { lockWithoutIds: true } : {}), skillsLock: skills, problems: inventory.problems };
+    const output = { schemaVersion: VERIFY_SCHEMA_VERSION, producer: producer(), ok: changes.length === 0, changes, lockDigest, ...(noIds ? { lockWithoutIds: true } : {}), ...(lock.lock.unknownKinds === undefined ? {} : { unknownKinds: lock.lock.unknownKinds }), skillsLock: skills, problems: inventory.problems };
     io.stdout(`${printableJson(output)}\n`);
     return changes.length === 0 ? EXIT_OK : EXIT_FAILURE;
   }
@@ -53,6 +53,8 @@ export function runVerify(argv: readonly string[], io: CliIo, usageError: (what:
     for (const hit of skills) lines.push(`  ${label(io, (hit.level ?? 'medium').toUpperCase())}  ${printable(hit.file)}: ${printable(hit.message)}`);
   }
   if (noIds) lines.push('', `Note: ${LOCKFILE} was written before component ids; run agentcurfew lock to add them.`);
+  const unknown = lock.lock.unknownKinds;
+  if (unknown !== undefined) lines.push('', `Note: ${unknown} ${unknown === 1 ? 'component of a kind this version of agentcurfew does not know was' : 'components of kinds this version of agentcurfew does not know were'} not compared; a newer agentcurfew wrote ${LOCKFILE}.`);
   lines.push(...problemLines(inventory));
   if (changes.length > 0) lines.push('', `If the changes are expected, run agentcurfew lock and commit ${LOCKFILE}.`);
   io.stdout(`${lines.join('\n')}\n`);

@@ -106,7 +106,7 @@ exports[`screens > errors with a suggestion 3`] = `
 [stderr]
 agentcurfew: unknown rule: hiden-unicode
   in: the command line
-  fix: did you mean hidden-unicode? The rules are hidden-unicode, unpinned-mcp-server, plain-http-mcp, secret-in-config, dangerous-hook-command, auto-run-on-open, permission-bypass, broad-shell-permission, remote-instructions, obfuscated-content, persistence-instruction, drift, skills-lock-mismatch, out-of-policy, mcp-package
+  fix: did you mean hidden-unicode? The rules are hidden-unicode, unpinned-mcp-server, plain-http-mcp, secret-in-config, dangerous-hook-command, unpinned-launcher, auto-run-on-open, permission-bypass, broad-shell-permission, env-override, plugin-marketplace, remote-instructions, obfuscated-content, persistence-instruction, drift, skills-lock-mismatch, out-of-policy, mcp-package
 "
 `;
 
@@ -117,7 +117,7 @@ hidden-unicode: Hidden Unicode characters
 
 Level: high; critical for Unicode Tag characters, high for variation selectors and bidirectional controls, medium for zero-width characters alone (pattern matching: can raise false alarms)
 OWASP Agentic Skills Top 10: AST04 Insecure Metadata, AST08 Poor Scanning
-Checks: skill, mcp-server, hook, auto-run, context-file, permission, subagent, command, command-setting
+Checks: skill, mcp-server, hook, auto-run, context-file, permission, subagent, command, command-setting, setting
 
 Finds characters that an editor does not show but a model reads: Unicode Tag characters (U+E0000 to U+E007F), which can spell out whole instructions; supplementary variation selectors; bidirectional controls, which make text display in a different order than it is read; and zero-width characters. Each finding gives the line, the column and the code points.
 
@@ -367,13 +367,19 @@ Failed: 4 findings at level high or above (change with --fail-on).
 exports[`screens > scan 2`] = `
 "$ agentcurfew scan <project>
 [exit 1]
-7 components scanned, 7 findings (7 high)
+10 components scanned, 9 findings (9 high)
 
 HIGH  secret-in-config  .claude/settings.json (Stop#0)
   AWS access key in plain text: AKIA… (20 characters)
   more: agentcurfew explain secret-in-config
 
 HIGH  secret-in-config  .claude/settings.json (apiKeyHelper)
+  GitHub token in plain text: ghp_… (40 characters)
+
+HIGH  secret-in-config  .claude/settings.json (env.DB_PASSWORD)
+  DB_PASSWORD holds a literal value: corr… (28 characters)
+
+HIGH  secret-in-config  .claude/settings.json (env.GITHUB_TOKEN)
   GitHub token in plain text: ghp_… (40 characters)
 
 HIGH  secret-in-config  .mcp.json (api)
@@ -391,7 +397,7 @@ HIGH  secret-in-config  .mcp.json (github)
 HIGH  secret-in-config  .mcp.json (user)
   the server address holds a credential as the user name of the address
 
-Failed: 7 findings at level high or above (change with --fail-on).
+Failed: 9 findings at level high or above (change with --fail-on).
 "
 `;
 

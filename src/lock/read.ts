@@ -1,13 +1,14 @@
 import { lstatSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseConfig } from '../inventory/parse.ts';
+import { COMPONENT_KINDS } from '../inventory/types.ts';
 import type { ComponentKind } from '../inventory/types.ts';
 import type { LockedComponent, LockedServer, LockedSkill, LockedSkillFile, Lockfile } from './types.ts';
 import { LOCKFILE, LOCKFILE_VERSION } from './types.ts';
 
 export type LockRead = { status: 'missing' } | { status: 'invalid'; reason: string } | { status: 'ok'; lock: Lockfile; text: string };
 
-const KINDS: ReadonlySet<string> = new Set<ComponentKind>(['skill', 'mcp-server', 'hook', 'auto-run', 'context-file', 'permission', 'subagent', 'command', 'command-setting']);
+const KINDS: ReadonlySet<string> = new Set<ComponentKind>(COMPONENT_KINDS);
 const HASH = /^[0-9a-f]{64}$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -82,12 +83,18 @@ export function parseLock(value: unknown): { lock: Lockfile } | { reason: string
   if (value.algorithm !== 'sha256') return { reason: 'algorithm is not sha256' };
   if (!Array.isArray(value.components)) return { reason: 'components is not a list' };
   const components: LockedComponent[] = [];
+  let unknownKinds = 0;
   for (const [index, item] of value.components.entries()) {
+    // A kind added by a later version is skipped and counted, so that a lock it wrote is still checked for the rest (D-045).
+    if (isRecord(item) && typeof item.kind === 'string' && !KINDS.has(item.kind)) {
+      unknownKinds++;
+      continue;
+    }
     const parsed = component(item);
     if (parsed === undefined) return { reason: `component ${index} does not have the expected fields` };
     components.push(parsed);
   }
-  return { lock: { lockfileVersion: LOCKFILE_VERSION, algorithm: 'sha256', components } };
+  return { lock: { lockfileVersion: LOCKFILE_VERSION, algorithm: 'sha256', components, ...(unknownKinds > 0 ? { unknownKinds } : {}) } };
 }
 
 /**

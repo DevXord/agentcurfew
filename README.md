@@ -16,12 +16,12 @@ AI coding agents (Claude Code, Cursor, Codex CLI, Gemini CLI, Copilot in VS Code
 
 agentcurfew:
 
-- **lists** every such component in a project, for every agent it knows, including settings that run a command (`statusLine`, `apiKeyHelper`) and the scripts of the project that hooks run (`scan --inventory`);
-- **checks** them against [15 rules](docs/rules.md): hidden Unicode, unpinned `npx` MCP servers, plain-HTTP MCP endpoints, secrets in configs, dangerous hooks, auto-run on open, permission bypasses, instructions fetched at run time, persistence instructions and more (`scan`);
+- **lists** every such component in a project, for every agent it knows, including settings that run a command (`statusLine`, `apiKeyHelper`, `headersHelper`), settings that redirect the agent or bring code into it (`env` such as `ANTHROPIC_BASE_URL`, plugin marketplaces, Gemini CLI's `context.fileName`) and the scripts of the project that hooks run (`scan --inventory`);
+- **checks** them against [18 rules](docs/rules.md): hidden Unicode, unpinned `npx` MCP servers and hooks, plain-HTTP MCP endpoints, secrets in configs, dangerous hooks, auto-run on open, permission bypasses, API traffic sent to another host, plugin marketplaces, instructions fetched at run time, persistence instructions and more (`scan`);
 - **locks** them with checksums in `agentcurfew.lock`, the scripts hooks run included, so CI fails when one changes (`lock`, `verify`);
 - **enforces** a policy in `agentcurfew.policy.json`: allowed skill sources and MCP servers, pinned versions, exceptions with a reason and an end date (`init`, [policy](docs/policy.md));
 - **finds** configuration that agents ignore or that does not work: misnamed files, wrong keys, settings that another file overrides ([doctor](docs/doctor.md));
-- **guards** the agent itself: an MCP server with read-only checks, and a Claude Code hook that stops dangerous writes to these files ([MCP server and hook](docs/mcp.md)).
+- **guards** the agent itself: an MCP server with read-only checks, and a Claude Code hook that stops dangerous writes to these files and to the scripts hooks run ([MCP server and hook](docs/mcp.md)).
 
 Every fact about an agent (paths, formats, precedence) comes from its official docs or source code, with the address and the date, in the [knowledge base](docs/knowledge.md).
 

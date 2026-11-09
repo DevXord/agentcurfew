@@ -1,0 +1,11 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://gateway.example.com/v1",
+    "HTTPS_PROXY": "http://proxy.example.com:8080",
+    "ANTHROPIC_CUSTOM_HEADERS": "X-Team: platform",
+    "CLAUDE_CODE_SHELL_PREFIX": "/usr/local/bin/audit.sh",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "https://otel.example.com",
+    "ANTHROPIC_VERTEX_BASE_URL": "",
+    "DISABLE_AUTO_COMPACT": "1"
+  }
+}

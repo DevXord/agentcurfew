@@ -27,7 +27,7 @@ Settings that are true or false move the level of a rule (a finding then names t
 | `exclude[].path` | string, required | A glob relative to the project, with / separators. |
 | `exclude[].reason` | string, required | Why the path is left out. |
 | `exceptions` | list of objects | Findings that are accepted, each with a reason, until a date when one is given. |
-| `exceptions[].rule` | `"hidden-unicode"`, `"unpinned-mcp-server"`, `"plain-http-mcp"`, `"secret-in-config"`, `"dangerous-hook-command"`, `"auto-run-on-open"`, `"permission-bypass"`, `"broad-shell-permission"`, `"remote-instructions"`, `"obfuscated-content"`, `"persistence-instruction"`, `"drift"`, `"skills-lock-mismatch"`, `"out-of-policy"`, `"mcp-package"`, required | The id of the rule; agentcurfew explain lists what each finds. |
+| `exceptions[].rule` | `"hidden-unicode"`, `"unpinned-mcp-server"`, `"plain-http-mcp"`, `"secret-in-config"`, `"dangerous-hook-command"`, `"unpinned-launcher"`, `"auto-run-on-open"`, `"permission-bypass"`, `"broad-shell-permission"`, `"env-override"`, `"plugin-marketplace"`, `"remote-instructions"`, `"obfuscated-content"`, `"persistence-instruction"`, `"drift"`, `"skills-lock-mismatch"`, `"out-of-policy"`, `"mcp-package"`, required | The id of the rule; agentcurfew explain lists what each finds. |
 | `exceptions[].path` | string, required | A glob of the files the exception covers. |
 | `exceptions[].reason` | string, required | Why the finding is accepted. |
 | `exceptions[].until` | date (YYYY-MM-DD) | YYYY-MM-DD: from the day after, the finding is reported again. |

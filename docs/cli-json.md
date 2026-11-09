@@ -19,7 +19,7 @@ Every document also has `producer`: `name` (`agentcurfew`), `version` and `knowl
 ## scan --json (version 3)
 
 - `failOn`: the threshold in effect, from `--fail-on`, the policy or the default `high`.
-- `components`: what was scanned: `kind` (`skill`, `mcp-server`, `hook`, `auto-run`, `context-file`, `permission`, `subagent`, `command`, `command-setting`), `id`, `agents`, `scope` (`project`, `user`, `managed`), `file` (relative to the project, or starting with `~/`), `name`, `bytes`, `hash` (the checksum `agentcurfew.lock` holds for it), and `files` (`path`, `bytes`): for a skill its files, relative to its folder; for a hook, a task or a command setting the scripts of the project it runs, with `filesRoot` `project` because those paths are relative to the project.
+- `components`: what was scanned: `kind` (`skill`, `mcp-server`, `hook`, `auto-run`, `context-file`, `permission`, `subagent`, `command`, `command-setting`, `setting`), `id`, `agents`, `scope` (`project`, `user`, `managed`), `file` (relative to the project, or starting with `~/`), `name`, `bytes`, `hash` (the checksum `agentcurfew.lock` holds for it), and `files` (`path`, `bytes`): for a skill its files, relative to its folder; for a hook, a task or a command setting the scripts of the project it runs, with `filesRoot` `project` because those paths are relative to the project.
 - `findings`: `rule`, `level` (`critical`, `high`, `medium`, `low`, `info`), `kind`, `file`, `name`, `componentId` (the `id` of the component, absent for a finding about the whole project with no component), `message`, and when known `line` and `column` (1-based, columns in code points), `tag` (a kind of hit within a rule, such as `network`) and `policy` (the setting of `agentcurfew.policy.json` that set the level).
 - `suppressed`: findings accepted by an exception of the policy: `finding`, `reason`, `until`.
 - `problems`: places the scanner could not fully read: `code` and `file`.
@@ -36,6 +36,7 @@ Version 2 had no `suppressed`, `tag` or `policy`; version 1 is the inventory.
 - `changes`: `type` (`added`, `removed`, `changed`), `kind`, `file`, `name`, `id`, `details` (what changed, with secrets redacted). Components are matched by `id` when the lock has ids, so a hook added before others is one `added` change; an edited hook, whose `id` changes, is matched by its place and reported as `changed`.
 - `lockDigest`: the sha256 of the `agentcurfew.lock` that `agentcurfew lock` would write now, to compare states without the lock itself.
 - `lockWithoutIds`: `true` when the lock was written by agentcurfew 1.0, before ids; it is then compared by name, and the text output asks for one `agentcurfew lock`.
+- `unknownKinds`: the number of components of kinds this version does not know, present only when there are any: a newer agentcurfew wrote the lock, and those components were skipped, not compared. The rest is compared as usual.
 - `skillsLock`: findings of the comparison with `skills-lock.json`, which never change `ok`.
 - `problems`: as in scan.
 

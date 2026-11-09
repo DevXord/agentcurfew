@@ -1,6 +1,7 @@
 import fc from 'fast-check';
 import { describe, it } from 'vitest';
 import { parseFrontmatter } from '../../src/inventory/frontmatter.ts';
+import { contextName } from '../../src/inventory/scan.ts';
 import type { Component } from '../../src/inventory/index.ts';
 import { entryText, lookup, parseConfig, stripJsonc } from '../../src/inventory/parse.ts';
 import { diffLocks } from '../../src/lock/diff.ts';
@@ -98,6 +99,23 @@ describe('MCP server and hook', () => {
         if (result.stdout.includes('"allow"')) throw new Error('hook allowed');
       }),
       { numRuns: 1500 },
+    );
+  });
+});
+
+describe('context file names', () => {
+  it('follow only plain relative paths, and are stable', () => {
+    const name = fc.oneof(fc.string({ unit: 'binary' }), fc.stringMatching(/^[a-z./*?~\\ \u200B-]{0,40}$/), fc.anything());
+    fc.assert(
+      fc.property(name, (input) => {
+        const result = contextName(input);
+        if (typeof result !== 'string') return;
+        const segments = result.split('/');
+        if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) throw new Error(`not plain: ${result}`);
+        if (/[*?[\]{}!\\]|\p{C}/u.test(result) || /^(?:[A-Za-z]:|~)/.test(result)) throw new Error(`not plain: ${result}`);
+        if (contextName(result) !== result) throw new Error(`not stable: ${result}`);
+      }),
+      { numRuns: 5000 },
     );
   });
 });

@@ -4,7 +4,16 @@ All notable changes to agentcurfew are written here for its users.
 
 ## Unreleased
 
-Nothing yet.
+- Settings that redirect the agent or bring code into it are read, as components of the new kind `setting`: each variable of Claude Code's `env` block, each plugin `enabledPlugins` turns on or off, each marketplace of `extraKnownMarketplaces` (also written `additionalMarketplaces`), and Gemini CLI's `context.fileName`.
+- New rule `env-override` (high): an `env` variable in a project file that sends Claude Code's requests to another host (`ANTHROPIC_BASE_URL` and the Bedrock, Vertex, Foundry and Claude Platform on AWS endpoints, `HTTP_PROXY`, `HTTPS_PROXY`), adds headers to them (`ANTHROPIC_CUSTOM_HEADERS`) or wraps every command (`CLAUDE_CODE_SHELL_PREFIX`). Low in user files and for variables current versions ignore in a project file.
+- New rule `plugin-marketplace` (medium): a marketplace registered from GitHub, git or an address, high with `autoUpdate` or over plain `http://`; low for a local path and for a plugin a project file turns on.
+- New rule `unpinned-launcher` (medium): hooks, automatic tasks, settings that run a command and the scripts they run that start a package through `npx`, `uvx`, `docker run` and the like without an exact version or digest. `npx --no-install` and `npm exec --no` are not reported.
+- `headersHelper` of a remote MCP server and of a marketplace `url` source, and `CLAUDE_CODE_SHELL_PREFIX`, are settings that run a command (`command-setting`), so `dangerous-hook-command`, `secret-in-config` and `unpinned-launcher` check them, and the scripts they run are read and locked.
+- Gemini CLI's `context.fileName` names context files that are now read where `GEMINI.md` is, besides `GEMINI.md` itself; a name that is absolute, from home, with `..` or wildcards is not followed, and the settings file is reported as `unparsable`.
+- `secret-in-config` checks `env` values and marketplace headers by their names.
+- The hook asks before a write to a script that a hook, a task or a setting runs, or to a context file a setting names, and denies it on the same terms as a write to an agent file, so a hook script that starts to download and run code is refused; a shell command that names such a file and does not only read it is asked about.
+- `verify` skips components of a kind it does not know, with a note and `unknownKinds` in its JSON, instead of refusing the whole lock. agentcurfew 1.1 refuses a lock that holds `setting` components, so upgrade every copy that verifies the same lock together.
+- After upgrading, run `agentcurfew lock` once: the lock gains the new components. No `schemaVersion` or `lockfileVersion` changed, and no dependency was added.
 
 ## 1.1.0
 
