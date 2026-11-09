@@ -23,9 +23,11 @@ Local MIT CLI that inventories what steers AI coding agents (skills, MCP servers
 - `npm run check:pkg` — `tsdown` + `publint` + `@arethetypeswrong/cli`.
 - `npm run typecheck` — `tsc --noEmit`.
 - `npm run build` — tsdown.
+- `npm run docs:knowledge`, `docs:rules`, `docs:policy`, `docs:doctor` — regenerate the generated pages in `docs/`.
+- `npm run site` — the documentation site into `dist-site/`.
 
 ## Way of working
-- One phase of the plan per session. Start a session by reading [docs/PLAN.md](docs/PLAN.md), [docs/decisions.md](docs/decisions.md) and [docs/CHANGELOG-dev.md](docs/CHANGELOG-dev.md).
+- One phase of the plan per session. Start a session by reading [docs/HANDOFF.md](docs/HANDOFF.md), [docs/PLAN.md](docs/PLAN.md), [docs/decisions.md](docs/decisions.md) and [docs/CHANGELOG-dev.md](docs/CHANGELOG-dev.md).
 - Begin in plan mode and wait for approval.
 - Tests and fixtures first, implementation second.
 - End of phase: summary in `docs/CHANGELOG-dev.md`, a commit, a list of decisions and open questions for review.

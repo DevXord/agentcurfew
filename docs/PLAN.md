@@ -351,3 +351,26 @@ Kolejność: 0 i 1, potem 2, 3, 4, 5, 6, 9 (pierwsze wydanie), następnie 7 i 8.
 - [OWASP Agentic Skills Top 10](https://github.com/OWASP/www-project-agentic-skills-top-10)
 - [Snyk Agent Scan](https://github.com/snyk/agent-scan)
 - [Instalator skills (Vercel), w tym skills-lock.json](https://www.npmjs.com/package/skills)
+
+## 15. Po 1.1.0: kierunek z burzy mózgów (2026-11-08)
+
+Trzy niezależne analizy (produkt, zarabianie, technika i ryzyko) dały wspólne wnioski, a Pan podjął decyzje D-040 i D-041:
+
+- **Granica MIT/PRO (D-040):** wszystko, czego potrzebuje jedna osoba albo jedno repozytorium, zostaje w MIT na zawsze, w tym każda reguła i baza wiedzy. Płatne może być tylko to, co dotyczy wielu repozytoriów naraz, dowody dla audytora, kuracja i czas autora. CLI nigdy nie dostaje telemetrii ani sprawdzania licencji.
+- **PRO (D-041):** najpierw płatny pilot audytu z 5–10 firmami, bez budowania usługi. Jeśli co najmniej 3 zapłacą, powstaje jeden produkt self-hosted dla obu narzędzi. Usługa hostowana powstaje dopiero na żądanie płacących klientów, a sieć ma wtedy tylko osobny kolektor bez zależności.
+
+Kolejne fazy MIT, w proponowanej kolejności (każda w osobnej sesji, z planem do akceptacji):
+
+| Faza | Zakres | Wysiłek |
+| --- | --- | --- |
+| 11 (zrobiona, 1.1.0) | Ustawienia uruchamiające polecenia, skrypty hooków | — |
+| 12 (zrobiona, 1.1.0) | Stałe `id`, `producer`, sumy w JSON, `lockDigest`, SARIF v2 | — |
+| 13 | Q-016 część 2: `env` / `ANTHROPIC_BASE_URL`, pilnowanie zapisów do skryptów hooków w hooku PreToolUse, nieprzypięte launchery w hookach, potem pluginy i marketplace'y (`enabledPlugins`, `extraKnownMarketplaces`, `plugin.json`, `gemini-extension.json`), `headersHelper`, Gemini `context.fileName` | S + S + M–L |
+| 14 | Łatwiejsze wdrożenie: krótki start w README, tryb baseline (obecne znaleziska jako wyjątki z `until`), podsumowanie w PR z GitHub Action (`GITHUB_STEP_SUMMARY`), pre-commit, presety polityki | S każde |
+| 15 | Baza wiedzy łatwiejsza w utrzymaniu: cotygodniowy automat poza CLI, który sprawdza zmiany źródeł i zakłada zgłoszenia; `doctor` zgłasza nieznane pliki w znanych folderach agentów; CONTRIBUTING z formularzem „korekta faktu ze źródłem” | M |
+| 16 | Polityka dla organizacji w MIT: `extends` z lokalnej ścieżki lub `node_modules`, zakres „managed”, lista dozwolonych skilli i serwerów po sumie kontrolnej (zalążek rejestru) | M |
+| później | Hooki dla kolejnych agentów (Cursor, Codex, Gemini, jeśli ich hooki pozwalają odmówić), bezpieczne `fix` dla przypadków mechanicznych, ustawienia uruchamiające polecenia u innych agentów | M na agenta |
+
+Czego nie robić w MIT: oceny tekstu przez LLM, własnej bazy złośliwych skilli, sieci w skanerze, „wyniku bezpieczeństwa” w procentach, rozszerzenia do IDE w najbliższym czasie, scalania depcurfew i agentcurfew w jedną paczkę.
+
+Rodzina z depcurfew: dwie osobne paczki o wspólnym wyglądzie i wzajemnych odnośnikach. Prośby do sesji depcurfew są w `docs/handoff-depcurfew.md`; przekazuje je Pan.

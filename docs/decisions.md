@@ -312,7 +312,7 @@ A rolling log of choices made for agentcurfew and questions still waiting for a 
 - **Recommendation:** (b), since a file that was not checked should not pass in CI; `unparsable` and `outside-project` could stay warnings.
 
 ## Q-014: Drop Node 20 as well?
-- **Status:** answered on 2026-11-07 by D-033: yes, Node 22 is required.
+- **Status:** answered on 2026-11-07 by D-033: yes, Node 22 is required. Superseded on 2026-11-08 by D-037: Node 20.0 is the floor again, at the maintainer's request.
 - **Found on 2026-11-07:** the Node.js release schedule (https://raw.githubusercontent.com/nodejs/Release/main/schedule.json) gives 2026-04-30 as the end of Node 20, so 1.0.0 would start out supporting a line that no longer gets security fixes. Node 22 is in maintenance until 2027-04-30; Node 24 and 26 are LTS.
 - **Options:** keep `>=20.20.0` (D-032), or make it `>=22` with the release CI tests, and drop 20 from the smoke matrix. Nothing in the code needs Node 22 today.
 - **Recommendation:** `>=22`, so that the first release does not promise support for an ended line.
