@@ -7,7 +7,7 @@ import { DOWNLOAD_EXECUTE, NETWORK, writesTo } from '../../src/rules/shell.ts';
 import { launch } from '../../src/rules/launch.ts';
 
 // Input files are hostile. A pattern that rescans the rest of the text from every start costs quadratic time: these
-// inputs took from seconds to minutes before (see docs/CHANGELOG-dev.md), and take milliseconds in linear time. The
+// inputs took from seconds to minutes before (found by the pentest of 2026-11-07), and take milliseconds in linear time. The
 // limit is far above that, so that a slow machine does not fail the test, and far below the quadratic cost.
 const SIZE = 200_000;
 const LIMIT_MS = 3000;

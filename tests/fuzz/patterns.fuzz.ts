@@ -3,8 +3,8 @@ import { describe, it } from 'vitest';
 import { knownSecrets } from '../../src/rules/secrets.ts';
 import { DOWNLOAD_EXECUTE, writesTo } from '../../src/rules/shell.ts';
 
-// The linear patterns replaced regular expressions that cost quadratic time on hostile text (docs/CHANGELOG-dev.md,
-// 2026-11-07). On short text the cost does not matter, so the old expressions serve as the reference for what is found.
+// The linear patterns replaced regular expressions that cost quadratic time on hostile text
+// (2026-11-07). On short text the cost does not matter, so the old expressions serve as the reference for what is found.
 // One difference is intended: the old ones took a newline for a space inside a command (pwsh, newline, -enc ...), but a
 // newline ends a shell command, so the references below match only spaces there, as the new patterns do.
 const FETCH = String.raw`(?:curl|wget|fetch|iwr|irm|Invoke-WebRequest|Invoke-RestMethod|(?:New-Object\s+(?:System\.)?Net\.WebClient\)?\.)?Download(?:String|File))`;

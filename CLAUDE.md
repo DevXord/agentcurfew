@@ -1,13 +1,13 @@
 # Project rules for agentcurfew
 
 ## Purpose
-Local MIT CLI that inventories what steers AI coding agents (skills, MCP servers, hooks, context files, permissions), locks the inventory with checksums, enforces a policy and flags dangerous patterns. Full plan: [docs/PLAN.md](docs/PLAN.md). Sibling project: [depcurfew](https://github.com/DevXord/depcurfew) (protects *packages*; we protect what configures the *agent*).
+Local MIT CLI that inventories what steers AI coding agents (skills, MCP servers, hooks, context files, permissions), locks the inventory with checksums, enforces a policy and flags dangerous patterns. Sibling project: [depcurfew](https://github.com/DevXord/depcurfew) (protects *packages*; we protect what configures the *agent*).
 
 ## Hard rules
 - The scanner NEVER runs any command, script, hook or MCP server that it finds, and NEVER uses the network. If a check would need either, it does not belong in agentcurfew.
 - We do not duplicate depcurfew. Checking packages installed by the agent, release-age checks, similar-name detection and OSV data stay in depcurfew. When we need to check a package (e.g. an MCP server launched by `npx` or `uvx`), we call depcurfew's public API as an optional peer dependency instead of re-implementing its logic.
 - Work only on agentcurfew here. depcurfew may be used as a model and general helpers may be copied from it, but do not change or develop that package: it has its own session.
-- Runtime dependencies: only `yaml` when strictly needed for one agent format, one zero-dep TOML parser when strictly needed for Codex's config, and `depcurfew` as an optional peer. Every dependency gets a justification in [docs/decisions.md](docs/decisions.md) and a prior ask.
+- Runtime dependencies: only `yaml` when strictly needed for one agent format, one zero-dep TOML parser when strictly needed for Codex's config, and `depcurfew` as an optional peer. Every dependency gets a prior ask and a justification in the maintainer's decision log.
 - Every fact about an agent (file paths, formats, config precedence, hook and MCP schemas, skill format) lives only in `src/knowledge/`. Each entry has a `source` (URL of official docs or source code) and a `verifiedAt` date. A test refuses an entry without a source.
 - Never write a fact about an agent from memory. Verify in the current docs (WebFetch / WebSearch) and record the source. Keep conflicting sources both and mark the field as disputed.
 - Every rule has an id, a level, a description, an OWASP Agentic Skills Top 10 reference, a fix hint, an entry in `docs/rules.md` and both a positive and a negative fixture.
@@ -23,11 +23,10 @@ Local MIT CLI that inventories what steers AI coding agents (skills, MCP servers
 - `npm run check:pkg` — `tsdown` + `publint` + `@arethetypeswrong/cli`.
 - `npm run typecheck` — `tsc --noEmit`.
 - `npm run build` — tsdown.
-- `npm run docs:knowledge`, `docs:rules`, `docs:policy`, `docs:doctor` — regenerate the generated pages in `docs/`.
-- `npm run site` — the documentation site into `dist-site/`.
 
 ## Way of working
-- One phase of the plan per session. Start a session by reading [docs/HANDOFF.md](docs/HANDOFF.md), [docs/PLAN.md](docs/PLAN.md), [docs/decisions.md](docs/decisions.md) and [docs/CHANGELOG-dev.md](docs/CHANGELOG-dev.md).
+- The development documents (the plan, the decision log, the development log, the handoff and the notes for depcurfew) are kept by the maintainer outside this public repository: nobody may see the further development of the package. Never create, commit or push them; they are listed in `.gitignore`.
+- One phase of the plan per session. Start a session by reading the development documents the maintainer gives you.
 - Begin in plan mode and wait for approval.
 - Tests and fixtures first, implementation second.
-- End of phase: summary in `docs/CHANGELOG-dev.md`, a commit, a list of decisions and open questions for review.
+- End of phase: a commit of code, tests and user-facing docs only; the updated development documents (log entry, decisions, open questions, plan) go to the maintainer as files, not into the repository.
