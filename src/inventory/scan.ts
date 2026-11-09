@@ -464,6 +464,11 @@ class Scan {
         }
       }
     }
+    for (const off of agent.hooksOff === undefined ? [] : factValues(agent.hooksOff)) {
+      for (const { entry, found, config } of this.#settingsFiles(off.files)) {
+        for (const { path, value } of lookup(config, off.key)) this.#add('setting', agent.id, entry.scope, found.file, path, entryText(value));
+      }
+    }
     for (const plugins of agent.plugins === undefined ? [] : factValues(agent.plugins)) {
       const helpers = new Map(plugins.sources.flatMap((source) => (source.headersHelper === undefined ? [] : [[source.type, source.headersHelper] as const])));
       for (const { entry, found, config } of this.#settingsFiles(plugins.files)) {

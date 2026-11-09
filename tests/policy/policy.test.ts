@@ -223,7 +223,7 @@ describe('agentcurfew doctor', () => {
     write('CLAUDE.md', 'x');
     const { code, stdout } = await cli('doctor', root);
     expect(code).toBe(EXIT_OK);
-    expect(stdout).toMatch(/^13 checks: \d+ passed, 0 failed, \d+ not applicable\n/);
+    expect(stdout).toMatch(/^14 checks: \d+ passed, 0 failed, \d+ not applicable\n/);
   });
 
   it('fails at warning by default, and the policy or the flag moves it', async () => {

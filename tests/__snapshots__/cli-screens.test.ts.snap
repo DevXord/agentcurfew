@@ -3,7 +3,7 @@
 exports[`screens > doctor and init 1`] = `
 "$ agentcurfew doctor <project>
 [exit 1]
-13 checks: 5 passed, 1 failed, 7 not applicable
+14 checks: 5 passed, 1 failed, 8 not applicable
   not applicable  agentcurfew.policy.json follows the schema [invalid-policy]
   passed          Every agent configuration file can be parsed [unparsable-config]
   passed          No file is named almost like one an agent reads [misnamed-file]
@@ -17,6 +17,7 @@ exports[`screens > doctor and init 1`] = `
   not applicable  The agentcurfew hook finds agentcurfew [agentcurfew-hook-missing]
   not applicable  A project with depcurfew.json has the depcurfew hook [depcurfew-hook-missing]
   not applicable  The depcurfew hook finds depcurfew [depcurfew-hook-broken]
+  not applicable  No project setting turns the hooks off [hooks-disabled]
 
 WARNING  deprecated-format  .cursorrules
   Cursor calls .cursorrules deprecated; use rules in .cursor/rules/*.mdc

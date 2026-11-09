@@ -37,6 +37,11 @@ describe('settings that redirect an agent or install code', () => {
     expect(plugins.autoUpdateField).toBe('autoUpdate');
   });
 
+  it('knows the setting that turns every Claude Code hook off', () => {
+    expect(one(claudeCode.hooksOff)).toMatchObject({ key: 'disableAllHooks' });
+    expect(claudeCode.hooksOff?.status === 'disputed' ? '' : claudeCode.hooksOff?.source).toMatch(/^https:\/\/code\.claude\.com\/docs\/en\/settings-reference#disableallhooks$/);
+  });
+
   it('knows the headersHelper command of remote Claude Code MCP servers', () => {
     expect(one(claudeCode.mcp)?.remote?.headersHelper).toBe('headersHelper');
   });

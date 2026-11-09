@@ -40,6 +40,7 @@ A `PreToolUse` hook on `Bash`, `Write` and `Edit`. It reads the call on stdin an
 | --- | --- |
 | `Write` or `Edit` of a file that steers an agent (every project path of the knowledge base: `CLAUDE.md`, `AGENTS.md`, `.mcp.json`, `.claude/settings.json`, skills, subagents, commands, rules and the others), or of `agentcurfew.policy.json`, `agentcurfew.lock` or `skills-lock.json` | `ask`, with the agents it steers and what the rules found in the new text |
 | the same, when the new text brings a finding at high or above, or one of `out-of-policy` | `deny`, with the findings |
+| the same, when the new settings set `disableAllHooks`, remove the depcurfew hook from a project with `depcurfew.json`, or remove the agentcurfew hook | `deny`: the agent would switch off the checks of its own writes and installs; make such a change by hand |
 | the same, when agentcurfew cannot read the new text: larger than it reads (2 MB), nested deeper than it parses, not parsable, or behind a folder that links out of the project | `deny` |
 | a new `agentcurfew.policy.json` that breaks the schema | `deny` |
 | `Write` or `Edit` of a script of the project that a hook, an editor task or a setting runs (`bash .claude/hooks/fmt.sh`, an `apiKeyHelper` or `headersHelper` script), or of a context file a setting names (Gemini CLI `context.fileName`), also one that does not exist yet | `ask`, with what runs or reads it; `deny` on the same terms as above, so a script that starts to download and run code is refused |

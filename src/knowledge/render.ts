@@ -115,6 +115,11 @@ function commandLines(): string[] {
         lines.push(`| ${agent.name} | plugins and marketplaces | ${code(value.enabledKey)}, ${value.marketplacesKeys.map(code).join(' or ')}${value.marketplacesFromProject === 'needs-trust' ? ' (from a project file once the folder is trusted)' : ''}; sources ${sources.join(', ')} | ${agent.plugins.status} | ${link(evidence.source)} | ${evidence.verifiedAt} |`);
       }
     }
+    if (agent.hooksOff !== undefined) {
+      for (const evidence of evidenceOf(agent.hooksOff)) {
+        lines.push(`| ${agent.name} | setting that turns hooks off | ${code(evidence.value.key)} = \`true\` | ${agent.hooksOff.status} | ${link(evidence.source)} | ${evidence.verifiedAt} |`);
+      }
+    }
     if (agent.contextNames !== undefined) {
       for (const evidence of evidenceOf(agent.contextNames)) {
         const value = evidence.value;

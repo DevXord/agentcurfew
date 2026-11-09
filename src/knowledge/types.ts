@@ -233,6 +233,13 @@ export interface ContextNamesKnowledge {
   locations: readonly ContextFile[];
 }
 
+/** A setting that turns the hooks of the user and the project off at once. */
+export interface HooksOffKnowledge {
+  files: readonly AgentPath[];
+  /** Dotted key; true turns the hooks off. */
+  key: string;
+}
+
 /** A hook that runs before a tool and can allow, deny or ask: what it reads on stdin and how it answers. */
 export interface ToolHookKnowledge {
   /** The event, e.g. PreToolUse, and where its handlers sit in the settings, as a dotted key. */
@@ -286,6 +293,8 @@ export interface AgentKnowledge {
   env?: Fact<EnvKnowledge>;
   /** Plugins and marketplaces in settings files; absent when not researched for the agent. */
   plugins?: Fact<PluginsKnowledge>;
+  /** A setting that turns hooks off; absent when the agent has none or it is not researched. */
+  hooksOff?: Fact<HooksOffKnowledge>;
   /** A setting that adds or renames context files; absent when the agent has none or it is not researched. */
   contextNames?: Fact<ContextNamesKnowledge>;
   /** One fact per deprecation, each with its own source; absent when none is known. */

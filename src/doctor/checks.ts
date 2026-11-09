@@ -8,6 +8,7 @@ import { canonicalJson } from '../lock/hash.ts';
 import { globMatch } from '../policy/glob.ts';
 import { SCHEMA_URL } from '../policy/types.ts';
 import { isOwnHook } from '../hook/install.ts';
+import { guardHooks, handlerLine, hooksOff, isDepcurfewHook } from '../hook/guards.ts';
 import { quote } from '../rules/mask.ts';
 import { keyMatches } from '../rules/knowledge.ts';
 import { entryValue, isRecord } from '../rules/text.ts';
@@ -354,15 +355,6 @@ export const stalePolicyEntry: DoctorCheck = {
 
 const CLAUDE_HOOKS = 'https://code.claude.com/docs/en/hooks';
 
-/** The command line of a hook handler as one string: command, then args. */
-function handlerLine(component: Component): string | undefined {
-  const value = entryValue(component);
-  const handler = isRecord(value) && isRecord(value.handler) ? value.handler : value;
-  if (!isRecord(handler) || typeof handler.command !== 'string') return undefined;
-  const args = Array.isArray(handler.args) ? handler.args.filter((arg): arg is string => typeof arg === 'string') : [];
-  return [handler.command, ...args].join(' ');
-}
-
 export const agentcurfewHookMissing: DoctorCheck = {
   id: 'agentcurfew-hook-missing',
   title: 'The agentcurfew hook finds agentcurfew',
@@ -386,11 +378,6 @@ export const agentcurfewHookMissing: DoctorCheck = {
 };
 
 const DEPCURFEW_HOOK = 'https://github.com/DevXord/depcurfew#claude-code';
-
-/** Whether a hook command line is depcurfew's guard of installs for Claude Code. */
-export function isDepcurfewHook(line: string): boolean {
-  return /\bdepcurfew\b(?:\/dist\/cli\.js["']?)?\s+check\b.*--hook\b/.test(line) || /\bdcf\s+check\b.*--hook\b/.test(line);
-}
 
 const claudeHooks = (context: DoctorContext) => project(context).filter((component) => component.kind === 'hook' && component.agents.includes('claude-code'));
 
@@ -440,6 +427,28 @@ export const depcurfewHookBroken: DoctorCheck = {
   },
 };
 
+export const hooksDisabled: DoctorCheck = {
+  id: 'hooks-disabled',
+  title: 'No project setting turns the hooks off',
+  level: 'warning',
+  description:
+    'disableAllHooks set to true in a Claude Code settings file of the project turns off every hook of the user, the project, local settings and plugins, the status line and the file suggestion command, for everyone who opens the repository. Hooks that guard the agent, such as the ones of depcurfew and agentcurfew, then check nothing, while their entries still look in place. It is an error when the same file holds such a hook.',
+  fix: 'Remove disableAllHooks from the project settings. To turn hooks off for one run, pass --settings \'{"disableAllHooks": true}\' instead.',
+  sources: ['https://code.claude.com/docs/en/settings-reference#disableallhooks'],
+  applies: (context) => hooksOff(context.analysis.inventory).length > 0,
+  run(context) {
+    const guards = guardHooks(context.analysis.inventory);
+    return hooksOff(context.analysis.inventory).map((component) => {
+      const guarded = [...guards.depcurfew, ...guards.agentcurfew].some((hook) => hook.file === component.file);
+      return {
+        file: component.file,
+        message: `${quote(component.name, 40)} is true, so Claude Code runs no hook of the user, the project, local settings or plugins, no status line and no file suggestion command${guarded ? ', and the depcurfew and agentcurfew hooks of this file check nothing' : ''}`,
+        level: guarded ? 'error' : 'warning',
+      };
+    });
+  },
+};
+
 /** Every check, in the order of docs/doctor.md. */
 export const unknownHookEvent: DoctorCheck = {
   id: 'unknown-hook-event',
@@ -485,4 +494,5 @@ export const checks: readonly DoctorCheck[] = [
   agentcurfewHookMissing,
   depcurfewHookMissing,
   depcurfewHookBroken,
+  hooksDisabled,
 ];

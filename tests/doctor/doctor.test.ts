@@ -56,6 +56,7 @@ const POSITIVE: Readonly<Record<string, readonly string[]>> = {
   'depcurfew-hook-missing': ['warning | depcurfew.json | the project has a depcurfew policy, but no depcurfew hook in the Claude Code settings of the project, so installs by the agent are not checked'],
   'depcurfew-hook-broken': ['error | .claude/settings.json | the depcurfew hook PreToolUse#0 runs node_modules/depcurfew/dist/cli.js, which does not exist, and with onFailure "block" every command it covers is blocked'],
   'agentcurfew-hook-missing': ['warning | .claude/settings.json | the hook PreToolUse#0 runs node_modules/agentcurfew/dist/cli.js, which does not exist in this project, so it checks nothing'],
+  'hooks-disabled': ['error | .claude/settings.json | disableAllHooks is true, so Claude Code runs no hook of the user, the project, local settings or plugins, no status line and no file suggestion command, and the depcurfew and agentcurfew hooks of this file check nothing'],
 };
 
 describe('doctor checks', () => {

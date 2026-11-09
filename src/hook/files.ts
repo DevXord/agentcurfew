@@ -15,6 +15,7 @@ import { parseConfig } from '../inventory/parse.ts';
 import { quote } from '../rules/mask.ts';
 import { atLeast } from '../rules/index.ts';
 import type { Finding } from '../rules/types.ts';
+import { weakenedGuards } from './guards.ts';
 import type { Verdict } from './types.ts';
 
 // Files that steer agentcurfew itself: an agent that rewrites them can switch the checks off.
@@ -244,6 +245,8 @@ export function checkWrite(file: string, newText: string | { why: string; deny?:
   // for example JSON nested deeper than the parser goes). It counts even when the old file had the same problem.
   const problem = after.inventory.problems.find((item) => item.file === path || path.startsWith(`${item.file}/`));
   if (problem !== undefined) return { decision: 'deny', reasons: [`agentcurfew: ${what}, and agentcurfew could not read the new text (${problem.code}${problem.file === path ? '' : ` at ${quote(problem.file, 80)}`}), so it cannot be checked.`] };
+  const weakened = weakenedGuards(before.inventory, after.inventory, root);
+  if (weakened.length > 0) return { decision: 'deny', reasons: [`agentcurfew: ${what}, and the change would ${weakened.join('; and ')}. Make this change by hand if it is intended.`] };
   const seen = new Set(before.findings.map(key));
   const added = after.findings.filter((finding) => !IGNORED_RULES.has(finding.rule) && concerns(finding, path) && !seen.has(key(finding)));
   const serious = added.filter((finding) => atLeast(finding.level, 'high') || finding.rule === 'out-of-policy');

@@ -42,6 +42,8 @@ npx agentcurfew@1 scan
 
 It needs Node.js 20 or later. The command is `agentcurfew`.
 
+In a project with a release-age delay (`min-release-age` in `.npmrc`, as `depcurfew apply` writes it), `npx agentcurfew@<version>` fails with `ETARGET` until that version is older than the delay, and `min-release-age-exclude` does not help, since `npx` and `npm exec` ignore it. Install agentcurfew as a dev dependency and run it from `node_modules/.bin`, or use the GitHub Action below, which installs it outside the project.
+
 ## Use
 
 ```bash

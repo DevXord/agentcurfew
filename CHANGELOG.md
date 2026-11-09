@@ -12,6 +12,9 @@ All notable changes to agentcurfew are written here for its users.
 - Gemini CLI's `context.fileName` names context files that are now read where `GEMINI.md` is, besides `GEMINI.md` itself; a name that is absolute, from home, with `..` or wildcards is not followed, and the settings file is reported as `unparsable`.
 - `secret-in-config` checks `env` values and marketplace headers by their names.
 - The hook asks before a write to a script that a hook, a task or a setting runs, or to a context file a setting names, and denies it on the same terms as a write to an agent file, so a hook script that starts to download and run code is refused; a shell command that names such a file and does not only read it is asked about.
+- The hook denies a write to Claude Code settings that sets `disableAllHooks`, removes the depcurfew hook from a project with `depcurfew.json`, or removes the agentcurfew hook, since the agent would switch off the checks of its own writes and installs; such a change is made by hand. `disableAllHooks` is inventoried as a setting.
+- New `doctor` check `hooks-disabled`: `disableAllHooks` true in a project settings file turns off every hook of the user and the project for everyone who opens the repository; an error when the same file holds the depcurfew or agentcurfew hook.
+- README: in a project with a release-age delay, `npx agentcurfew@<version>` fails until the version is older than the delay; install it as a dev dependency or use the GitHub Action.
 - `verify` skips components of a kind it does not know, with a note and `unknownKinds` in its JSON, instead of refusing the whole lock. agentcurfew 1.1 refuses a lock that holds `setting` components, so upgrade every copy that verifies the same lock together.
 - After upgrading, run `agentcurfew lock` once: the lock gains the new components. No `schemaVersion` or `lockfileVersion` changed, and no dependency was added.
 

@@ -21,6 +21,7 @@ Levels: `error` (it does not work), `warning` (it probably does not), `info`. Th
 | [`agentcurfew-hook-missing`](#agentcurfew-hook-missing) | warning | The agentcurfew hook finds agentcurfew |
 | [`depcurfew-hook-missing`](#depcurfew-hook-missing) | warning | A project with depcurfew.json has the depcurfew hook |
 | [`depcurfew-hook-broken`](#depcurfew-hook-broken) | warning | The depcurfew hook finds depcurfew |
+| [`hooks-disabled`](#hooks-disabled) | warning | No project setting turns the hooks off |
 
 ## invalid-policy
 
@@ -151,3 +152,13 @@ The depcurfew hook runs node_modules/depcurfew/dist/cli.js of the project. When 
 Fix: Install depcurfew (npm ci, or npm install --save-dev depcurfew) before the agent starts, as the README of depcurfew describes, or fix the path in the hook.
 
 Sources: <https://github.com/DevXord/depcurfew#claude-code>.
+
+## hooks-disabled
+
+**No project setting turns the hooks off.** Level warning.
+
+disableAllHooks set to true in a Claude Code settings file of the project turns off every hook of the user, the project, local settings and plugins, the status line and the file suggestion command, for everyone who opens the repository. Hooks that guard the agent, such as the ones of depcurfew and agentcurfew, then check nothing, while their entries still look in place. It is an error when the same file holds such a hook.
+
+Fix: Remove disableAllHooks from the project settings. To turn hooks off for one run, pass --settings '{"disableAllHooks": true}' instead.
+
+Sources: <https://code.claude.com/docs/en/settings-reference#disableallhooks>.

@@ -251,6 +251,11 @@ export const claudeCode: AgentKnowledge = {
     `${SETTINGS_REFERENCE}#env`,
     ENV_NOTE,
   ),
+  hooksOff: phase13.verified(
+    { files: SETTINGS_FILES, key: 'disableAllHooks' },
+    `${SETTINGS_REFERENCE}#disableallhooks`,
+    'Scope "Any file". true turns off hooks, any custom status line and any custom file suggestion command. Outside managed settings it "disables user, project, local, and plugin hooks"; managed hooks, Agent SDK hooks and hooks of plugins force-enabled in managed settings keep running, and only managed settings can disable managed hooks. Claude Code reads the value left after settings precedence, so a project file can set it either way (https://code.claude.com/docs/en/hooks#disable-or-remove-hooks). Read on 2026-11-09.',
+  ),
   plugins: phase13.verified(
     {
       files: SETTINGS_FILES,
