@@ -197,9 +197,18 @@ function namedAgentFile(line: string): string | undefined {
   const files = [...agentFileNames(knowledgeBase).filter((name) => /[./]/.test(name)), 'agentcurfew.policy.json', 'agentcurfew.lock', 'skills-lock.json'].map(escapeRegExp);
   const folders = agentFolders(knowledgeBase).map((folder) => escapeRegExp(folder.replace(/\/$/, '')));
   mentionPattern ??= new RegExp(`(?:^|[^\\w.-])((?:${files.join('|')})(?![\\w-]|\\.\\w)|(?:${folders.join('|')})(?:/|(?![\\w.-])))`, 'i');
+  let globbed = 0;
+  const globNames = [...agentFileNames(knowledgeBase).filter((name) => /[./]/.test(name)), 'agentcurfew.policy.json', 'agentcurfew.lock', 'skills-lock.json'];
   for (const word of checkedWords(line)) {
     const match = mentionPattern.exec(word);
     if (match !== null) return match[1];
+    const folder = word.replaceAll('\\', '/').replace(/^\.\/+/, '').replace(/\/+\.?$/, '');
+    if (agentRootFolders().includes(folder)) return folder;
+    // A glob or braces the shell expands into an agent file: CLAUD?.md, .claude/settings.jso{n,x} (review of 2026-11-09).
+    if (GLOB.test(word) && globbed++ < MAX_GLOB_WORDS) {
+      const named = globbedAgentFile(word, globNames);
+      if (named !== undefined) return named;
+    }
   }
   return undefined;
 }
@@ -209,15 +218,96 @@ function namedAgentFile(line: string): string | undefined {
  * targets of redirections, which always write.
  */
 export function checkedWords(line: string): string[] {
-  return commands(line)
-    .flatMap((command) => unwrapCommand(command))
-    .flatMap((words) =>
-      readOnly(words)
-        ? words.flatMap((word, index) => {
-            const redirect = REDIRECT.exec(word);
-            if (redirect === null) return [];
-            return [redirect[1] === '' ? (words[index + 1] ?? '') : (redirect[1] ?? '')];
-          })
-        : words,
-    );
+  const all = commands(line).flatMap((command) => unwrapCommand(command));
+  const targets = (words: readonly string[]): string[] =>
+    words.flatMap((word, index) => {
+      const redirect = REDIRECT.exec(word);
+      if (redirect === null) return [];
+      return [redirect[1] === '' ? (words[index + 1] ?? '') : (redirect[1] ?? '')];
+    });
+  // A file name that comes from another command (a redirect to $(echo X), xargs, parallel) is a word of a command that
+  // only reads, so then every word of the line counts (review of 2026-11-09).
+  const dynamic = all.some((words) => DYNAMIC.has(program(words[0] ?? ''))) || all.some((words) => targets(words).some((target) => target === '' || /[$`]/.test(target)));
+  const checked = all.flatMap((words) => (dynamic || !readOnly(words) ? words : targets(words)));
+  // cd into an agent folder, then a write by a relative name: cd .claude && echo x > settings.json (review of 2026-11-09).
+  // The folder counts only when the line writes anything.
+  const writes = all.some((words) => program(words[0] ?? '') !== 'cd' && (!readOnly(words) || targets(words).length > 0));
+  if (writes) for (const words of all) if (program(words[0] ?? '') === 'cd' && words[1] !== undefined) checked.push(words[1]);
+  return checked;
+}
+
+// Folders of the project that hold only agent configuration, named alone: rm -rf .claude, cp -r x/. .claude/. Shared
+// folders (.github, .vscode, .config) are left out: a command that writes there is no change of an agent by itself.
+const SHARED_FOLDERS = new Set(['.github', '.vscode', '.config']);
+let agentRoots: readonly string[] | undefined;
+function agentRootFolders(): readonly string[] {
+  agentRoots ??= [...new Set([...agentFolders(knowledgeBase), ...agentFileNames(knowledgeBase)].filter((path) => path.startsWith('.') && path.includes('/')).map((path) => path.slice(0, path.indexOf('/'))))]
+    .filter((folder) => !SHARED_FOLDERS.has(folder))
+    .sort();
+  return agentRoots;
+}
+
+// Programs that take the names of the files they act on from another command.
+const DYNAMIC = new Set(['xargs', 'parallel']);
+
+function program(word: string): string {
+  return (word.split(/[\\/]/).at(-1) ?? '').toLowerCase();
+}
+
+const GLOB = /[*?[{]/;
+const MAX_GLOB_WORDS = 64;
+const MAX_GLOB_LENGTH = 512;
+const MAX_BRACES = 32;
+
+/** The words of {a,b} spelled out, at most MAX_BRACES of them; nested braces are left as they are. */
+function expandBraces(word: string): string[] {
+  const match = /\{([^{}]*,[^{}]*)\}/.exec(word);
+  if (match === null) return [word];
+  const before = word.slice(0, match.index);
+  const after = word.slice(match.index + match[0].length);
+  return match[1]!.split(',').slice(0, MAX_BRACES).flatMap((part) => expandBraces(`${before}${part}${after}`).slice(0, MAX_BRACES)).slice(0, MAX_BRACES);
+}
+
+/** A shell glob as a regular expression for one path, with * and ? not crossing a slash; runs of * are one. */
+function globExpression(glob: string): RegExp | undefined {
+  let source = '';
+  for (let index = 0; index < glob.length; index++) {
+    const char = glob[index] as string;
+    if (char === '*') {
+      if (!source.endsWith('[^/]*')) source += '[^/]*';
+    } else if (char === '?') {
+      source += '[^/]';
+    } else if (char === '[') {
+      const end = glob.indexOf(']', index + 2);
+      if (end === -1) return undefined;
+      const inner = glob.slice(index + 1, end).replace(/^!/, '^').replace(/[\\\]]/g, '\\$&');
+      source += `[${inner}]`;
+      index = end;
+    } else {
+      source += char.replace(/[.+^${}()|\\]/g, '\\$&');
+    }
+  }
+  try {
+    return new RegExp(`^${source}$`, 'i');
+  } catch {
+    return undefined;
+  }
+}
+
+/** The agent file a word with a glob or braces can name, matched against the end of the path it spells. */
+function globbedAgentFile(word: string, names: readonly string[]): string | undefined {
+  if (word.length > MAX_GLOB_LENGTH) return undefined;
+  for (const spelled of expandBraces(word)) {
+    const parts = spelled.replaceAll('\\', '/').split('/');
+    for (const name of names) {
+      const depth = name.split('/').length;
+      const tail = parts.slice(-depth).join('/');
+      if (!GLOB.test(tail)) {
+        if (tail.toLowerCase() === name.toLowerCase()) return name;
+        continue;
+      }
+      if (globExpression(tail)?.test(name) === true) return name;
+    }
+  }
+  return undefined;
 }

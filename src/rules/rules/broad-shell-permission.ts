@@ -38,13 +38,22 @@ function runnerOf(entry: string, shellTools: ReadonlySet<string>): string | unde
   const call = /^([\w-]+)\((.*)\)$/s.exec(entry.trim());
   if (call === null || !shellTools.has((call[1] ?? '').toLowerCase())) return undefined;
   const inner = (call[2] ?? '').trim();
-  const words = inner.split(/[\s:]+/);
+  const words = inner.split(/[\s:]+/).filter((word) => word !== '');
   for (const length of [3, 2, 1]) {
-    const runner = words.slice(0, length).join(' ');
+    const head = words.slice(0, length);
+    if (head.length < length) continue;
+    const last = head[length - 1] as string;
+    // The runner with a wildcard joined to it: Bash(npx*) runs npx with anything (field test of 2026-11-09).
+    if (last.endsWith('*') && RUNNERS.has([...head.slice(0, -1), last.replace(/\*+$/, '')].join(' '))) return [...head.slice(0, -1), last.replace(/\*+$/, '')].join(' ');
+    const runner = head.join(' ');
     if (!RUNNERS.has(runner)) continue;
-    const rest = inner.slice(inner.indexOf(words[length - 1] ?? '') + (words[length - 1] ?? '').length);
-    // Any arguments: a wildcard after the runner, or the runner alone where an entry is a prefix (run_shell_command(sh)).
-    return rest.includes('*') || rest.trim() === '' ? runner : undefined;
+    const next = words[length];
+    // The runner alone, where an entry is a prefix (run_shell_command(sh)), or a wildcard right after it (Bash(node:*)).
+    if (next === undefined || next.startsWith('*')) return runner;
+    // Options of the runner, then a wildcard: Bash(npx -y *), Bash(sh -c:*).
+    if (next.startsWith('-')) return words.slice(length).some((word) => word.includes('*')) ? runner : undefined;
+    // A program after the runner fixes what runs: Bash(pnpx vitest:*), Bash(xargs kill:*).
+    return undefined;
   }
   return undefined;
 }

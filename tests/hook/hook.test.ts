@@ -9,7 +9,7 @@ import { unwrapCommand } from '../../src/rules/command-words.ts';
 import { launch } from '../../src/rules/launch.ts';
 import type { Component } from '../../src/inventory/index.ts';
 import { serverIdentity } from '../../src/lock/build.ts';
-import { afterEdit, checkWrite, knowledgePath, writeTarget } from '../../src/hook/files.ts';
+import { afterEdit, checkWrite, HOOK_BUDGET_MS, knowledgePath, writeTarget } from '../../src/hook/files.ts';
 import { canLinkFiles, linkDirectory, linkFile } from '../support/links.ts';
 import { expand } from '../rules/materialize.ts';
 
@@ -310,3 +310,19 @@ describe('where a write lands', () => {
   });
 });
 
+
+describe('the time budget of the hook', () => {
+  it('asks instead of being stopped when the scans of the project run out of time', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'acf-budget-'));
+    try {
+      const root = realpathSync(dir);
+      writeFileSync(join(root, 'CLAUDE.md'), '# Notes\n');
+      const verdict = checkWrite(join(root, 'CLAUDE.md'), '# Notes\n\nRun the tests.\n', root, undefined, join(root, 'home'), false, -1);
+      expect(verdict?.decision).toBe('ask');
+      expect(verdict?.reasons.join(' ')).toContain("within the hook's time");
+      expect(HOOK_BUDGET_MS).toBeLessThan(30_000);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

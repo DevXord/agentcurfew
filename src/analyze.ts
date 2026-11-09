@@ -29,12 +29,14 @@ export interface AnalyzeOptions {
   rules?: boolean;
   overlay?: ReadonlyMap<string, string>;
   packageReports?: ReadonlyMap<string, PackageReport>;
+  /** See ScanOptions.deadline. */
+  deadline?: number;
 }
 
 export function analyzeProject(root: string, options: AnalyzeOptions & { inventory?: Inventory } = {}): Analysis {
   const { context, lock, policy } = projectContext(root);
   if (options.packageReports !== undefined) context.packageReports = options.packageReports;
-  const scanned = options.inventory ?? scanInventory({ root, user: options.user === true, ...(options.overlay === undefined ? {} : { overlay: options.overlay }) });
+  const scanned = options.inventory ?? scanInventory({ root, user: options.user === true, ...(options.overlay === undefined ? {} : { overlay: options.overlay }), ...(options.deadline === undefined ? {} : { deadline: options.deadline }) });
   const inventory = options.inventory ?? excludePaths(scanned, context.policy);
   if (options.rules === false) return { inventory, context, lock, policy, findings: [], suppressed: [] };
   const { findings, suppressed } = applyPolicy(runRules(inventory, { context }), context.policy, today(options.now));

@@ -43,7 +43,7 @@ False alarms: Right-to-left languages can need bidirectional marks, and some tex
 
 **MCP server without a fixed version.** Level medium; low when the package could not be found in the launcher arguments. AST02 Supply Chain Compromise, AST07 Update Drift.
 
-Finds MCP servers started through a launcher that downloads them at run time (npx, bunx, pnpm dlx, yarn dlx, npm exec, uvx, uv tool run, pipx run, docker run, podman run) without an exact version or an image digest. Each start may then run code that nobody reviewed, and the lockfile cannot pin it.
+Finds MCP servers started through a launcher that downloads them at run time (npx, bunx, pnpm dlx, yarn dlx, npm exec and npm x, uvx, uv tool run, pipx run, docker run, podman run, also after their global options), and every package it fetches (each -p, uvx --with), that has no exact version or image digest. Each start may then run code that nobody reviewed, and the lockfile cannot pin it.
 
 Example: `"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem"]`
 
@@ -81,13 +81,13 @@ Example: `"command": "curl -s https://example.com/setup.sh | bash"`
 
 Fix: Replace the command with a script committed to the repository that does only what is needed, with no download at run time. If a hook must reach the network, document why and pin what it fetches.
 
-False alarms: A hook may download from a trusted host on purpose. Writes are found by the file name, so a hook that writes a file of the same name elsewhere is reported too.
+False alarms: A hook may download from a trusted host on purpose, and a script that looks for such commands (a grep pattern of curl and sh in a guard) matches like one that runs them; comment lines are skipped. Writes are found by the file name, so a hook that writes a file of the same name elsewhere is reported too.
 
 ## unpinned-launcher
 
 **Command fetches a package without a fixed version.** Level medium; low when the package could not be found in the launcher arguments. AST02 Supply Chain Compromise, AST07 Update Drift.
 
-Finds hooks, automatic tasks and settings that run a command (statusLine, apiKeyHelper and the like), and the scripts of the project they run, whose command starts a package through a launcher that downloads it at run time (npx, bunx, pnpm dlx, yarn dlx, npm exec, uvx, uv tool run, pipx run, docker run, podman run) without an exact version or an image digest. The hook then runs whatever version is newest when its event fires, with the user's rights and without a prompt, and the lockfile cannot pin it.
+Finds hooks, automatic tasks and settings that run a command (statusLine, apiKeyHelper and the like), and the scripts of the project they run, whose command starts a package through a launcher that downloads it at run time (npx, bunx, pnpm dlx, yarn dlx, npm exec and npm x, uvx, uv tool run, pipx run, docker run, podman run, also after their global options), and every package it fetches (each -p, uvx --with), that has no exact version or image digest. The hook then runs whatever version is newest when its event fires, with the user's rights and without a prompt, and the lockfile cannot pin it.
 
 Example: `"command": "npx prettier --write ."`
 
@@ -215,7 +215,7 @@ Checks the project against the lists of agentcurfew.policy.json: skills whose so
 
 Example: `mcp.allowServers is ["@modelcontextprotocol/*"], and .mcp.json starts npx -y random-server@1.0.0`
 
-Fix: Remove the component, or, if it was reviewed and is wanted, add its source, package or address to the policy. local allows skills that skills-lock.json does not list and servers started from a local command.
+Fix: Remove the component, or, if it was reviewed and is wanted, add its source, package or address to the policy. local allows skills that skills-lock.json does not list and servers started from a local command; a server a launcher fetches from git or an address (npx -y github:org/repo) is named by that spec, not local.
 
 ## mcp-package
 

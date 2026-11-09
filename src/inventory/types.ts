@@ -44,6 +44,11 @@ export interface Component {
   files?: readonly SkillFile[];
   /** project: the paths of files are relative to the project, not to the component's folder. */
   filesRoot?: 'project';
+  /**
+   * Whether raw is the text of the whole file rather than one entry of it. The scanner always sets it; a component built
+   * by hand without it is judged by its name (text.ts isWholeFile). Kept out of the output.
+   */
+  whole?: boolean;
 }
 
 /** A component's id, or its name when it was built without one. */
@@ -51,7 +56,7 @@ export function idOf(component: { id?: string; name: string }): string {
   return component.id ?? component.name;
 }
 
-export type ProblemCode = 'outside-project' | 'too-large' | 'too-deep' | 'too-many-entries' | 'unreadable' | 'unparsable';
+export type ProblemCode = 'outside-project' | 'too-large' | 'too-deep' | 'too-many-entries' | 'unreadable' | 'unparsable' | 'not-followed';
 
 /**
  * Problems that leave a file of the knowledge base unchecked, so that `scan` fails on them (Q-013, decision of the
@@ -96,4 +101,6 @@ export interface ScanOptions {
    * yet is seen as a new file. The hook checks a write this way before it happens. Nothing is written to disk.
    */
   overlay?: ReadonlyMap<string, string>;
+  /** A time (Date.now()) past which the scan stops with ScanTimeout; the hook sets one so that it answers in time. */
+  deadline?: number;
 }

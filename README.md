@@ -42,6 +42,8 @@ npx agentcurfew@1 scan
 
 It needs Node.js 20 or later. The command is `agentcurfew`.
 
+In a project with a release-age delay (`min-release-age` in `.npmrc`, as `depcurfew apply` writes it), `npx agentcurfew@<version>` fails with `ETARGET` until that version is older than the delay, and `min-release-age-exclude` does not help, since `npx` and `npm exec` ignore it. Install agentcurfew as a dev dependency and run it from `node_modules/.bin`, or use the GitHub Action below, which installs it outside the project.
+
 ## Use
 
 ```bash
@@ -90,7 +92,7 @@ steps:
       fail-on: high
 ```
 
-Inputs: `command`, `directory`, `fail-on`, `sarif-file`, `upload-sarif` (needs `security-events: write`) and `build-from-source` (for tests of the action itself). Output: `exit-code`. A released commit runs the matching version of agentcurfew from npm. How releases are made: [docs/RELEASING.md](docs/RELEASING.md).
+Inputs: `command`, `directory`, `fail-on`, `sarif-file`, `upload-sarif` (needs `security-events: write`) and `build-from-source` (for tests of the action itself). Output: `exit-code`. A released commit runs the matching version of agentcurfew from npm, so pin the commit of a release tag: a later commit of `main` still runs the last released version. The action does not install depcurfew, so `mcp-package` does not run in it; `scan` then says so in a note. How releases are made: [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Development
 

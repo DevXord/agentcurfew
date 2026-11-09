@@ -1,6 +1,7 @@
 import { analyzeProjectAsync } from '../analyze.ts';
 import type { Component, Inventory, InventoryProblem } from '../inventory/index.ts';
 import { UNCHECKED_PROBLEMS } from '../inventory/types.ts';
+import { checkableServers } from '../depcurfew/bridge.ts';
 import { LOCKFILE } from '../lock/types.ts';
 import type { Suppressed } from '../policy/apply.ts';
 import { toSarif } from '../report/sarif.ts';
@@ -32,11 +33,12 @@ const PROBLEMS: Readonly<Record<InventoryProblem['code'], string>> = {
   'too-many-entries': 'more entries than the limit, so the inventory is incomplete',
   unreadable: 'could not be read',
   unparsable: 'could not be parsed, so its settings, or the frontmatter of a skill, were not read',
+  'not-followed': 'names a file agentcurfew does not follow (absolute, from home, with .. or wildcards), so that file was not read',
 };
 
 /** What may be printed: no file contents, which can hold secrets or hostile text. */
 export function publicComponent(component: Component): object {
-  const { raw, files, ...visible } = component;
+  const { raw, files, whole: _whole, ...visible } = component;
   const listed = files === undefined ? {} : { files: files.map(({ path, bytes }) => ({ path, bytes })) };
   // The id and the checksum the lock holds (D-042), so that a reader of the JSON can follow a component without the lock.
   return { ...visible, id: idOf(component), ...listed, bytes: Buffer.byteLength(raw), hash: lockHash(component) };
@@ -112,13 +114,18 @@ export async function runScan(argv: readonly string[], io: CliIo, usageError: (w
   }
   // A file that could not be read was not checked, so it fails the scan as a finding would (Q-013).
   const unchecked = inventory.problems.filter((problem) => UNCHECKED_PROBLEMS.includes(problem.code));
+  // mcp-package needs depcurfew and its policy; when it could not run for servers it would check, say so (review of 2026-11-09).
+  const waiting = analysis.depcurfew.status === 'ready' ? 0 : checkableServers(inventory);
+  const skipped = waiting > 0 && analysis.depcurfew.status !== 'ready' ? { status: analysis.depcurfew.status, reason: analysis.depcurfew.reason, servers: waiting } : undefined;
   if (values.sarif === true) {
     io.stdout(`${printableJson(toSarif(findings, suppressed, unchecked))}\n`);
   } else if (values.json === true) {
-    const output = { schemaVersion: SCAN_SCHEMA_VERSION, producer: producer(), failOn, components: inventory.components.map(publicComponent), findings, suppressed, problems: inventory.problems };
+    const output = { schemaVersion: SCAN_SCHEMA_VERSION, producer: producer(), failOn, components: inventory.components.map(publicComponent), findings, suppressed, problems: inventory.problems, ...(skipped === undefined ? {} : { depcurfew: skipped }) };
     io.stdout(`${printableJson(output)}\n`);
   } else {
-    const note = lock.status === 'invalid' ? `\nNote: ${LOCKFILE} was not compared, because ${lock.reason}.\n` : '';
+    const lockNote = lock.status === 'invalid' ? `\nNote: ${LOCKFILE} was not compared, because ${lock.reason}.\n` : '';
+    const depcurfewNote = skipped === undefined ? '' : `\nNote: mcp-package did not check the ${skipped.servers === 1 ? 'package' : 'packages'} of ${skipped.servers} MCP ${skipped.servers === 1 ? 'server' : 'servers'}, because ${skipped.reason}; install depcurfew and give the project a depcurfew.json, or run npx depcurfew check <package>.\n`;
+    const note = lockNote + depcurfewNote;
     io.stdout(renderFindings(io, inventory, findings, suppressed, failOn, unchecked.length) + note);
   }
   const failed = failOn !== 'none' && (unchecked.length > 0 || findings.some((finding) => atLeast(finding.level, failOn as Level)));

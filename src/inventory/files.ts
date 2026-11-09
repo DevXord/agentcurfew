@@ -51,6 +51,14 @@ function globPattern(segment: string): RegExp {
   return new RegExp(`^${source}$`);
 }
 
+/** Thrown when a scan runs past its deadline (ScanOptions.deadline); the hook then asks instead of being stopped. */
+export class ScanTimeout extends Error {
+  constructor() {
+    super('the scan ran out of time');
+    this.name = 'ScanTimeout';
+  }
+}
+
 export class ScanFiles {
   readonly #limits: Limits;
   readonly #problems = new Map<string, InventoryProblem>();
@@ -61,11 +69,13 @@ export class ScanFiles {
   #bytes = 0;
 
   readonly #overlay: ReadonlyMap<string, Buffer>;
+  readonly #deadline: number | undefined;
 
   /** `overlay` maps absolute paths to the bytes they are read as; see ScanOptions.overlay. */
-  constructor(limits: Limits, overlay: ReadonlyMap<string, Buffer> = new Map()) {
+  constructor(limits: Limits, overlay: ReadonlyMap<string, Buffer> = new Map(), deadline?: number) {
     this.#limits = limits;
     this.#overlay = overlay;
+    this.#deadline = deadline;
   }
 
   get problems(): readonly InventoryProblem[] {
@@ -79,6 +89,7 @@ export class ScanFiles {
   #list(path: string, file: string): readonly string[] {
     const cached = this.#listings.get(path);
     if (cached !== undefined) return cached;
+    if (this.#deadline !== undefined && Date.now() > this.#deadline) throw new ScanTimeout();
     let names: string[] = [];
     // An overlaid file shows up in every folder above it, also in folders that do not exist yet: a write of
     // .claude/skills/new/SKILL.md creates the folder new.
@@ -284,6 +295,7 @@ export class ScanFiles {
   }
 
   #readOnce(found: Found): Buffer | ProblemCode {
+    if (this.#deadline !== undefined && Date.now() > this.#deadline) throw new ScanTimeout();
     const overlaid = this.#overlay.get(found.path);
     if (overlaid !== undefined) {
       // The text a write would bring is always read: the hook must not lose it to the budget.

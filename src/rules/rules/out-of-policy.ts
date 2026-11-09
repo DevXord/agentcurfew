@@ -19,7 +19,7 @@ export const outOfPolicy: Rule = {
   description:
     'Checks the project against the lists of agentcurfew.policy.json: skills whose source in skills-lock.json is not in skills.allowSources (medium when the skill is not in skills-lock.json at all, so its source is unknown), skills that bundle programs or scripts when skills.allowExecutables is false, and MCP servers whose package, image or address is not in mcp.allowServers. Without a policy, or without the list, it checks nothing.',
   levels: 'medium for a local skill when skills.allowSources does not allow local skills',
-  fix: 'Remove the component, or, if it was reviewed and is wanted, add its source, package or address to the policy. local allows skills that skills-lock.json does not list and servers started from a local command.',
+  fix: 'Remove the component, or, if it was reviewed and is wanted, add its source, package or address to the policy. local allows skills that skills-lock.json does not list and servers started from a local command; a server a launcher fetches from git or an address (npx -y github:org/repo) is named by that spec, not local.',
   example: 'mcp.allowServers is ["@modelcontextprotocol/*"], and .mcp.json starts npx -y random-server@1.0.0',
   kinds: [],
   check: () => [],

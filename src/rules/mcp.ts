@@ -38,11 +38,12 @@ export function mcpEntry(component: Component, knowledge: readonly AgentKnowledg
     const list = value[name];
     if (Array.isArray(list)) for (const item of list) if (typeof item === 'string' || typeof item === 'number') args.push(String(item));
   }
-  const env: Record<string, unknown> = {};
+  // No prototype: an own __proto__ key of the file stays a key instead of becoming the prototype (review of 2026-11-09).
+  const env: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
   for (const name of new Set(local.map((fields) => fields.env))) if (isRecord(value[name])) Object.assign(env, value[name]);
   const urls: string[] = [];
   for (const name of new Set(remote.flatMap((fields) => [fields.url, ...(fields.otherUrls ?? [])]))) if (typeof value[name] === 'string') urls.push(value[name]);
-  const headers: Record<string, unknown> = {};
+  const headers: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
   for (const name of new Set(remote.flatMap((fields) => (fields.headers === null ? [] : [fields.headers])))) if (isRecord(value[name])) Object.assign(headers, value[name]);
   return { ...(command === undefined ? {} : { command }), args, env, urls, headers };
 }

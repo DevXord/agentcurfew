@@ -12,6 +12,36 @@ All notable changes to agentcurfew are written here for its users.
 - Gemini CLI's `context.fileName` names context files that are now read where `GEMINI.md` is, besides `GEMINI.md` itself; a name that is absolute, from home, with `..` or wildcards is not followed, and the settings file is reported as `unparsable`.
 - `secret-in-config` checks `env` values and marketplace headers by their names.
 - The hook asks before a write to a script that a hook, a task or a setting runs, or to a context file a setting names, and denies it on the same terms as a write to an agent file, so a hook script that starts to download and run code is refused; a shell command that names such a file and does not only read it is asked about.
+- The hook denies a write to the project's Claude Code settings (`.claude/settings.json` or `.claude/settings.local.json`) that sets `disableAllHooks`, removes the depcurfew hook from a project with `depcurfew.json`, or removes the agentcurfew hook, since the agent would switch off the checks of its own writes and installs; such a change is made by hand. `disableAllHooks` is inventoried as a setting.
+- New `doctor` check `hooks-disabled`: `disableAllHooks` true in a project settings file turns off every hook of the user and the project for everyone who opens the repository; an error when the same file holds the depcurfew or agentcurfew hook.
+- Fixed, found by a review of 1.1.0 (each also in 1.1.0 unless noted):
+  - A hook command with a very long script path made the `.gitignore` match take quadratic time: a 7 KB settings file took 10 s and 160 KB took 50 s. Script paths are now read only up to the limits of common file systems (4096 characters, names of 255, 64 folders), and a path is matched once per pattern.
+  - Thousands of nested here-documents (`bash <<A` repeated) overflowed the stack, so `scan` stopped with an error, and the hook gave no opinion on such a shell command, which let any command it would deny through. Here-documents are read to a depth of 8, past which their lines are read as plain commands, and the hook now asks when its own check fails, for shell commands too.
+  - `unpinned-launcher` (new, not in 1.1.0) and `unpinned-mcp-server` missed `npm x`, global options before the subcommand (`npm --yes exec`, `docker --context x run`), every `-p` but the last, packages added with `uvx --with`, and options of npm and docker whose value was taken for the package (`--node-options`, `--cidfile`, `--volumes-from` and others). `npx -y pkg --no` no longer passes as `--no-install`: only options before the package count.
+  - An MCP server named like its file (`.mcp.json` in `.mcp.json`) was read as the whole file, so no rule checked its entry and the lock had no `server` details for it.
+  - The new guard of the hook counted a guard hook by its command string only, so a write that kept the string but stopped the hook from acting (a matcher that never fires, the hook moved to `PostToolUse`, a decoy handler, a tiny timeout) was only asked about. A guard now counts only when it can act. (Not in 1.1.0, which had no such guard.)
+  - Shell writes to an agent file spelled with a glob or braces (`cp x CLAUD?.md`, `tee .claude/settings.jso{n,x}`), or named by another command (`printf x > $(echo CLAUDE.md)`, `xargs`), passed the hook without a question.
+  - A repository padded with tens of thousands of skill folders made the hook's two scans of a write take longer than the 30 s timeout of `init --hook`, after which Claude Code lets the call through. The hook's scans now have a budget of 15 s, and it asks when the project is too large to check in time.
+  - An own `__proto__` key in an MCP server's `env` or `headers` became the prototype of the merged entry and hid the variables below it from `secret-in-config`.
+- Fixed, found by a functional review of 1.1.0 (each also in 1.1.0):
+  - A server that a launcher fetches from git or an address (`npx -y github:org/repo`, a tarball URL, `uvx --from git+https://…`) counted as a server started from a local command, so `mcp.allowServers: ["local"]` allowed it, the hook asked about `claude mcp add` of it instead of denying, and `init` wrote `local` for it. Such a server is now named by its spec.
+  - `verify` passed when a file could not be read (too large, too deep, a link out of the project); it now fails as `scan` does, with `ok: false`.
+  - `remote-instructions` missed `curl -fsSL https://… | sh`, `wget -qO- https://… | bash` and `eval "$(curl -s https://…)"` in skill scripts: options between the program and the address hid it.
+  - `scan` says in a note, and in `depcurfew` of its JSON, when `mcp-package` did not check the packages of MCP servers because depcurfew is missing, unsupported or has no valid `depcurfew.json`.
+  - The hook did not ask about `rm -rf .claude`, `cp -r x/. .claude/` and `cd .claude && echo x > settings.json`. `init --hook` now also matches `PowerShell` and `NotebookEdit` (PowerShell commands are read like Bash commands), and a guard hook with an `if` condition does not count as working.
+  - Findings of `out-of-policy` and `mcp-package` carry the `componentId` of the component they name.
+  - SARIF placed files of the home folder (`--user`) under the repository; they are now relative to `HOME`, and machine files are absolute.
+  - The action uploaded an empty SARIF file when the policy was invalid.
+  - `mcp --root` with a folder that does not exist exits 2, as other wrong input does.
+- Gemini CLI `context.fileName`: a name with a leading slash is read in the folder, as Gemini CLI joins it (`/.prompts/x.md`), and a name agentcurfew does not follow is the new problem `not-followed`, a warning, instead of `unparsable`, which `doctor` reported as a file that could not be parsed.
+- Fewer false alarms and misses, found by a field test on 34 public repositories:
+  - `broad-shell-permission` reports `Bash(npx*)` and the like, a runner with a wildcard joined to it, and no longer reports a runner whose entry fixes the program it runs (`Bash(pnpx vitest:*)`, `Bash(xargs kill:*)`).
+  - `dangerous-hook-command` skips comment lines of scripts, and an assignment of a download's output (`V=$(curl …)`) is reported as a network connection, not as running the download.
+  - `remote-instructions` leaves requests to this machine alone (`localhost`, `127.0.0.1`, `::1`).
+  - `obfuscated-content` no longer takes a long paragraph of prose for a minified line.
+  - `unpinned-mcp-server` leaves a server alone that npm runs only from what is installed (`npm exec --no`, `npx --no-install`), as `unpinned-launcher` does.
+  - Scripts that hooks run through `${CLAUDE_PROJECT_DIR:-…}/…`, and Gemini CLI hooks through `$GEMINI_PROJECT_DIR`, are read and locked.
+- README: in a project with a release-age delay, `npx agentcurfew@<version>` fails until the version is older than the delay; install it as a dev dependency or use the GitHub Action.
 - `verify` skips components of a kind it does not know, with a note and `unknownKinds` in its JSON, instead of refusing the whole lock. agentcurfew 1.1 refuses a lock that holds `setting` components, so upgrade every copy that verifies the same lock together.
 - After upgrading, run `agentcurfew lock` once: the lock gains the new components. No `schemaVersion` or `lockfileVersion` changed, and no dependency was added.
 

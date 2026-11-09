@@ -191,7 +191,7 @@ export const claudeCode: AgentKnowledge = {
     SUB_AGENTS,
     `.claude/agents/ is scanned recursively, in every folder from the working directory up to the repository root. Subagent frontmatter can set hooks, mcpServers and permissionMode, which are ignored for plugin subagents. Command paths are from ${DIRECTORY}; subfolders of .claude/commands namespace a command (.claude/commands/frontend/component.md is /frontend:component, ${SKILLS}, read on 2026-11-07); commands were merged into skills and share their frontmatter fields except name and paths; a skill wins over a command of the same name. That page also lists workflows/*.js, scripts that become commands, which this shape has no place for.`,
   ),
-  toolHook: verified(
+  toolHook: phase13.verified(
     {
       event: 'PreToolUse',
       settingsKey: 'hooks.PreToolUse',
@@ -199,6 +199,7 @@ export const claudeCode: AgentKnowledge = {
       toolInputField: 'tool_input',
       tools: {
         Bash: { command: 'command' },
+        PowerShell: { command: 'command' },
         Write: { path: 'file_path', content: 'content' },
         Edit: { path: 'file_path', oldText: 'old_string', newText: 'new_string', replaceAll: 'replace_all' },
       },
@@ -207,9 +208,10 @@ export const claudeCode: AgentKnowledge = {
       reasonField: 'hookSpecificOutput.permissionDecisionReason',
       decisions: ['deny', 'defer', 'ask', 'allow'],
       projectDirVariable: 'CLAUDE_PROJECT_DIR',
+      otherWriteTools: ['NotebookEdit'],
     },
     HOOKS,
-    `The stdin JSON also has session_id, transcript_path, cwd, permission_mode, hook_event_name and tool_use_id. "When multiple PreToolUse hooks return different decisions, precedence is deny > defer > ask > allow", and matching hooks run in parallel, so another hook on the same tool (depcurfew's) keeps working. defer needs non-interactive mode (-p). Exit code 2 blocks whatever the JSON says. hookSpecificOutput "requires a hookEventName field set to the event name"; stdout must hold nothing but the JSON object; "Exit code 0 with no output means the hook has no decision to report", and staying silent does not approve the call. Command hooks time out after 600 s by default. A matcher of letters, digits, _, -, spaces, commas and | lists exact tool names. There is no MultiEdit tool (${DOCS}/tools-reference); the input fields of NotebookEdit are not shown in the docs, so it is left out.`,
+    `The stdin JSON also has session_id, transcript_path, cwd, permission_mode, hook_event_name and tool_use_id. "When multiple PreToolUse hooks return different decisions, precedence is deny > defer > ask > allow", and matching hooks run in parallel, so another hook on the same tool (depcurfew's) keeps working. defer needs non-interactive mode (-p). Exit code 2 blocks whatever the JSON says. hookSpecificOutput "requires a hookEventName field set to the event name"; stdout must hold nothing but the JSON object; "Exit code 0 with no output means the hook has no decision to report", and staying silent does not approve the call. Command hooks time out after 600 s by default. A matcher of letters, digits, _, -, spaces, commas and | lists exact tool names. There is no MultiEdit tool (${DOCS}/tools-reference); the input fields of NotebookEdit are not shown in the docs, so a hook asks about it by the file it names. Read again on 2026-11-09: the PowerShell tool "Executes PowerShell commands", and its fields "match the Bash tool, with the command string in command" (#powershell); a handler may set if, permission rule syntax that limits when it runs ("The hook command only runs if the tool call matches the pattern", #common-fields).`,
   ),
   commands: today.verified(
     {
@@ -250,6 +252,11 @@ export const claudeCode: AgentKnowledge = {
     },
     `${SETTINGS_REFERENCE}#env`,
     ENV_NOTE,
+  ),
+  hooksOff: phase13.verified(
+    { files: SETTINGS_FILES, key: 'disableAllHooks' },
+    `${SETTINGS_REFERENCE}#disableallhooks`,
+    'Scope "Any file". true turns off hooks, any custom status line and any custom file suggestion command. Outside managed settings it "disables user, project, local, and plugin hooks"; managed hooks, Agent SDK hooks and hooks of plugins force-enabled in managed settings keep running, and only managed settings can disable managed hooks. Claude Code reads the value left after settings precedence, so a project file can set it either way (https://code.claude.com/docs/en/hooks#disable-or-remove-hooks). Read on 2026-11-09.',
   ),
   plugins: phase13.verified(
     {

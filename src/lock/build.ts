@@ -61,10 +61,13 @@ export function serverIdentity(component: Component, knowledge: readonly AgentKn
   if (entry === undefined) return { names: [], local: false };
   const started = launch(commandLine(entry));
   const ref = started === undefined ? undefined : packageRef(started);
+  // A package a launcher fetches from git or an address (github:org/repo, a tarball URL) has no registry name, but it is
+  // fetched all the same: its spec is its name, and it is never local (review of 2026-11-09).
+  const fetched = started?.spec !== undefined && ref === undefined ? [redact(started.spec)] : [];
   // Addresses with their secrets redacted: the name is printed in findings and the hook's answers, written into the
   // policy by init, and matched against mcp.allowServers, so it must never carry a password or token.
-  const names = [...(ref === undefined ? [] : [ref.name]), ...entry.urls.map(redact)];
-  return { names, local: names.length === 0 && entry.command !== undefined };
+  const names = [...(ref === undefined ? [] : [ref.name]), ...fetched, ...entry.urls.map(redact)];
+  return { names, local: started === undefined && names.length === 0 && entry.command !== undefined };
 }
 
 function componentHash(component: Component): string {

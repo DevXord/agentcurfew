@@ -64,7 +64,9 @@ export function contextName(item: unknown): string | null | undefined {
   const trimmed = item.trim();
   if (trimmed === '') return null;
   if (Buffer.byteLength(trimmed, 'utf8') > MAX_CONTEXT_NAME_BYTES || /[\p{C}*?[\]{}!\\]/u.test(trimmed)) return undefined;
-  if (/^(?:\/|~|[A-Za-z]:)/.test(trimmed)) return undefined;
+  // Gemini CLI joins the name to each folder (path.join), so a leading slash is still a path in the folder: /.prompts/x.md
+  // is .prompts/x.md there (field test of 2026-11-09). Home and drive paths are not.
+  if (/^(?:~|[A-Za-z]:)/.test(trimmed)) return undefined;
   const segments = trimmed.split('/').filter((segment) => segment !== '' && segment !== '.');
   if (segments.length === 0 || segments.some((segment) => segment === '..')) return undefined;
   const name = segments.join('/');
@@ -92,7 +94,7 @@ class Scan {
     this.#env = options.env ?? process.env;
     const overlay = new Map<string, Buffer>();
     for (const [relative, text] of options.overlay ?? []) overlay.set(join(this.#root.base, ...relative.split('/')), Buffer.from(text, 'utf8'));
-    this.files = new ScanFiles({ ...DEFAULT_LIMITS, ...options.limits }, overlay);
+    this.files = new ScanFiles({ ...DEFAULT_LIMITS, ...options.limits }, overlay, options.deadline);
   }
 
   /** The area of a path of the knowledge base and the pattern below it; undefined when it does not apply here. */
@@ -157,17 +159,17 @@ class Scan {
     return value;
   }
 
-  #add(kind: ComponentKind, agent: AgentId, scope: Scope, file: string, name: string, raw: string, files?: readonly SkillFile[], filesRoot?: 'project', id: string = name): void {
+  #add(kind: ComponentKind, agent: AgentId, scope: Scope, file: string, name: string, raw: string, files?: readonly SkillFile[], filesRoot?: 'project', id: string = name, whole = false): void {
     const key = `${kind}\0${file}\0${name}`;
     const known = this.#components.get(key);
     if (known === undefined) {
-      this.#components.set(key, { kind, agents: [agent], scope, file, name, id, raw, ...(files === undefined ? {} : { files }), ...(files === undefined || filesRoot === undefined ? {} : { filesRoot }) });
+      this.#components.set(key, { kind, agents: [agent], scope, file, name, id, raw, whole, ...(files === undefined ? {} : { files }), ...(files === undefined || filesRoot === undefined ? {} : { filesRoot }) });
     }
     else if (!known.agents.includes(agent)) this.#components.set(key, { ...known, agents: [...known.agents, agent].sort() });
   }
 
   // The variables that hold the project root in a command, from the knowledge base (CLAUDE_PROJECT_DIR).
-  readonly #projectVariables = knowledgeBase.flatMap((agent) => (agent.toolHook === undefined ? [] : factValues(agent.toolHook).map((hook) => hook.projectDirVariable)));
+  readonly #projectVariables = [...new Set(knowledgeBase.flatMap((agent) => [...(agent.toolHook === undefined ? [] : factValues(agent.toolHook).map((hook) => hook.projectDirVariable)), ...(agent.hookProjectDir === undefined ? [] : factValues(agent.hookProjectDir).flat())]))];
   readonly #scriptCache = new Map<string, readonly SkillFile[] | undefined>();
   #ignore: ReturnType<typeof parseGitignore> | undefined;
 
@@ -213,10 +215,10 @@ class Scan {
     const files = new Map<string, SkillFile>();
     for (const line of lines) {
       for (const path of scriptPaths(line, this.#projectVariables)) {
-        if (files.has(path) || !this.#committed(path)) continue;
+        if (files.has(path)) continue;
         const found = this.files.match(this.#root, path.split('/'), false)[0];
         const details = found === undefined ? undefined : this.files.details(found);
-        if (found === undefined || details === undefined) continue;
+        if (found === undefined || details === undefined || !this.#committed(path)) continue;
         const flags = { ...(details.link ? { link: true } : {}), ...(details.executable ? { executableBit: true } : {}) };
         const content = this.files.readBytes(found);
         if (content === undefined) {
@@ -234,7 +236,7 @@ class Scan {
 
   #addFile(kind: ComponentKind, agent: AgentId, scope: Scope, found: Found): void {
     const raw = this.files.read(found);
-    if (raw !== undefined) this.#add(kind, agent, scope, found.file, baseName(found.file), raw);
+    if (raw !== undefined) this.#add(kind, agent, scope, found.file, baseName(found.file), raw, undefined, undefined, baseName(found.file), true);
   }
 
   #collectMcp(agent: AgentKnowledge): void {
@@ -464,6 +466,11 @@ class Scan {
         }
       }
     }
+    for (const off of agent.hooksOff === undefined ? [] : factValues(agent.hooksOff)) {
+      for (const { entry, found, config } of this.#settingsFiles(off.files)) {
+        for (const { path, value } of lookup(config, off.key)) this.#add('setting', agent.id, entry.scope, found.file, path, entryText(value));
+      }
+    }
     for (const plugins of agent.plugins === undefined ? [] : factValues(agent.plugins)) {
       const helpers = new Map(plugins.sources.flatMap((source) => (source.headersHelper === undefined ? [] : [[source.type, source.headersHelper] as const])));
       for (const { entry, found, config } of this.#settingsFiles(plugins.files)) {
@@ -504,11 +511,12 @@ class Scan {
             const name = contextName(item);
             if (name === null) continue;
             if (name === undefined) {
-              this.files.report('unparsable', found.file);
+              this.files.report('not-followed', found.file);
               continue;
             }
             for (const location of names.locations) {
-              const file = { ...location, path: location.path.replace('<name>', name) };
+              // A function, so that $& and the like in a name are not replacement patterns.
+              const file = { ...location, path: location.path.replace('<name>', () => name) };
               for (const match of this.#find(file)) this.#addFile('context-file', agent.id, location.scope, match);
             }
           }
@@ -527,7 +535,7 @@ class Scan {
           const folder = found.file.slice(0, found.file.lastIndexOf('/'));
           const parent = { path: found.path.slice(0, -skills.entryFile.length - 1), file: folder, area: found.area };
           const files = this.files.tree(parent).map((inner) => this.#skillFile(inner));
-          this.#add('skill', agent.id, directory.scope, found.file, baseName(folder), raw, files);
+          this.#add('skill', agent.id, directory.scope, found.file, baseName(folder), raw, files, undefined, baseName(folder), true);
         }
       }
     }

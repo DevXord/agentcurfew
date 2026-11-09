@@ -6,6 +6,11 @@ import { contextName } from '../../src/inventory/scan.ts';
 import { knownSecrets, pairs } from '../../src/rules/secrets.ts';
 import { DOWNLOAD_EXECUTE, NETWORK, writesTo } from '../../src/rules/shell.ts';
 import { launch } from '../../src/rules/launch.ts';
+import { commands } from '../../src/rules/command-words.ts';
+import { scriptPaths } from '../../src/rules/script-paths.ts';
+import { isIgnored, parseGitignore } from '../../src/inventory/gitignore.ts';
+import { checkCommand } from '../../src/hook/bash.ts';
+import type { Policy } from '../../src/policy/types.ts';
 
 // Input files are hostile. A pattern that rescans the rest of the text from every start costs quadratic time: these
 // inputs took from seconds to minutes before (found by the pentest of 2026-11-07), and take milliseconds in linear time. The
@@ -49,6 +54,21 @@ describe('patterns read hostile text in linear time', () => {
 
   it.each(['a/', '../', '*', 'a'.repeat(300), '\u200B'])('context file names over %j', (unit) => {
     expect(timed(() => contextName(hostile(unit)))).toBeLessThan(LIMIT_MS);
+  });
+
+  it('nested here-documents, read to a bounded depth in linear time, and still checked by the hook', () => {
+    const nested = 'bash <<A\n'.repeat(50_000);
+    expect(timed(() => commands(nested))).toBeLessThan(LIMIT_MS);
+    expect(timed(() => scriptPaths(`${nested}./x.sh`, []))).toBeLessThan(LIMIT_MS);
+    const policy = { version: 1, skills: { allowSources: ['acme/*'] } } as Policy;
+    const verdicts = checkCommand(`${'bash <<A\n'.repeat(8000)}npx skills add evil/repo`, policy);
+    expect(verdicts.map((verdict) => verdict.decision)).toContain('deny');
+  });
+
+  it('.gitignore against long script paths', () => {
+    const patterns = parseGitignore(Array.from({ length: 1000 }, (_, index) => `x${index}`).join('\n'));
+    expect(timed(() => isIgnored(patterns, `${'a/'.repeat(80_000)}s.sh`))).toBeLessThan(LIMIT_MS);
+    expect(timed(() => scriptPaths(`./${'a/'.repeat(200_000)}s.sh`, []))).toBeLessThan(LIMIT_MS);
   });
 
   it('launch over many launcher words', () => {

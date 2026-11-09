@@ -19,16 +19,13 @@ function commandLines(value: unknown, depth = 0): string[] {
   return lines;
 }
 
-// Options that tell an npm launcher to run only what is installed, so that nothing is downloaded.
-const NO_DOWNLOAD = new Set(['--no-install', '--no']);
-
 export const unpinnedLauncher: Rule = {
   id: 'unpinned-launcher',
   title: 'Command fetches a package without a fixed version',
   level: 'medium',
   owasp: ['AST02', 'AST07'],
   description:
-    'Finds hooks, automatic tasks and settings that run a command (statusLine, apiKeyHelper and the like), and the scripts of the project they run, whose command starts a package through a launcher that downloads it at run time (npx, bunx, pnpm dlx, yarn dlx, npm exec, uvx, uv tool run, pipx run, docker run, podman run) without an exact version or an image digest. The hook then runs whatever version is newest when its event fires, with the user\'s rights and without a prompt, and the lockfile cannot pin it.',
+    'Finds hooks, automatic tasks and settings that run a command (statusLine, apiKeyHelper and the like), and the scripts of the project they run, whose command starts a package through a launcher that downloads it at run time (npx, bunx, pnpm dlx, yarn dlx, npm exec and npm x, uvx, uv tool run, pipx run, docker run, podman run, also after their global options), and every package it fetches (each -p, uvx --with), that has no exact version or image digest. The hook then runs whatever version is newest when its event fires, with the user\'s rights and without a prompt, and the lockfile cannot pin it.',
   levels: 'low when the package could not be found in the launcher arguments',
   fix: 'Pin an exact version (npx -y package@1.2.3, uvx package==1.2.3) or an image digest (image@sha256:...), or install the package as a dependency of the project and run it from there (npx --no-install package, ./node_modules/.bin/package). Check the package itself with depcurfew: npx depcurfew check <package>.',
   falsePositives: 'npx runs a package the project has installed without downloading it, so a dependency of the project pinned in its lockfile is reported too; npx --no-install says so explicitly.',
@@ -46,25 +43,28 @@ export const unpinnedLauncher: Rule = {
       let cursor: number | undefined = 0;
       for (const words of commands(source.text)) {
         const started = launch(words);
-        if (started === undefined) continue;
-        if (started.family === 'npm' && words.some((word) => NO_DOWNLOAD.has(word))) continue;
+        if (started === undefined || started.noDownload === true) continue;
         const anchor = started.spec ?? words[0] ?? '';
         const found: number = cursor === undefined ? -1 : source.text.indexOf(anchor, cursor);
         cursor = found === -1 ? undefined : found + anchor.length;
-        const what = started.family === 'docker' ? 'the image' : 'the package';
-        let hit: RuleHit;
-        if (started.spec === undefined) {
-          hit = { message: `the command starts ${started.family === 'docker' ? 'a container' : 'a package'} launcher, but the package could not be found in its arguments`, level: 'low' };
-        } else {
-          const problem = pinProblem(started.family, started.spec);
-          if (problem === undefined) continue;
-          const check = started.family !== 'npm' ? '' : `; check it with npx depcurfew check ${quote(started.spec, 80)}`;
-          hit = { message: `the command runs ${what} ${quote(started.spec, 80)}, which ${problem}${check}` };
-        }
-        if (seen.has(hit.message)) continue;
-        seen.add(hit.message);
         const place = found !== -1 ? at(source, found) : source.inFile === undefined ? {} : { inFile: source.inFile };
-        hits.push({ ...hit, ...place });
+        const what = started.family === 'docker' ? 'the image' : 'the package';
+        const fetched = started.packages ?? (started.spec === undefined ? [] : [started.spec]);
+        const launched: RuleHit[] = [];
+        if (fetched.length === 0) {
+          launched.push({ message: `the command starts ${started.family === 'docker' ? 'a container' : 'a package'} launcher, but the package could not be found in its arguments`, level: 'low' });
+        }
+        for (const spec of fetched) {
+          const problem = pinProblem(started.family, spec);
+          if (problem === undefined) continue;
+          const check = started.family !== 'npm' ? '' : `; check it with npx depcurfew check ${quote(spec, 80)}`;
+          launched.push({ message: `the command runs ${what} ${quote(spec, 80)}, which ${problem}${check}` });
+        }
+        for (const hit of launched) {
+          if (seen.has(hit.message)) continue;
+          seen.add(hit.message);
+          hits.push({ ...hit, ...place });
+        }
       }
     }
     return hits;
