@@ -4,6 +4,10 @@ All notable changes to agentcurfew are written here for its users.
 
 ## Unreleased
 
+Nothing yet.
+
+## 1.2.0
+
 - Settings that redirect the agent or bring code into it are read, as components of the new kind `setting`: each variable of Claude Code's `env` block, each plugin `enabledPlugins` turns on or off, each marketplace of `extraKnownMarketplaces` (also written `additionalMarketplaces`), and Gemini CLI's `context.fileName`.
 - New rule `env-override` (high): an `env` variable in a project file that sends Claude Code's requests to another host (`ANTHROPIC_BASE_URL` and the Bedrock, Vertex, Foundry and Claude Platform on AWS endpoints, `HTTP_PROXY`, `HTTPS_PROXY`), adds headers to them (`ANTHROPIC_CUSTOM_HEADERS`) or wraps every command (`CLAUDE_CODE_SHELL_PREFIX`). Low in user files and for variables current versions ignore in a project file.
 - New rule `plugin-marketplace` (medium): a marketplace registered from GitHub, git or an address, high with `autoUpdate` or over plain `http://`; low for a local path and for a plugin a project file turns on.
