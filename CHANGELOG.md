@@ -4,7 +4,8 @@ All notable changes to agentcurfew are written here for its users.
 
 ## Unreleased
 
-Nothing yet.
+- The notes of 1.2.0 on Gemini CLI's `context.fileName` are corrected: a name agentcurfew does not follow gives the problem `not-followed`, not `unparsable`, and a name with a leading slash is read in the folder.
+- README pins the GitHub Action to the commit of v1.2.0.
 
 ## 1.2.0
 
@@ -13,7 +14,7 @@ Nothing yet.
 - New rule `plugin-marketplace` (medium): a marketplace registered from GitHub, git or an address, high with `autoUpdate` or over plain `http://`; low for a local path and for a plugin a project file turns on.
 - New rule `unpinned-launcher` (medium): hooks, automatic tasks, settings that run a command and the scripts they run that start a package through `npx`, `uvx`, `docker run` and the like without an exact version or digest. `npx --no-install` and `npm exec --no` are not reported.
 - `headersHelper` of a remote MCP server and of a marketplace `url` source, and `CLAUDE_CODE_SHELL_PREFIX`, are settings that run a command (`command-setting`), so `dangerous-hook-command`, `secret-in-config` and `unpinned-launcher` check them, and the scripts they run are read and locked.
-- Gemini CLI's `context.fileName` names context files that are now read where `GEMINI.md` is, besides `GEMINI.md` itself; a name that is absolute, from home, with `..` or wildcards is not followed, and the settings file is reported as `unparsable`.
+- Gemini CLI's `context.fileName` names context files that are now read where `GEMINI.md` is, besides `GEMINI.md` itself. A name with a leading slash is read in the folder, as Gemini CLI joins it (`/.prompts/x.md`); a name from home or a drive, or with `..`, wildcards, a backslash or hidden characters, is not followed, and the settings file is reported with the new problem `not-followed`, a warning.
 - `secret-in-config` checks `env` values and marketplace headers by their names.
 - The hook asks before a write to a script that a hook, a task or a setting runs, or to a context file a setting names, and denies it on the same terms as a write to an agent file, so a hook script that starts to download and run code is refused; a shell command that names such a file and does not only read it is asked about.
 - The hook denies a write to the project's Claude Code settings (`.claude/settings.json` or `.claude/settings.local.json`) that sets `disableAllHooks`, removes the depcurfew hook from a project with `depcurfew.json`, or removes the agentcurfew hook, since the agent would switch off the checks of its own writes and installs; such a change is made by hand. `disableAllHooks` is inventoried as a setting.
@@ -37,7 +38,6 @@ Nothing yet.
   - SARIF placed files of the home folder (`--user`) under the repository; they are now relative to `HOME`, and machine files are absolute.
   - The action uploaded an empty SARIF file when the policy was invalid.
   - `mcp --root` with a folder that does not exist exits 2, as other wrong input does.
-- Gemini CLI `context.fileName`: a name with a leading slash is read in the folder, as Gemini CLI joins it (`/.prompts/x.md`), and a name agentcurfew does not follow is the new problem `not-followed`, a warning, instead of `unparsable`, which `doctor` reported as a file that could not be parsed.
 - Fewer false alarms and misses, found by a field test on 34 public repositories:
   - `broad-shell-permission` reports `Bash(npx*)` and the like, a runner with a wildcard joined to it, and no longer reports a runner whose entry fixes the program it runs (`Bash(pnpx vitest:*)`, `Bash(xargs kill:*)`).
   - `dangerous-hook-command` skips comment lines of scripts, and an assignment of a download's output (`V=$(curl …)`) is reported as a network connection, not as running the download.
