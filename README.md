@@ -86,7 +86,7 @@ steps:
   - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
     with:
       persist-credentials: false
-  - uses: DevXord/agentcurfew@<full commit sha> # pin to a commit, not a tag
+  - uses: DevXord/agentcurfew@3d06fd56d651556c3108921778d01c6aee42a857 # v1.2.0; pin to a commit, not a tag
     with:
       command: scan          # or verify, or doctor (whose fail-on levels are error, warning, info)
       fail-on: high
