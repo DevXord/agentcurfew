@@ -29,8 +29,8 @@ export function toolList(value: unknown): string[] {
 // Allowing one with any arguments (Bash(npx *), Bash(node:*), run_shell_command(sh)) allows every command through it.
 const RUNNERS = new Set([
   'sh', 'bash', 'zsh', 'dash', 'ksh', 'fish', 'pwsh', 'powershell', 'cmd', 'env', 'timeout', 'xargs', 'nohup', 'nice', 'sudo', 'doas', 'eval', 'exec',
-  'npx', 'bunx', 'pnpx', 'node', 'deno', 'bun', 'python', 'python3', 'perl', 'ruby', 'php', 'uvx', 'pipx',
-  'pnpm dlx', 'pnpm exec', 'npm exec', 'yarn dlx', 'go run', 'uv run', 'uv tool run',
+  'npx', 'bunx', 'pnpx', 'pnx', 'node', 'deno', 'bun', 'python', 'python3', 'perl', 'ruby', 'php', 'uvx', 'pipx',
+  'pnpm dlx', 'pnpm exec', 'pn dlx', 'pn exec', 'npm exec', 'npm x', 'npm exe', 'yarn dlx', 'go run', 'uv run', 'uv tool run',
 ]);
 
 /** The runner an entry such as Bash(npx *) allows with any arguments, when its tool is one that runs shell commands. */

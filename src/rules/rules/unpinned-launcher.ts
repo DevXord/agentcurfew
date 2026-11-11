@@ -1,3 +1,4 @@
+import { redact } from '../../lock/redact.ts';
 import { commands } from '../command-words.ts';
 import { launch, pinProblem } from '../launch.ts';
 import { quote } from '../mask.ts';
@@ -57,8 +58,8 @@ export const unpinnedLauncher: Rule = {
         for (const spec of fetched) {
           const problem = pinProblem(started.family, spec);
           if (problem === undefined) continue;
-          const check = started.family !== 'npm' ? '' : `; check it with npx depcurfew check ${quote(spec, 80)}`;
-          launched.push({ message: `the command runs ${what} ${quote(spec, 80)}, which ${problem}${check}` });
+          const check = started.family !== 'npm' ? '' : `; check it with npx depcurfew check ${quote(redact(spec), 80)}`;
+          launched.push({ message: `the command runs ${what} ${quote(redact(spec), 80)}, which ${problem}${check}` });
         }
         for (const hit of launched) {
           if (seen.has(hit.message)) continue;

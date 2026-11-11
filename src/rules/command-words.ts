@@ -4,10 +4,68 @@
 const MAX_HEREDOC_DEPTH = 8;
 
 /**
- * Words of one simple command, with quotes removed; commands are split on ;, &&, ||, |, newlines, parentheses and
- * backquotes outside quotes, so that (cmd), $(cmd) and `cmd` are commands of their own.
+ * The shell a command line is written for: sh (bash and the like), PowerShell, or cmd. Each quotes and escapes in its
+ * own way, and only sh gives a backslash a meaning, so .claude\settings.json is a path in the other two.
  */
-export function commands(line: string, escapes = true, depth = 0): string[][] {
+export type Dialect = 'sh' | 'powershell' | 'cmd';
+
+// Escapes of bash's $'…' quoting, decoded so that $'\x43LAUDE.md' reads as CLAUDE.md (review of 2026-11-10).
+const ANSI_C: Readonly<Record<string, string>> = {
+  a: String.fromCharCode(7),
+  b: String.fromCharCode(8),
+  e: String.fromCharCode(27),
+  E: String.fromCharCode(27),
+  f: String.fromCharCode(12),
+  n: String.fromCharCode(10),
+  r: String.fromCharCode(13),
+  t: String.fromCharCode(9),
+  v: String.fromCharCode(11),
+  '\\': '\\',
+  "'": "'",
+  '"': '"',
+  '?': '?',
+};
+const HEX_DIGITS: Readonly<Record<string, number>> = { x: 2, u: 4, U: 8 };
+const ESCAPE: Readonly<Record<Dialect, string>> = { sh: '\\', powershell: '`', cmd: '^' };
+const SH_QUOTED_ESCAPES = '$`"\\\n';
+
+/** The text of $'…' whose opening quote is at start, decoded, and the index of its closing quote. Linear in what it reads. */
+function ansiC(line: string, start: number): { text: string; end: number } {
+  let text = '';
+  let index = start + 1;
+  for (; index < line.length && line[index] !== "'"; index++) {
+    const char = line[index] as string;
+    if (char !== '\\' || index + 1 >= line.length) {
+      text += char;
+      continue;
+    }
+    const next = line[++index] as string;
+    const digits = HEX_DIGITS[next];
+    const hex = digits === undefined ? null : new RegExp(`^[0-9a-fA-F]{1,${digits}}`).exec(line.slice(index + 1, index + 1 + digits));
+    const octal = /^[0-7]{1,3}/.exec(line.slice(index, index + 3));
+    if (hex !== null) {
+      const code = Number.parseInt(hex[0], 16);
+      if (code <= 0x10ffff) text += String.fromCodePoint(code);
+      index += hex[0].length;
+    } else if (octal !== null) {
+      text += String.fromCharCode(Number.parseInt(octal[0], 8) & 0xff);
+      index += octal[0].length - 1;
+    } else if (next === 'c' && index + 1 < line.length) {
+      text += String.fromCharCode(line.charCodeAt(++index) & 0x1f);
+    } else {
+      text += ANSI_C[next] ?? `\\${next}`;
+    }
+  }
+  return { text, end: index };
+}
+
+/**
+ * Words of one simple command, with quotes removed; commands are split on ;, &&, ||, |, newlines, parentheses and, in
+ * sh, backquotes outside quotes, so that (cmd), $(cmd) and `cmd` are commands of their own. Each dialect quotes as its
+ * shell does: sh escapes with a backslash and decodes $'…', PowerShell escapes with a backtick and doubles a quote
+ * inside quotes, cmd escapes with a caret and has no single quotes.
+ */
+export function commands(line: string, dialect: Dialect = 'sh', depth = 0): string[][] {
   const result: string[][] = [];
   let words: string[] = [];
   let word = '';
@@ -42,7 +100,7 @@ export function commands(line: string, escapes = true, depth = 0): string[][] {
       const body = lines.join('\n');
       if (runsBody) {
         endCommand();
-        result.push(...commands(body, escapes, depth + 1));
+        result.push(...commands(body, dialect, depth + 1));
       } else {
         endWord();
         words.push(body);
@@ -54,7 +112,7 @@ export function commands(line: string, escapes = true, depth = 0): string[][] {
     const char = line[index] as string;
     // Past MAX_HEREDOC_DEPTH nested here-documents, << is read as a word, so the lines of the deepest bodies are read as
     // commands of their own: each is still checked, and a nesting of thousands costs neither the stack nor quadratic time.
-    if (depth < MAX_HEREDOC_DEPTH && quoted === undefined && char === '<' && line[index + 1] === '<' && line[index + 2] !== '<') {
+    if (dialect === 'sh' && depth < MAX_HEREDOC_DEPTH && quoted === undefined && char === '<' && line[index + 1] === '<' && line[index + 2] !== '<') {
       const heredoc = /^<<(-?)[ \t]*(?:'([^'\n]*)'|"([^"\n]*)"|([^\s;&|<>()]+))/.exec(line.slice(index, index + 300));
       if (heredoc !== null) {
         endWord();
@@ -70,18 +128,41 @@ export function commands(line: string, escapes = true, depth = 0): string[][] {
       continue;
     }
     if (quoted !== undefined) {
-      if (char === quoted) quoted = undefined;
-      else if (escapes && char === '\\' && quoted === '"' && index + 1 < line.length) word += line[++index];
-      else word += char;
+      const next = line[index + 1];
+      if (char === quoted && dialect === 'powershell' && next === quoted) {
+        // PowerShell writes a quote inside quotes twice: 'it''s', "say ""hi""".
+        word += char;
+        index++;
+      } else if (char === quoted) {
+        quoted = undefined;
+      } else if (quoted === '"' && dialect === 'sh' && char === '\\' && next !== undefined && SH_QUOTED_ESCAPES.includes(next)) {
+        // In bash a backslash escapes only these inside double quotes, and a backslash-newline is removed.
+        if (next !== '\n') word += next;
+        index++;
+      } else if (quoted === '"' && dialect === 'powershell' && char === '`' && next !== undefined) {
+        word += next;
+        index++;
+      } else {
+        word += char;
+      }
       continue;
     }
-    if (char === '"' || char === "'") {
+    if (char === '"' || (char === "'" && dialect !== 'cmd')) {
       quoted = char;
       started = true;
-    } else if (escapes && char === '\\' && index + 1 < line.length) {
-      word += line[++index];
+    } else if (dialect === 'sh' && char === '$' && line[index + 1] === "'") {
+      const decoded = ansiC(line, index + 1);
+      word += decoded.text;
+      index = decoded.end;
       started = true;
-    } else if (char === ';' || char === '\n' || char === '|' || char === '&' || char === '(' || char === ')' || char === '`') {
+    } else if (char === ESCAPE[dialect] && index + 1 < line.length) {
+      // An escaped newline continues the line; any other escaped character is part of the word.
+      if (line[index + 1] !== '\n') {
+        word += line[index + 1];
+        started = true;
+      }
+      index++;
+    } else if (char === ';' || char === '\n' || char === '|' || char === '&' || char === '(' || char === ')' || (char === '`' && dialect === 'sh') || ((char === '{' || char === '}') && dialect === 'powershell')) {
       if (char === '\n') lineStart = index + 1;
       endCommand();
       if ((char === '|' || char === '&') && line[index + 1] === char) index++;
@@ -164,12 +245,12 @@ export function unwrapCommand(words: readonly string[], depth = 0): string[][] {
       const at = words.findIndex((item, position) => position > index && /^\/[ck]$/i.test(item));
       if (at === -1) break;
       // cmd does not escape with backslashes: C:\tools\npx.cmd stays a path.
-      return unwrapScript(words.slice(at + 1).join(' '), depth, false);
+      return unwrapScript(words.slice(at + 1).join(' '), depth, 'cmd');
     } else if (SHELLS.has(program) || program === 'pwsh' || program === 'powershell') {
       const at = words.findIndex((item, position) => position > index && (SHELLS.has(program) ? /^-[a-z]*c[a-z]*$/ : PWSH_COMMAND).test(item));
       const script = at === -1 ? undefined : words[at + 1] === '--' ? words[at + 2] : words[at + 1];
       if (script === undefined) break;
-      return unwrapScript(script, depth);
+      return unwrapScript(script, depth, SHELLS.has(program) ? 'sh' : 'powershell');
     } else {
       break;
     }
@@ -177,6 +258,6 @@ export function unwrapCommand(words: readonly string[], depth = 0): string[][] {
   return [words.slice(index)];
 }
 
-function unwrapScript(script: string, depth: number, escapes = true): string[][] {
-  return commands(script, escapes).flatMap((inner) => unwrapCommand(inner, depth + 1));
+function unwrapScript(script: string, depth: number, dialect: Dialect = 'sh'): string[][] {
+  return commands(script, dialect).flatMap((inner) => unwrapCommand(inner, depth + 1));
 }

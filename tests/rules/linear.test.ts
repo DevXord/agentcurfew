@@ -71,6 +71,30 @@ describe('patterns read hostile text in linear time', () => {
     expect(timed(() => scriptPaths(`./${'a/'.repeat(200_000)}s.sh`, []))).toBeLessThan(LIMIT_MS);
   });
 
+  // The readers of phase 1.2.1-a: shell dialects, $'…', line continuations, the skills CLI, claude mcp add and cd targets.
+  it.each([
+    ['sh', "$'\\x"],
+    ['sh', '\\\n'],
+    ['sh', '"\\a'],
+    ['powershell', '`a'],
+    ['powershell', "'' "],
+    ['powershell', '{a} | '],
+    ['cmd', '^a'],
+  ] as const)('commands in %s over %j', (dialect, unit) => {
+    expect(timed(() => commands(hostile(unit), dialect))).toBeLessThan(LIMIT_MS);
+  });
+
+  it.each([
+    ['sh', 'npx skills add -a x '],
+    ['sh', 'claude mcp add -e A=1 '],
+    ['sh', 'env -C .claude '],
+    ['sh', 'cd -P .c* && x > y; '],
+    ['sh', 'pnx skills a '],
+    ['powershell', 'gc x | Set-Content '],
+  ] as const)('the hook in %s over %j', (dialect, unit) => {
+    expect(timed(() => checkCommand(hostile(unit), undefined, dialect))).toBeLessThan(LIMIT_MS);
+  });
+
   it('launch over many launcher words', () => {
     expect(timed(() => launch(['x', ...Array.from({ length: 200_000 }, () => 'npm')]))).toBeLessThan(LIMIT_MS);
   });

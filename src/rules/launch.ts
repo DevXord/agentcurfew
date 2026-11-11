@@ -1,7 +1,12 @@
 // How an MCP server is started, read from its command line only: nothing is run or resolved.
 
+import { shared } from '../knowledge/shared.ts';
 import { unwrapCommand } from './command-words.ts';
 import { quote } from './mask.ts';
+
+function aliasesFact() {
+  return shared.packageAliases.status === 'disputed' ? shared.packageAliases.variants[0].value : shared.packageAliases.value;
+}
 
 function program(word: string): string {
   return (word.split(/[\\/]/).at(-1) ?? '').toLowerCase().replace(/\.(?:cmd|exe|bat|ps1)$/, '');
@@ -10,7 +15,8 @@ function program(word: string): string {
 // Flags of the launchers that take a value, so that the value is not taken for the package. Global options of the
 // program, which may come before its subcommand (npm --prefix x exec, docker --context x run), are in the same sets.
 const VALUE_FLAGS: Readonly<Record<string, ReadonlySet<string>>> = {
-  npm: new Set(['-p', '--package', '-c', '--call', '-w', '--workspace', '--registry', '--prefix', '--cache', '--userconfig', '--globalconfig', '--node-options', '--script-shell', '--loglevel', '--before', '--tag', '--otp', '--dir', '-C', '--cwd', '--filter', '-F']),
+  // --cpu, --os and --libc choose platform packages and take a value (shared.packageAliases).
+  npm: new Set(['-p', '--package', '-c', '--call', '-w', '--workspace', '--registry', '--prefix', '--cache', '--userconfig', '--globalconfig', '--node-options', '--script-shell', '--loglevel', '--before', '--tag', '--otp', '--dir', '-C', '--cwd', '--filter', '-F', ...aliasesFact().platformOptions]),
   uv: new Set(['--from', '-w', '--with', '--with-editable', '--with-requirements', '-p', '--python', '--index', '--index-url', '--extra-index-url', '--default-index', '-c', '--constraints', '--directory', '--project', '--cache-dir', '--config-file']),
   pipx: new Set(['--spec', '--python', '--index-url', '--pip-args']),
   docker: new Set([
@@ -36,7 +42,7 @@ export interface Launch {
 // npm options that keep a launcher from downloading: npx --no-install, npm exec --no.
 const NO_DOWNLOAD = new Set(['--no-install', '--no']);
 
-function findSpec(words: readonly string[], from: number, family: Launch['family']): { spec?: string; explicit: string[]; extra: string[]; noDownload: boolean } {
+function findSpec(words: readonly string[], from: number, family: Launch['family']): { spec?: string; at?: number; explicit: string[]; extra: string[]; noDownload: boolean } {
   const flags = VALUE_FLAGS[family] as ReadonlySet<string>;
   const explicit: string[] = [];
   const extra: string[] = [];
@@ -45,7 +51,7 @@ function findSpec(words: readonly string[], from: number, family: Launch['family
     const word = words[index] as string;
     if (word === '--') {
       const spec = words[index + 1];
-      return spec === undefined ? { explicit, extra, noDownload } : { spec, explicit, extra, noDownload };
+      return spec === undefined ? { explicit, extra, noDownload } : { spec, at: index + 1, explicit, extra, noDownload };
     }
     if (word.startsWith('-')) {
       const [flag, inline] = word.split('=', 2) as [string, string | undefined];
@@ -56,7 +62,7 @@ function findSpec(words: readonly string[], from: number, family: Launch['family
       if ((flag === '--with' || flag === '-w') && family === 'uv') extra.push(value);
       continue;
     }
-    return { spec: word, explicit, extra, noDownload };
+    return { spec: word, at: index, explicit, extra, noDownload };
   }
   return { explicit, extra, noDownload };
 }
@@ -83,7 +89,7 @@ export function launch(words: readonly string[]): Launch | undefined {
   return undefined;
 }
 
-const LAUNCHERS = new Set(['npx', 'bunx', 'pnpx', 'npm', 'pnpm', 'yarn', 'bun', 'uvx', 'uv', 'pipx', 'docker', 'podman']);
+const LAUNCHERS = new Set(['npx', 'bunx', 'pnpx', 'npm', 'pnpm', 'yarn', 'bun', 'uvx', 'uv', 'pipx', 'docker', 'podman', ...Object.keys(aliasesFact().aliases)]);
 
 // Subcommands that fetch and run, by program; npm's x and exe are its own aliases of exec.
 const SUBCOMMANDS: Readonly<Record<string, { family: Launch['family']; words: readonly (readonly string[])[] }>> = {
@@ -109,7 +115,19 @@ function subcommandIndex(words: readonly string[], family: Launch['family']): nu
   return index;
 }
 
+/** The words of a program that is another name of a launcher, spelled out: pnx x is pnpm dlx x, pn dlx x is pnpm dlx x. */
+function spelledOut(words: readonly string[]): readonly string[] {
+  const alias = aliasesFact().aliases[program(words[0] ?? '')];
+  return alias === undefined || !Object.hasOwn(aliasesFact().aliases, program(words[0] ?? '')) ? words : [...alias, ...words.slice(1)];
+}
+
 function launchOne(words: readonly string[]): Launch | undefined {
+  return launchParts(words)?.launch;
+}
+
+/** What a launcher runs: the launch, and the words after the package word, which are the command and its arguments. */
+function launchParts(given: readonly string[]): { launch: Launch; command?: string; args: readonly string[] } | undefined {
+  const words = spelledOut(given);
   const name = program(words[0] ?? '');
   let family: Launch['family'] | undefined;
   // The words to read options and the package from: those before the subcommand, which are the program's own options
@@ -125,13 +143,30 @@ function launchOne(words: readonly string[]): Launch | undefined {
     if (sub === undefined) return undefined;
     [family, rest] = [known.family, [...words.slice(1, at), ...words.slice(at + sub.length)]];
   }
-  const { spec, explicit, extra, noDownload } = findSpec(rest, 0, family);
+  const { spec, at, explicit, extra, noDownload } = findSpec(rest, 0, family);
   const chosen = explicit.at(-1) ?? spec;
   const packages = [...(explicit.length > 0 ? explicit : spec === undefined ? [] : [spec]), ...extra];
   const started: Launch = chosen === undefined ? { family } : { family, spec: chosen };
   if (packages.length > 1) started.packages = packages;
   if (noDownload) started.noDownload = true;
-  return started;
+  return { launch: started, ...(spec === undefined ? {} : { command: spec }), args: at === undefined ? [] : rest.slice(at + 1) };
+}
+
+/**
+ * A launcher's command line read as what it runs: the packages it fetches, the word it runs (the package itself, or
+ * its binary with npx -p pkg bin) and the arguments after it. No wrappers are taken off; undefined for no launcher.
+ */
+export function launchedCommand(words: readonly string[]): { packages: string[]; command: string; args: readonly string[] } | undefined {
+  const parts = launchParts(words);
+  if (parts?.command === undefined) return undefined;
+  const packages = parts.launch.packages ?? (parts.launch.spec === undefined ? [] : [parts.launch.spec]);
+  return { packages, command: parts.command, args: parts.args };
+}
+
+/** The name of a package spec without its version or tag: skills@1.8.1 is skills, @scope/x@2 is @scope/x. */
+export function packageName(spec: string): string {
+  const at = spec.indexOf('@', 1);
+  return at === -1 ? spec : spec.slice(0, at);
 }
 
 export interface PackageRef {

@@ -198,6 +198,27 @@ export function renderKnowledge(): string {
     `| Agent Skills format | ${shared.skillFormat.status} | ${evidenceOf(shared.skillFormat).map((e) => code(e.value.entryFile)).join(', ')} | ${evidenceOf(shared.skillFormat).map((e) => link(e.source)).join(', ')} | ${evidenceOf(shared.skillFormat).map((e) => e.verifiedAt).join(', ')} |`,
     `| skills-lock.json | ${shared.skillsLock.status} | ${evidenceOf(shared.skillsLock).map((e) => cell(e.value.hashAlgorithm)).join(' ')} | ${evidenceOf(shared.skillsLock).map((e) => link(e.source)).join(', ')} | ${evidenceOf(shared.skillsLock).map((e) => e.verifiedAt).join(', ')} |`,
     '',
+    '## Tools',
+    '',
+    'Facts about the programs that agents run, which the hook reads commands of.',
+    '',
+    '| Fact | Status | Value | Source | Verified |',
+    '| --- | --- | --- | --- | --- |',
+    ...toolLines(),
+    '',
   ];
   return lines.join('\n');
+}
+
+function toolLines(): string[] {
+  const row = <T>(label: string, fact: Fact<T>, value: (value: T) => string): string =>
+    `| ${label} | ${fact.status} | ${evidenceOf(fact).map((e) => value(e.value)).join('; ')} | ${evidenceOf(fact).map((e) => link(e.source)).join(', ')} | ${evidenceOf(fact).map((e) => e.verifiedAt).join(', ')} |`;
+  return [
+    row('skills CLI', shared.skillsInstaller, (v) => `programs ${v.binaries.map(code).join(', ')}; add as ${[v.addCommand, ...v.addAliases].map(code).join(', ')}; ${code(v.useCommand)}; changes skills: ${v.changeCommands.map(code).join(', ')}`),
+    row('PowerShell', shared.powershell, (v) => `escape ${code(v.escape)}; read only: ${v.readOnlyCommands.map(code).join(', ')}`),
+    row('package manager aliases', shared.packageAliases, (v) => `${Object.entries(v.aliases).map(([alias, words]) => `${code(alias)} = ${code(words.join(' '))}`).join(', ')}; values: ${v.platformOptions.map(code).join(', ')}; shell mode: ${v.shellModeOptions.map(code).join(', ')}`),
+    row('removing a package', shared.packageRemoval, (v) => Object.entries(v.commands).map(([tool, words]) => `${tool}: ${words.map(code).join(', ')}`).join('; ')),
+    row('another working directory', shared.chdirOptions, (v) => Object.entries(v.options).map(([tool, words]) => `${tool} ${words.map(code).join(', ')}`).join('; ')),
+    row('depcurfew', shared.depcurfew, (v) => `hook file ${v.entryFiles.map(code).join(', ')}; writes: ${v.writingCommands.map(code).join(', ')}`),
+  ];
 }

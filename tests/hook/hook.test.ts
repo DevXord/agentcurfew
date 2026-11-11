@@ -159,7 +159,9 @@ describe('hook helpers', () => {
 
   it('find the source of skills add behind launchers and options', () => {
     expect(skillsSource(['npx', 'skills', 'add', 'owner/repo'])).toBe('owner/repo');
-    expect(skillsSource(['pnpm', 'dlx', 'skills@1.7.6', 'add', '-a', 'claude-code', 'cursor', '--skill', 'lint', 'owner/repo@v1'])).toBe('owner/repo@v1');
+    // --skill is a list: it takes every word after it, so the CLI reads owner/repo@v1 as a skill, not a source (skills 1.8.1).
+    expect(skillsSource(['pnpm', 'dlx', 'skills@1.7.6', 'add', '-a', 'claude-code', 'cursor', '--skill', 'lint', 'owner/repo@v1'])).toBeUndefined();
+    expect(skillsSource(['pnpm', 'dlx', 'skills@1.7.6', 'add', 'owner/repo@v1', '-a', 'claude-code', 'cursor', '--skill', 'lint'])).toBe('owner/repo@v1');
     expect(skillsSource(['npx', 'skills', 'list'])).toBeUndefined();
     expect(skillsSource(['npx', 'other', 'add', 'x'])).toBeUndefined();
   });

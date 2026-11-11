@@ -65,7 +65,7 @@ A clean scan means that none of the rules' patterns was found, not that the conf
 
 `agentcurfew mcp` serves read-only tools to an agent over MCP (stdio): `check_skill` and `check_mcp_config` before something is installed, `scan_project` and `explain_rule`. It reads only its own folder, folders given with `--root` and the roots the client shares.
 
-`agentcurfew init --hook` adds a `PreToolUse` hook to `.claude/settings.json`, next to depcurfew's hook if there is one. Writes to the files that steer agents ask first, and are denied when the new text has a finding at high or above or breaks the policy; `npx skills add` and `claude mcp add` are denied outside the policy. The hook never allows anything by itself. See [docs/mcp.md](docs/mcp.md).
+`agentcurfew init --hook` adds a `PreToolUse` hook to `.claude/settings.json` (for `Bash`, `PowerShell`, `Monitor`, `Write`, `Edit` and `NotebookEdit`), next to depcurfew's hook if there is one. Writes to the files that steer agents ask first, and are denied when the new text has a finding at high or above or breaks the policy; `npx skills add` and `claude mcp add` are denied outside the policy, and so are writes that switch off depcurfew's or its own hook. The hook never allows anything by itself. See [docs/mcp.md](docs/mcp.md).
 
 ## With depcurfew
 

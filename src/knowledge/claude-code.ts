@@ -109,6 +109,8 @@ const PERMISSIONS_NOTE =
 const today = verifiedOn('2026-11-08');
 // Facts of phase 13, read on 2026-11-09.
 const phase13 = verifiedOn('2026-11-09');
+// Read again for the hook of 1.2.1 (2026-11-11).
+const nov11 = verifiedOn('2026-11-11');
 
 const ENV_NOTE =
   'env is documented with Scope "Any file". From user, --settings and managed settings it applies at startup; from project and local settings "after you trust the workspace, or at startup in -p mode, which never shows the trust dialog" (#when-claude-code-applies-env-values), and the table of what runs before a folder is trusted lists the env block as "Used" when only a parent folder is trusted and in claude -p (https://code.claude.com/docs/en/permissions#what-runs-before-you-trust-a-folder). Variables that redirect requests, from the environment variables reference (https://code.claude.com/docs/en/env-vars): ANTHROPIC_BASE_URL "Override the API endpoint to route requests through a proxy or gateway", the Bedrock, Bedrock Mantle, Agent Platform (Vertex), Foundry and Claude Platform on AWS endpoint URLs, HTTP_PROXY and HTTPS_PROXY, and ANTHROPIC_CUSTOM_HEADERS, "Custom headers to add to requests". CLAUDE_CODE_SHELL_PREFIX is a "Command prefix that wraps shell commands Claude Code spawns: Bash tool calls, hook commands, status line commands, and stdio MCP server startup commands". Project and local settings cannot set the OpenTelemetry exporter variables whose names end in _ENDPOINT or _HEADERS (from v2.1.282), BETA_TRACING_ENDPOINT, CLAUDE_CODE_PROCESS_WRAPPER, CLAUDE_CONFIG_DIR and others listed under #variables-claude-code-ignores-in-env.';
@@ -191,7 +193,7 @@ export const claudeCode: AgentKnowledge = {
     SUB_AGENTS,
     `.claude/agents/ is scanned recursively, in every folder from the working directory up to the repository root. Subagent frontmatter can set hooks, mcpServers and permissionMode, which are ignored for plugin subagents. Command paths are from ${DIRECTORY}; subfolders of .claude/commands namespace a command (.claude/commands/frontend/component.md is /frontend:component, ${SKILLS}, read on 2026-11-07); commands were merged into skills and share their frontmatter fields except name and paths; a skill wins over a command of the same name. That page also lists workflows/*.js, scripts that become commands, which this shape has no place for.`,
   ),
-  toolHook: phase13.verified(
+  toolHook: nov11.verified(
     {
       event: 'PreToolUse',
       settingsKey: 'hooks.PreToolUse',
@@ -199,7 +201,8 @@ export const claudeCode: AgentKnowledge = {
       toolInputField: 'tool_input',
       tools: {
         Bash: { command: 'command' },
-        PowerShell: { command: 'command' },
+        PowerShell: { command: 'command', dialect: 'powershell' },
+        Monitor: { command: 'command' },
         Write: { path: 'file_path', content: 'content' },
         Edit: { path: 'file_path', oldText: 'old_string', newText: 'new_string', replaceAll: 'replace_all' },
       },
@@ -209,9 +212,11 @@ export const claudeCode: AgentKnowledge = {
       decisions: ['deny', 'defer', 'ask', 'allow'],
       projectDirVariable: 'CLAUDE_PROJECT_DIR',
       otherWriteTools: ['NotebookEdit'],
+      backgroundFields: ['async', 'asyncRewake'],
+      failure: { field: 'onFailure', blocks: 'block' },
     },
     HOOKS,
-    `The stdin JSON also has session_id, transcript_path, cwd, permission_mode, hook_event_name and tool_use_id. "When multiple PreToolUse hooks return different decisions, precedence is deny > defer > ask > allow", and matching hooks run in parallel, so another hook on the same tool (depcurfew's) keeps working. defer needs non-interactive mode (-p). Exit code 2 blocks whatever the JSON says. hookSpecificOutput "requires a hookEventName field set to the event name"; stdout must hold nothing but the JSON object; "Exit code 0 with no output means the hook has no decision to report", and staying silent does not approve the call. Command hooks time out after 600 s by default. A matcher of letters, digits, _, -, spaces, commas and | lists exact tool names. There is no MultiEdit tool (${DOCS}/tools-reference); the input fields of NotebookEdit are not shown in the docs, so a hook asks about it by the file it names. Read again on 2026-11-09: the PowerShell tool "Executes PowerShell commands", and its fields "match the Bash tool, with the command string in command" (#powershell); a handler may set if, permission rule syntax that limits when it runs ("The hook command only runs if the tool call matches the pattern", #common-fields).`,
+    `The stdin JSON also has session_id, transcript_path, cwd, permission_mode, hook_event_name and tool_use_id. "When multiple PreToolUse hooks return different decisions, precedence is deny > defer > ask > allow", and matching hooks run in parallel, so another hook on the same tool (depcurfew's) keeps working. defer needs non-interactive mode (-p). Exit code 2 blocks whatever the JSON says. hookSpecificOutput "requires a hookEventName field set to the event name"; stdout must hold nothing but the JSON object; "Exit code 0 with no output means the hook has no decision to report", and staying silent does not approve the call. Command hooks time out after 600 s by default. A matcher of letters, digits, _, -, spaces, commas and | lists exact tool names. There is no MultiEdit tool (${DOCS}/tools-reference); the input fields of NotebookEdit are not shown in the docs, so a hook asks about it by the file it names. Read again on 2026-11-09: the PowerShell tool "Executes PowerShell commands", and its fields "match the Bash tool, with the command string in command" (#powershell); a handler may set if, permission rule syntax that limits when it runs ("The hook command only runs if the tool call matches the pattern", #common-fields). Read again on 2026-11-11: async "runs in the background without blocking" and asyncRewake "runs in the background and wakes Claude on exit code 2"; "Async hooks can't block or control Claude's behavior"; onFailure "continue" or "block", where block makes a failure do what exit code 2 does ("Requires Claude Code v2.1.295 or later"). The Monitor tool "Runs a command in the background" with "the same permission rules as Bash"; "A WebSocket watch takes a ws input in place of command" (${DOCS}/tools-reference#monitor-tool).`,
   ),
   commands: today.verified(
     {
@@ -277,9 +282,15 @@ export const claudeCode: AgentKnowledge = {
     `${SETTINGS_REFERENCE}#extraknownmarketplaces`,
     PLUGINS_NOTE,
   ),
-  mcpAdd: verified(
-    { command: ['claude', 'mcp', 'add'], jsonCommand: ['claude', 'mcp', 'add-json'], separator: '--', valueOptions: ['--transport', '-t', '--env', '-e', '--scope', '-s', '--header', '-H'] },
+  mcpAdd: nov11.verified(
+    {
+      command: ['claude', 'mcp', 'add'],
+      jsonCommand: ['claude', 'mcp', 'add-json'],
+      separator: '--',
+      valueOptions: ['--transport', '-t', '--env', '-e', '--scope', '-s', '--header', '-H', '--client-id', '--callback-port'],
+      multiValueOptions: ['--env', '-e'],
+    },
     MCP,
-    'Syntax: claude mcp add [options] <name> -- <command> [args...]; with --transport http or sse the argument after the name is the address. --scope project writes .mcp.json.',
+    'Syntax: claude mcp add [options] <name> -- <command> [args...]; with --transport http or sse the argument after the name is the address. --scope project writes .mcp.json. Read again on 2026-11-11: "--env accepts multiple KEY=value pairs. If the server name comes directly after --env, the CLI reads the name as another pair and rejects it"; --client-id passes the client ID, "The --client-secret flag prompts for the secret with masked input", and --callback-port takes the port of the redirect URI.',
   ),
 };

@@ -1,5 +1,4 @@
 import { homedir } from 'node:os';
-import { sep } from 'node:path';
 import { claudeCode } from '../knowledge/claude-code.ts';
 import type { ToolHookKnowledge } from '../knowledge/types.ts';
 import { readPolicy } from '../policy/read.ts';
@@ -7,7 +6,9 @@ import { POLICY_FILE } from '../policy/types.ts';
 import { checkCommand, checkedWords } from './bash.ts';
 import { afterEdit, checkWrite, HOOK_BUDGET_MS, readCurrent, runFiles, TOO_LARGE } from './files.ts';
 import { ScanTimeout } from '../inventory/files.ts';
+import type { Dialect } from '../rules/command-words.ts';
 import { quote } from '../rules/mask.ts';
+import { maskKnownSecrets } from '../rules/secrets.ts';
 import { combine } from './types.ts';
 import type { Verdict } from './types.ts';
 
@@ -69,7 +70,8 @@ function judgeCall(input: unknown, root: string, now?: Date, home: string = home
     const command = field(toolInput, fields.command);
     if (typeof command !== 'string') return undefined;
     const policy = readPolicy(root);
-    return combine([...checkCommand(command, policy.status === 'ok' ? policy.policy : undefined), checkRunFiles(command, root)]);
+    const dialect = fields.dialect ?? 'sh';
+    return combine([...checkCommand(command, policy.status === 'ok' ? policy.policy : undefined, dialect), checkRunFiles(command, root, dialect)]);
   }
   const file = field(toolInput, fields.path);
   if (typeof file !== 'string' || file === '') return undefined;
@@ -96,9 +98,9 @@ function judgeCall(input: unknown, root: string, now?: Date, home: string = home
  * A command that names a script a hook runs, or a context file a setting names, and does not only read it: ask (D-047).
  * The inventory is read only when the command has a word that can be a path, so that npm test costs nothing.
  */
-function checkRunFiles(command: string, root: string): Verdict | undefined {
+function checkRunFiles(command: string, root: string, dialect: Dialect): Verdict | undefined {
   const hook = hookFact();
-  const words = checkedWords(command).filter((word) => /[./]/.test(word) && !word.startsWith('-'));
+  const words = checkedWords(command, dialect).filter((word) => /[./]/.test(word) && !word.startsWith('-'));
   if (words.length === 0) return undefined;
   let roles: Map<string, string>;
   try {
@@ -109,9 +111,9 @@ function checkRunFiles(command: string, root: string): Verdict | undefined {
   }
   if (roles.size === 0) return undefined;
   const variable = hook.projectDirVariable;
-  const prefixes = ['$' + variable + '/', '${' + variable + '}/', root.split(sep).join('/') + '/'];
+  const prefixes = ['$' + variable + '/', '${' + variable + '}/', root.replaceAll('\\', '/') + '/'];
   for (const word of words) {
-    let path = word.split(sep).join('/');
+    let path = word.replaceAll('\\', '/');
     for (const prefix of prefixes) if (path.startsWith(prefix)) path = path.slice(prefix.length);
     while (path.startsWith('./')) path = path.slice(2);
     const role = roles.get(path);
@@ -149,6 +151,6 @@ export function runHook(stdin: string, env: Readonly<Record<string, string | und
 }
 
 function answer(hook: ToolHookKnowledge, verdict: Verdict): { stdout: string; stderr: string } {
-  const output = merge(merge(nest(hook.eventNameField, 'PreToolUse'), nest(hook.decisionField, verdict.decision)), nest(hook.reasonField, verdict.reasons.join(' ')));
+  const output = merge(merge(nest(hook.eventNameField, 'PreToolUse'), nest(hook.decisionField, verdict.decision)), nest(hook.reasonField, maskKnownSecrets(verdict.reasons.join(' '))));
   return { stdout: `${JSON.stringify(output)}\n`, stderr: '' };
 }

@@ -131,17 +131,17 @@ Generated from `src/knowledge/` by `npm run docs:knowledge`; do not edit by hand
 
 | Agent | What | Value | Status | Source | Verified |
 | --- | --- | --- | --- | --- | --- |
-| Claude Code | hook `PreToolUse` | tools `Bash`, `PowerShell`, `Write`, `Edit`; answer `hookSpecificOutput.permissionDecision` (`deny` > `defer` > `ask` > `allow`) | verified | [source](https://code.claude.com/docs/en/hooks) | 2026-11-09 |
+| Claude Code | hook `PreToolUse` | tools `Bash`, `PowerShell`, `Monitor`, `Write`, `Edit`; answer `hookSpecificOutput.permissionDecision` (`deny` > `defer` > `ask` > `allow`) | verified | [source](https://code.claude.com/docs/en/hooks) | 2026-11-11 |
 | Claude Code | settings that run a command | `statusLine.command` (at session start)<br>`subagentStatusLine.command` (when needed)<br>`fileSuggestion.command` (when needed)<br>`apiKeyHelper` (when needed)<br>`otelHeadersHelper` (at session start)<br>`awsAuthRefresh` (when needed)<br>`awsCredentialExport` (when needed)<br>`gcpAuthRefresh` (when needed) | verified | [source](https://code.claude.com/docs/en/settings-reference#settings-index) | 2026-11-08 |
 | Claude Code | variables of `env` that redirect it | `ANTHROPIC_BASE_URL` (endpoint)<br>`ANTHROPIC_BEDROCK_BASE_URL` (endpoint)<br>`ANTHROPIC_BEDROCK_MANTLE_BASE_URL` (endpoint)<br>`ANTHROPIC_VERTEX_BASE_URL` (endpoint)<br>`ANTHROPIC_FOUNDRY_BASE_URL` (endpoint)<br>`ANTHROPIC_AWS_BASE_URL` (endpoint)<br>`HTTP_PROXY` (proxy)<br>`HTTPS_PROXY` (proxy)<br>`ANTHROPIC_CUSTOM_HEADERS` (headers)<br>`CLAUDE_CODE_SHELL_PREFIX` (command-wrapper)<br>`OTEL_EXPORTER_OTLP_ENDPOINT` (endpoint, ignored in a project file)<br>`OTEL_EXPORTER_OTLP_HEADERS` (headers, ignored in a project file)<br>`BETA_TRACING_ENDPOINT` (endpoint, ignored in a project file) | verified | [source](https://code.claude.com/docs/en/settings-reference#env) | 2026-11-09 |
 | Claude Code | plugins and marketplaces | `enabledPlugins`, `extraKnownMarketplaces` or `additionalMarketplaces` (from a project file once the folder is trusted); sources `github` (remote), `git` (remote), `url` (remote, command in `headersHelper`), `file` (local), `directory` (local), `settings` (inline) | verified | [source](https://code.claude.com/docs/en/settings-reference#extraknownmarketplaces) | 2026-11-09 |
 | Claude Code | setting that turns hooks off | `disableAllHooks` = `true` | verified | [source](https://code.claude.com/docs/en/settings-reference#disableallhooks) | 2026-11-09 |
-| Claude Code | add an MCP server | `claude mcp add`, `claude mcp add-json` | verified | [source](https://code.claude.com/docs/en/mcp) | 2026-11-06 |
+| Claude Code | add an MCP server | `claude mcp add`, `claude mcp add-json` | verified | [source](https://code.claude.com/docs/en/mcp) | 2026-11-11 |
 | OpenAI Codex CLI | settings that run a command | `notify` (when needed, ignored in a project file) | verified | [source](https://learn.chatgpt.com/docs/config-file/config-advanced.md#notifications) | 2026-11-08 |
 | Gemini CLI | project folder in hook commands | `GEMINI_PROJECT_DIR`, `CLAUDE_PROJECT_DIR` | verified | [source](https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/hooks/index.md) | 2026-11-09 |
 | Gemini CLI | context file names | `context.fileName` replaces the default; read at `~/.gemini/<name>`, `<name>`, `**/<name>` | disputed | [source](https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/cli/gemini-md.md) | 2026-11-09 |
 | Gemini CLI | context file names | `context.fileName` adds to the default; read at `~/.gemini/<name>`, `<name>`, `**/<name>` | disputed | [source](https://raw.githubusercontent.com/google-gemini/gemini-cli/main/packages/core/src/tools/memoryTool.ts) | 2026-11-09 |
-| skills installer | add a skill | `npx skills add <source>` | verified | [source](https://raw.githubusercontent.com/vercel-labs/skills/main/docs/commands.md) | 2026-11-06 |
+| skills installer | add a skill | `npx skills add <source>` | verified | [source](https://raw.githubusercontent.com/vercel-labs/skills/main/docs/commands.md) | 2026-11-11 |
 
 ## Shared formats
 
@@ -149,3 +149,16 @@ Generated from `src/knowledge/` by `npm run docs:knowledge`; do not edit by hand
 | --- | --- | --- | --- | --- |
 | Agent Skills format | verified | `SKILL.md` | [source](https://agentskills.io/specification) | 2026-11-06 |
 | skills-lock.json | verified | SHA-256, lowercase hex digest. Walk the folder recursively, skipping directories named .git or node_modules at any depth and every entry that is neither a directory nor a regular file, so symlinks are skipped. Each file path is relative to the skill folder with / separators. Sort by path with String.prototype.localeCompare and no locale argument. For each file in that order, feed the hash the UTF-8 bytes of the path, then the raw bytes of the content, with no separator or length prefix. | [source](https://github.com/vercel-labs/skills/blob/7a5e920bead4b1039a6d6df5d7e1163b7b09423a/src/local-lock.ts) | 2026-11-06 |
+
+## Tools
+
+Facts about the programs that agents run, which the hook reads commands of.
+
+| Fact | Status | Value | Source | Verified |
+| --- | --- | --- | --- | --- |
+| skills CLI | verified | programs `skills`, `add-skill`; add as `add`, `a`, `install`, `i`; `use`; changes skills: `experimental_install`, `update`, `upgrade`, `sync`, `experimental_sync`, `remove`, `rm`, `r`, `init` | [source](https://raw.githubusercontent.com/vercel-labs/skills/main/docs/commands.md) | 2026-11-11 |
+| PowerShell | verified | escape ```; read only: `get-content`, `gc`, `type`, `cat`, `select-string`, `sls`, `test-path`, `get-childitem`, `gci`, `dir`, `ls`, `get-item`, `gi`, `resolve-path`, `rvpa`, `get-location`, `gl`, `pwd`, `set-location`, `sl`, `cd`, `chdir`, `push-location`, `pushd`, `pop-location`, `popd`, `write-output`, `write`, `echo` | [source](https://raw.githubusercontent.com/MicrosoftDocs/PowerShell-Docs/main/reference/docs-conceptual/learn/shell/using-aliases.md) | 2026-11-11 |
+| package manager aliases | verified | `pnx` = `pnpm dlx`, `pn` = `pnpm`; values: `--cpu`, `--os`, `--libc`; shell mode: `-c`, `--shell-mode` | [source](https://raw.githubusercontent.com/pnpm/pnpm.io/main/docs/cli/pnx.md) | 2026-11-11 |
+| removing a package | verified | npm: `uninstall`, `unlink`, `remove`, `rm`, `r`, `un`; pnpm: `remove`, `rm`, `uninstall`, `un`, `uni`; yarn: `remove`; bun: `remove`, `rm`, `uninstall`, `r` | [source](https://raw.githubusercontent.com/npm/cli/latest/lib/utils/cmd-list.js) | 2026-11-11 |
+| another working directory | verified | env `-C`, `--chdir`; sudo `-D`, `--chdir` | [source](https://raw.githubusercontent.com/coreutils/coreutils/master/doc/coreutils.texi) | 2026-11-11 |
+| depcurfew | verified | hook file `node_modules/depcurfew/dist/cli.js`, `.claude/depcurfew/node_modules/depcurfew/dist/cli.js`; writes: `init`, `apply` | [source](https://github.com/DevXord/depcurfew/blob/v1.6.0/README.md) | 2026-11-11 |

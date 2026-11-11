@@ -1,3 +1,4 @@
+import { redact } from '../../lock/redact.ts';
 import { quote } from '../mask.ts';
 import { launch, pinProblem } from '../launch.ts';
 import { commandLine, mcpEntry } from '../mcp.ts';
@@ -27,8 +28,8 @@ export const unpinnedMcpServer: Rule = {
     for (const spec of started.packages ?? [started.spec]) {
       const problem = pinProblem(started.family, spec);
       if (problem === undefined) continue;
-      const check = started.family !== 'npm' ? '' : `; check it with npx depcurfew check ${quote(spec, 80)}`;
-      hits.push({ message: `${what} ${quote(spec, 80)} ${problem}${check}` });
+      const check = started.family !== 'npm' ? '' : `; check it with npx depcurfew check ${quote(redact(spec), 80)}`;
+      hits.push({ message: `${what} ${quote(redact(spec), 80)} ${problem}${check}` });
     }
     return hits;
   },

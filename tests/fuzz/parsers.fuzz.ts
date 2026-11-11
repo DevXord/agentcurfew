@@ -7,7 +7,11 @@ import { entryText, lookup, parseConfig, stripJsonc } from '../../src/inventory/
 import { diffLocks } from '../../src/lock/diff.ts';
 import { parseLock } from '../../src/lock/read.ts';
 import { redact } from '../../src/lock/redact.ts';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { runHook } from '../../src/hook/index.ts';
+import { commands } from '../../src/rules/command-words.ts';
 import { McpServer } from '../../src/mcp/protocol.ts';
 import { validatePolicy } from '../../src/policy/validate.ts';
 import { runRules } from '../../src/rules/index.ts';
@@ -96,6 +100,19 @@ describe('MCP server and hook', () => {
         for (const message of sent) JSON.stringify(message);
         const result = runHook(text, {}, process.cwd());
         if (result.stdout !== '' && !result.stdout.includes('"hookEventName":"PreToolUse"')) throw new Error('hook printed something that is not a decision');
+        if (result.stdout.includes('"allow"')) throw new Error('hook allowed');
+      }),
+      { numRuns: 1500 },
+    );
+  });
+
+  it('reads any shell command, in any of the three shells and tools, without throwing or allowing', () => {
+    const empty = mkdtempSync(join(tmpdir(), 'acf-fuzz-hook-'));
+    const pieces = fc.array(fc.constantFrom('npx', 'skills', 'add', 'pnx', 'pn', 'dlx', 'claude', 'mcp', '-e', 'A=1', '--', ' ', '"', "'", '`', '\\', '^', '$', "$'", '{', '}', '|', ';', '&&', '>', '*>', '.claude', '\\settings.json', 'CLAUDE.md', 'cd', '-P', 'env', '-C', 'Set-Content', 'gc', 'rm', '-rf', 'npm', 'uninstall', 'agentcurfew', 'lock', '\n'), { maxLength: 40 }).map((parts) => parts.join(' '));
+    fc.assert(
+      fc.property(fc.oneof(pieces, fc.string()), fc.constantFrom('Bash', 'PowerShell', 'Monitor'), (command, tool) => {
+        for (const dialect of ['sh', 'powershell', 'cmd'] as const) commands(command, dialect);
+        const result = runHook(JSON.stringify({ tool_name: tool, tool_input: { command } }), { CLAUDE_PROJECT_DIR: empty }, empty);
         if (result.stdout.includes('"allow"')) throw new Error('hook allowed');
       }),
       { numRuns: 1500 },
