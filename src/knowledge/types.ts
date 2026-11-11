@@ -249,7 +249,7 @@ export interface ToolHookKnowledge {
   toolNameField: string;
   toolInputField: string;
   /** Tools by name, with the fields of their input that matter. */
-  tools: Readonly<Record<string, { command?: string; path?: string; content?: string; oldText?: string; newText?: string; replaceAll?: string }>>;
+  tools: Readonly<Record<string, { command?: string; path?: string; content?: string; oldText?: string; newText?: string; replaceAll?: string; dialect?: 'sh' | 'powershell' }>>;
   /** Where the answer goes in the stdout JSON, dotted, the field with the reason, and the one that names the event. */
   decisionField: string;
   eventNameField: string;
@@ -260,6 +260,10 @@ export interface ToolHookKnowledge {
   projectDirVariable: string;
   /** Tools that write files but whose input fields the docs do not show; a hook matches them and asks by the file named. */
   otherWriteTools?: readonly string[];
+  /** Handler fields that run a hook in the background, where it cannot block the call. */
+  backgroundFields?: readonly string[];
+  /** The handler field that makes a failing hook block the call, and its value that does. */
+  failure?: { field: string; blocks: string };
 }
 
 /** A command of the agent's own CLI that adds an MCP server. */
@@ -272,6 +276,8 @@ export interface McpAddKnowledge {
   separator: string;
   /** Options that take a value, so that the value is not taken for the name. */
   valueOptions: readonly string[];
+  /** Of those, options that take every KEY=value word after them. */
+  multiValueOptions?: readonly string[];
 }
 
 export interface AgentKnowledge {
@@ -326,17 +332,78 @@ export interface SkillsLockKnowledge {
   hashAlgorithm: string;
 }
 
-/** The add command of the Vercel skills installer. */
+/** An option of a CLI parsed with node:util parseArgs: a flag, one value, or a list that takes the words after it. */
+export interface CliOption {
+  type: 'boolean' | 'string' | 'list';
+  short?: string;
+}
+
+/** The commands of the Vercel skills installer. */
 export interface SkillsInstallerKnowledge {
   /** The package run by a launcher, and its subcommand: npx skills add <source>. */
   packageName: string;
   addCommand: string;
   /** Options that take a value. */
   valueOptions: readonly string[];
+  /** The programs the package installs, each running the same CLI. */
+  binaries: readonly string[];
+  /** Other names of add; every positional word after them is a source. */
+  addAliases: readonly string[];
+  /** Names of add that restore from the lock when no source is given. */
+  restoreWithoutSource: readonly string[];
+  /** The command that fetches a source like add and hands its skill to an agent. */
+  useCommand: string;
+  /** Commands that change the installed skills without a source to check. */
+  changeCommands: readonly string[];
+  /** The options of add and of use, as the CLI parses them. */
+  addOptions: Readonly<Record<string, CliOption>>;
+  useOptions: Readonly<Record<string, CliOption>>;
+}
+
+/** How PowerShell reads a command line, and the cmdlets that only read what they name. */
+export interface PowerShellKnowledge {
+  /** The escape character; a backslash has no meaning of its own. */
+  escape: string;
+  /** Cmdlets and their aliases, lowercase, that read the files they name and change nothing. */
+  readOnlyCommands: readonly string[];
+}
+
+/** Other names of package managers, and options that take a value. */
+export interface PackageManagerAliasesKnowledge {
+  /** A program and the words it stands for: pnx is pnpm dlx. */
+  aliases: Readonly<Record<string, readonly string[]>>;
+  /** Options of the npm family that take a value and choose platform packages. */
+  platformOptions: readonly string[];
+  /** Options of pnpm dlx that run the command line in a shell. */
+  shellModeOptions: readonly string[];
+}
+
+/** Subcommands that remove a package, by package manager. */
+export interface PackageRemovalKnowledge {
+  commands: Readonly<Record<string, readonly string[]>>;
+  /** Package managers that take any unique start of a subcommand name. */
+  abbreviates: readonly string[];
+}
+
+/** Options of programs that run a command in another directory. */
+export interface ChdirOptionsKnowledge {
+  options: Readonly<Record<string, readonly string[]>>;
+}
+
+/** Where depcurfew is installed for its Claude Code hook, and its commands that write configuration. */
+export interface DepcurfewKnowledge {
+  /** Paths of the file the hook runs, relative to the project. */
+  entryFiles: readonly string[];
+  writingCommands: readonly string[];
 }
 
 export interface SharedKnowledge {
   skillFormat: Fact<SkillFormatKnowledge>;
   skillsLock: Fact<SkillsLockKnowledge>;
   skillsInstaller: Fact<SkillsInstallerKnowledge>;
+  powershell: Fact<PowerShellKnowledge>;
+  packageAliases: Fact<PackageManagerAliasesKnowledge>;
+  packageRemoval: Fact<PackageRemovalKnowledge>;
+  chdirOptions: Fact<ChdirOptionsKnowledge>;
+  depcurfew: Fact<DepcurfewKnowledge>;
 }

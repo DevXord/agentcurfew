@@ -25,7 +25,7 @@ describe('knowledge base', () => {
   });
 
   it('has a source and a date for the shared facts', () => {
-    expect(validateKnowledge({ ...shared }, ['skillFormat', 'skillsLock'], 'shared')).toEqual([]);
+    expect(validateKnowledge({ ...shared }, Object.keys(shared) as (keyof typeof shared)[], 'shared')).toEqual([]);
   });
 
   it('records the top-level key of every MCP file of VS Code, which differs by file', () => {

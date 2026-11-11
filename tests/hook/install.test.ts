@@ -38,7 +38,7 @@ describe('agentcurfew init --hook', () => {
     expect(after.hooks.PreToolUse[0]).toEqual(before.hooks.PreToolUse[0]);
     expect(after.hooks.PreToolUse[1]).toEqual(hookEntry());
     expect(after.hooks.PreToolUse[1]).toEqual({
-      matcher: 'Bash|PowerShell|Write|Edit|NotebookEdit',
+      matcher: 'Bash|PowerShell|Monitor|Write|Edit|NotebookEdit',
       hooks: [{ type: 'command', command: 'node', args: ['${CLAUDE_PROJECT_DIR}/node_modules/agentcurfew/dist/cli.js', 'hook'], timeout: 30 }],
     });
   });

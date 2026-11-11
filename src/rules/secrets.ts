@@ -95,6 +95,27 @@ export function knownSecrets(text: string): SecretMatch[] {
   return found.sort((a, b) => a.index - b.index);
 }
 
+/** A text with every known credential format in it masked; for messages built from command lines (the hook's reasons). */
+export function maskKnownSecrets(text: string): string {
+  const ranges: [number, number][] = [];
+  for (const { global, accept } of GLOBAL) {
+    global.lastIndex = 0;
+    for (let match = global.exec(text); match !== null; match = global.exec(text)) {
+      if (match[0] === '') global.lastIndex++;
+      else if (accept?.(match[0]) ?? true) ranges.push([match.index, match.index + match[0].length]);
+    }
+  }
+  ranges.sort((a, b) => a[0] - b[0]);
+  let result = '';
+  let at = 0;
+  for (const [start, end] of ranges) {
+    if (start < at) continue;
+    result += text.slice(at, start) + maskSecret(text.slice(start, end));
+    at = end;
+  }
+  return result + text.slice(at);
+}
+
 // A relative or home path to a file that holds the secret, such as "auth": "~/.config/token". An absolute path such as
 // /run/secrets/token is not told from a base64 secret, which starts with / once in 64, so only the key can exempt it.
 const PATH = /^(?:\.{1,2}[\\/]|~[\\/]|[A-Za-z]:[\\/])/;

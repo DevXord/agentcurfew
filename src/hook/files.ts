@@ -15,11 +15,24 @@ import { parseConfig } from '../inventory/parse.ts';
 import { quote } from '../rules/mask.ts';
 import { atLeast } from '../rules/index.ts';
 import type { Finding } from '../rules/types.ts';
-import { weakenedGuards } from './guards.ts';
+import { shared } from '../knowledge/shared.ts';
+import { claudeCode } from '../knowledge/claude-code.ts';
+import { workingGuards, weakenedGuards } from './guards.ts';
+import { entryValue } from '../rules/text.ts';
 import type { Verdict } from './types.ts';
 
 // Files that steer agentcurfew itself: an agent that rewrites them can switch the checks off.
 const OWN_FILES = [POLICY_FILE, LOCKFILE, 'skills-lock.json'];
+// depcurfew's policy: a write can shorten the delay or allow what its hook denies.
+const DEPCURFEW_POLICY = 'depcurfew.json';
+
+/** The folder of a guard's installed code that a project path lies in, if any: the hooks run that code. */
+function guardInstall(path: string, ignoreCase: boolean): string | undefined {
+  const depcurfew = shared.depcurfew.status === 'disputed' ? shared.depcurfew.variants[0].value : shared.depcurfew.value;
+  const folders = ['node_modules/agentcurfew', ...depcurfew.entryFiles.map((file) => file.replace(/\/dist\/cli\.js$/, ''))];
+  const fold = (text: string) => (ignoreCase ? text.toLowerCase() : text);
+  return folders.find((folder) => fold(path) === fold(folder) || fold(path).startsWith(`${fold(folder)}/`));
+}
 // Rules about the difference between the project and its locks: any write makes them fire, so they say nothing here.
 const IGNORED_RULES = new Set(['drift', 'skills-lock-mismatch']);
 
@@ -226,6 +239,10 @@ function checkWriteBefore(file: string, newText: string | { why: string; deny?: 
   const candidates = [knowledgePath(target, realRoot, real(home)), linkedKnowledgePath(target, realRoot, ignoreCase), knowledgePath(file.replace(/:+\$DATA$/i, ''), root, home)];
   let path = candidates.find((candidate) => candidate !== undefined && agentsOfFile(candidate).length > 0) ?? candidates.find((candidate) => candidate !== undefined);
   if (path === undefined) return undefined;
+  // The guards' own code and depcurfew's policy: decided before the new text matters, so an Edit of a missing file counts too.
+  const install = guardInstall(path, ignoreCase);
+  if (install !== undefined) return { decision: 'deny', reasons: [`agentcurfew: ${quote(path, 120)} is part of ${quote(install, 80)}, the installed code of a hook that guards this project; make this change by hand if it is intended.`] };
+  if (path === DEPCURFEW_POLICY) return { decision: 'ask', reasons: [`agentcurfew: ${DEPCURFEW_POLICY} is depcurfew's policy: this changes what depcurfew allows the agent to install.`] };
   if (agentsOfFile(path).length === 0 && ignoreCase) {
     // A folder that does not exist yet, spelled in another case, as .CLAUDE/skills/x/SKILL.md: check it as the agent reads it.
     const spelled = knowledgeCase(path);
@@ -245,7 +262,11 @@ function checkWriteBefore(file: string, newText: string | { why: string; deny?: 
   if (typeof newText !== 'string') return { decision: newText.deny === true ? 'deny' : 'ask', reasons: [`agentcurfew: ${what}, and the change could not be checked: ${newText.why}.`] };
   // Text past the scanner's limit would be skipped, and the hook would see nothing in it: padding must not turn a deny into an ask.
   if (Buffer.byteLength(newText, 'utf8') > DEFAULT_LIMITS.maxFileBytes) return { decision: 'deny', reasons: [`agentcurfew: ${what}, and the new text is larger than the ${DEFAULT_LIMITS.maxFileBytes} bytes agentcurfew reads, so it cannot be checked.`] };
-  if (path.startsWith('~/')) return { decision: 'ask', reasons: [`agentcurfew: ${what}, in your user settings, which apply to every project.`] };
+  if (path.startsWith('~/')) {
+    const off = userHooksOff(path, newText, root, deadline);
+    if (off !== undefined) return { decision: 'deny', reasons: [`agentcurfew: ${what}, and ${off} Make this change by hand if it is intended.`] };
+    return { decision: 'ask', reasons: [`agentcurfew: ${what}, in your user settings, which apply to every project.`] };
+  }
   if (path === POLICY_FILE) {
     // The policy is read from disk, not through the overlay, so the new text is checked here.
     const value = parseConfig(newText, 'json');
@@ -271,6 +292,32 @@ function checkWriteBefore(file: string, newText: string | { why: string; deny?: 
   if (serious.length > 0) return { decision: 'deny', reasons: [`agentcurfew: ${what}, and the change would add: ${serious.map(describe).join('; ')}.`] };
   const minor = added.length > 0 ? ` It would add: ${added.map(describe).join('; ')}.` : ' The rules found nothing new in it.';
   return { decision: 'ask', reasons: [`agentcurfew: ${what}.${minor}`] };
+}
+
+/**
+ * Why a write of the user's Claude Code settings switches off the guards of this project: it sets disableAllHooks to
+ * true while the project has working guards and its own settings do not set it back to false, which wins over the
+ * user's value (hooks docs, read on 2026-11-11; review of 2026-11-10). Undefined when it does not.
+ */
+function userHooksOff(path: string, newText: string, root: string, deadline: number): string | undefined {
+  const fact = claudeCode.hooksOff;
+  if (fact === undefined) return undefined;
+  const off = fact.status === 'disputed' ? fact.variants[0].value : fact.value;
+  if (!off.files.some((file) => file.scope === 'user' && file.path === path)) return undefined;
+  const parsed = parseConfig(newText, 'json');
+  if (!isObject(parsed) || parsed[off.key] !== true) return undefined;
+  const inventory = scanInventory({ root, deadline });
+  const guards = workingGuards(inventory, root);
+  if (guards.agentcurfew.length === 0 && guards.depcurfew.length === 0) return undefined;
+  const projectFiles = new Set(off.files.filter((file) => file.scope === 'project').map((file) => file.path));
+  const keptOn = inventory.components.some((component) => component.kind === 'setting' && component.scope === 'project' && projectFiles.has(component.file) && component.name === off.key && entryValue(component) === false);
+  if (keptOn) return undefined;
+  const names = [guards.depcurfew.length > 0 ? 'depcurfew\'s' : undefined, guards.agentcurfew.length > 0 ? 'agentcurfew\'s' : undefined].filter((name) => name !== undefined).join(' and ');
+  return `it sets ${off.key}, which turns off every hook of this project, ${names} guard included, since the project's settings do not set it to false.`;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function componentLabel(component: Component): string {

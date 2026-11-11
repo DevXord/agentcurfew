@@ -38,6 +38,10 @@ describe('broad-shell-permission', () => {
     expect(run('broad-shell-permission', [permission(['Bash(npx:*)'])])).toHaveLength(1);
   });
 
+  it.each(['Bash(pnx:*)', 'Bash(pn dlx:*)', 'Bash(pn exec *)', 'Bash(npm x:*)', 'Bash(npm exe *)'])('reports the launcher of %s, another name of npx or pnpm dlx', (entry) => {
+    expect(run('broad-shell-permission', [permission([entry])])).toHaveLength(1);
+  });
+
   it('leaves a runner alone when the entry fixes the program it runs', () => {
     expect(run('broad-shell-permission', [permission(['Bash(pnpx vitest:*)', 'Bash(pnpm exec tsc:*)', 'Bash(xargs kill:*)', 'Bash(npx claude-flow:*)'])])).toEqual([]);
   });
