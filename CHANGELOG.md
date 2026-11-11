@@ -6,6 +6,7 @@ All notable changes to agentcurfew are written here for its users.
 
 - The notes of 1.2.0 on Gemini CLI's `context.fileName` are corrected: a name agentcurfew does not follow gives the problem `not-followed`, not `unparsable`, and a name with a leading slash is read in the folder.
 - README pins the GitHub Action to the commit of v1.2.0.
+- README has a section on trademarks: the names of agents and tools in it belong to their owners, and agentcurfew is not affiliated with or endorsed by any of them. The documentation site shows it on its start page.
 - The hook closes bypasses of 1.2.0, found by the review and verification of 2026-11-10:
   - PowerShell commands are read with PowerShell's quoting, and paths with `\` count: `Set-Content -Path .claude\settings.json`, `Copy-Item x .claude\settings.json` and eight more spellings got no answer. `cmd /c` is read with cmd's caret (`.cl^aude`), and Bash commands as bash reads them (`$'\x43LAUDE.md'`, a backslash before a newline, backslashes inside double quotes).
   - The `Monitor` tool, which runs commands like Bash, is checked; `init --hook` writes the matcher `Bash|PowerShell|Monitor|Write|Edit|NotebookEdit`. Widen the matcher of a hook installed earlier by hand.
