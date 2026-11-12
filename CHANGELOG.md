@@ -4,9 +4,18 @@ All notable changes to agentcurfew are written here for its users.
 
 ## Unreleased
 
+## 1.2.1
+
 - The notes of 1.2.0 on Gemini CLI's `context.fileName` are corrected: a name agentcurfew does not follow gives the problem `not-followed`, not `unparsable`, and a name with a leading slash is read in the folder.
 - README pins the GitHub Action to the commit of v1.2.0.
 - README has a section on trademarks: the names of agents and tools in it belong to their owners, and agentcurfew is not affiliated with or endorsed by any of them. The documentation site shows it on its start page.
+- The GitHub Action is named `agentcurfew scan` with a purple badge; `uses:` is unchanged. Pin the action at least as new as the agentcurfew version used in the project, so a new field or rule is not reported as unknown.
+- The lock reader keeps a component whose `server.package.ecosystem` is a lowercase slug this version does not know (`nuget`, `go`, `jsr`, …): the component is compared by hash and its count ends up in a new JSON field `unknownPackages` and in a `verify` note, next to `unknownKinds`. Lockfiles with a badly spelled ecosystem are still refused.
+- When the policy mentions a field, rule or level this version does not know, the error says which agentcurfew is reading the file, suggests the closest known name through edit distance, and reminds the reader that a newer agentcurfew may have added the name (`upgrade, or remove it`). Typos are still errors; exit codes are unchanged.
+- `doctor` accepts depcurfew's tools-folder layout (`.claude/depcurfew/node_modules/depcurfew/dist/cli.js`), as the depcurfew README of 1.3.0+ describes it, for both `depcurfew-hook-broken` and `agentcurfew-hook-missing`. The resolver works only inside the project and never follows a symbolic link.
+- `docs/rules.md` describes `not-followed` (the `ProblemCode`, not a rule) and notes two limits of agentcurfew that users can act on now: a user-installed Claude Code mod can approve what the hook denies, unless the built-in guard loads (managed settings, `managed-mcp.json`, or a Team/Enterprise `/login` session); and `agentcurfew.lock` records ignored and local skill and context files with the hash of their text, so secrets kept in a skill folder land in the lock. README shows the same two notes and recommends `CODEOWNERS` for the files that steer agents.
+- `docs/mcp.md` pins its `hooks.PreToolUse` sample to `hookEntry()` with a conformance test, so the documented matcher cannot drift from the one `init --hook` writes.
+- SARIF `helpUri` points to the documentation site's rules page (`https://agentcurfew.github.io/rules#<rule>`), not to a link in the repository.
 - The hook closes bypasses of 1.2.0, found by the review and verification of 2026-11-10:
   - PowerShell commands are read with PowerShell's quoting, and paths with `\` count: `Set-Content -Path .claude\settings.json`, `Copy-Item x .claude\settings.json` and eight more spellings got no answer. `cmd /c` is read with cmd's caret (`.cl^aude`), and Bash commands as bash reads them (`$'\x43LAUDE.md'`, a backslash before a newline, backslashes inside double quotes).
   - The `Monitor` tool, which runs commands like Bash, is checked; `init --hook` writes the matcher `Bash|PowerShell|Monitor|Write|Edit|NotebookEdit`. Widen the matcher of a hook installed earlier by hand.
@@ -18,6 +27,15 @@ All notable changes to agentcurfew are written here for its users.
   - PowerShell cmdlets that only read (`Get-Content`, `Select-String`, `Get-ChildItem`, `Test-Path` and their aliases) no longer ask.
 - `unpinned-mcp-server`, `unpinned-launcher` and `broad-shell-permission` know `pnx` (pnpm dlx) and `pn` (pnpm), and `--cpu`, `--os` and `--libc` take a value, so `pnpm dlx --os linux some-cli@1.0.0` starts `some-cli@1.0.0`. A server started through `pnx` gets a package identity: `agentcurfew lock` records it.
 - The knowledge base records facts about the tools the hook reads (PowerShell, pnpm, npm, the skills CLI, `env` and `sudo`, depcurfew), each with its source.
+
+### Upgrading
+
+- `agentcurfew.lock` does not need to be rewritten: `verify` has never compared `server.package`, so the new `unknownPackages` field only appears in future locks.
+- New hook pop-ups you may see: `disableAllHooks` set to true in `~/.claude/settings.json`, a write to `depcurfew.json`, `agentcurfew lock`/`init` or `depcurfew apply`/`init` run from the shell, `skills` CLI commands outside your policy's `allowSources`, and writes that drop a guard's `onFailure: "block"` or make it `async`.
+- New findings for MCP servers started through `pnx`/`pn dlx`: `unpinned-mcp-server` (medium; high under `requirePinnedVersions`) and, when the policy allows only `local`, `out-of-policy` (high). `init` records each server's package name in the lock.
+- If your project pins the GitHub Action by commit, update the pin to the commit of v1.2.1 so the Action understands the new field.
+- A user-installed Claude Code mod can approve a call that the hook denies, unless the built-in guard loads (managed settings, `managed-mcp.json`, or a Team/Enterprise `/login` session). Pair the hook with `CODEOWNERS` on `**/.claude/**`, `**/CLAUDE.md`, `**/.mcp.json`, `agentcurfew.policy.json` and `agentcurfew.lock`.
+- The lock records ignored and local skill and context files with the hash of their text, by design. Keep secrets out of skill folders and review `agentcurfew.lock` before you commit it.
 
 ## 1.2.0
 
