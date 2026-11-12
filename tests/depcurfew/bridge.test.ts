@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { analyzeProjectAsync } from '../../src/analyze.ts';
-import { checkMcpPackages, depcurfewSpec, setDepcurfewLoader } from '../../src/depcurfew/bridge.ts';
+import { checkMcpPackages, depcurfewSpec, setDepcurfewLoader, SUPPORTED_RANGE } from '../../src/depcurfew/bridge.ts';
 import { scanInventory } from '../../src/inventory/index.ts';
 import { materialize } from '../rules/materialize.ts';
 
@@ -24,7 +24,11 @@ async function onFixture(path: string, prepare?: (root: string) => void) {
 describe('the depcurfew bridge', () => {
   it('checks the packages of MCP servers offline with the installed depcurfew', async () => {
     const { state, reports } = await onFixture('mcp-package/positive');
-    expect(state).toEqual({ status: 'ready', version: '1.5.2' });
+    // The pinned devDependency is at the floor of SUPPORTED_RANGE; assert on shape rather than a fixed version.
+    expect(state).toMatchObject({ status: 'ready' });
+    if (state.status === 'ready') expect(state.version).toMatch(/^\d+\.\d+\.\d+/);
+    // Keeps the range stated in one place.
+    expect(SUPPORTED_RANGE).toBe('>=1.5.2 <2');
     expect([...reports.entries()].map(([key, report]) => [key.replace('\0', ' '), report.spec, report.findings.map((finding) => `${finding.level}:${finding.code}`)])).toEqual([
       ['.mcp.json from-git', 'github:someone/mcp-server', ['error:forbidden-source']],
       ['.mcp.json tarball', 'https://example.com/mcp-server-1.0.0.tgz', ['error:forbidden-source']],

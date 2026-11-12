@@ -56,7 +56,7 @@ describe('SARIF', () => {
     const described = sarif.runs[0]?.tool.driver.rules ?? [];
     expect(described.map((rule) => rule.id)).toEqual(rules.map((rule) => rule.id));
     for (const rule of described) {
-      expect(rule.helpUri).toBe(`https://github.com/DevXord/agentcurfew/blob/main/docs/rules.md#${rule.id}`);
+      expect(rule.helpUri).toBe(`https://agentcurfew.github.io/rules#${rule.id}`);
       expect(rule.properties.tags[0]).toBe('security');
       expect(rule.properties.tags.slice(1).every((tag) => /^external\/owasp-ast\/ast\d\d$/.test(tag))).toBe(true);
       expect(Number(rule.properties['security-severity'])).toBeGreaterThan(0);

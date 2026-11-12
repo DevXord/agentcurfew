@@ -44,8 +44,8 @@
         "windsurf"
       ],
       "file": ".claude/settings.json",
-      "hash": "5709a19cfce96dc5bb12d9b73f24fa234641ee6802df49d2453145e98a58c823",
-      "id": "PreToolUse:Bash|Write|Edit:5709a19cfc",
+      "hash": "d7f6491a127eaaa6d0f94f2651d646a4ae09d2f72811d912bdbd4e9b07c079e4",
+      "id": "PreToolUse:Bash|PowerShell|Monitor|Write|Edit|NotebookEdit:d7f6491a12",
       "kind": "hook",
       "name": "PreToolUse#1"
     },

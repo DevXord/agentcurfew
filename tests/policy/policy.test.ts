@@ -63,17 +63,32 @@ describe('schema and validator', () => {
     [[], 'policy: expected an object, got a list'],
     [{}, 'policy.version: is required'],
     [{ version: 2 }, 'policy.version: expected one of 1'],
-    [{ version: 1, failOn: 'info' }, 'policy.failOn: expected one of "critical", "high", "medium", "low", "none"'],
+    [{ version: 1, failOn: 'info' }, 'policy.failOn: "info" is not a known value in agentcurfew'],
     [{ version: 1, skills: { allowExecutables: 'no' } }, 'policy.skills.allowExecutables: expected true or false, got a string'],
     [{ version: 1, mcp: { allowServers: [''] } }, 'policy.mcp.allowServers[0]: expected at least 1 character'],
     [{ version: 1, exclude: [{ path: 'x' }] }, 'policy.exclude[0].reason: is required'],
     [{ version: 1, exceptions: [{ rule: 'x', path: 'y', reason: 'z' }] }, 'policy.exceptions[0].reason: expected at least 3 characters'],
     [{ version: 1, exceptions: [{ rule: 'a-b', path: 'y', reason: 'why', until: '2026-13-01' }] }, 'policy.exceptions[0].until: expected a date written YYYY-MM-DD'],
-    [{ version: 1, doctor: { failOn: 'high' } }, 'policy.doctor.failOn: expected one of "error", "warning", "info", "none"'],
-    [JSON.parse('{"version":1,"__proto__":{"x":1}}'), 'policy.__proto__: is not a known setting'],
+    [{ version: 1, doctor: { failOn: 'high' } }, 'policy.doctor.failOn: "high" is not a known value in agentcurfew'],
+    [JSON.parse('{"version":1,"__proto__":{"x":1}}'), 'policy.__proto__: is not a known setting in agentcurfew'],
   ])('reject %j with the path to the field', (value, issue) => {
     const issues = validatePolicy(value).issues.map((item) => `${item.path}: ${item.message}`);
-    expect(issues).toContain(issue);
+    expect(issues.some((entry) => entry.startsWith(issue))).toBe(true);
+  });
+
+  it('suggests the closest known rule id and names the running version on an unknown rule', () => {
+    const issues = validatePolicy({ version: 1, exceptions: [{ rule: 'unpined-mcp-server', path: 'a', reason: 'typo' }] }).issues;
+    const first = issues.map((item) => `${item.path}: ${item.message}`).join('\n');
+    expect(first).toContain('"unpined-mcp-server" is not a known value in agentcurfew');
+    expect(first).toContain('this file may have been written by a newer agentcurfew (upgrade, or remove it)');
+    expect(first).toContain('Did you mean "unpinned-mcp-server"?');
+  });
+
+  it('suggests the closest known setting and names the running version on an unknown field', () => {
+    const issues = validatePolicy({ version: 1, excludde: [] }).issues;
+    const first = issues.map((item) => `${item.path}: ${item.message}`).join('\n');
+    expect(first).toContain('is not a known setting in agentcurfew');
+    expect(first).toContain('Did you mean "exclude"?');
   });
 
   it('is documented in docs/policy.md, which is up to date (run npm run docs:policy)', () => {

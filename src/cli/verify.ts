@@ -47,7 +47,7 @@ export function runVerify(argv: readonly string[], io: CliIo, usageError: (what:
   const unchecked = inventory.problems.filter((problem) => UNCHECKED_PROBLEMS.includes(problem.code));
   const ok = changes.length === 0 && unchecked.length === 0;
   if (values.json === true) {
-    const output = { schemaVersion: VERIFY_SCHEMA_VERSION, producer: producer(), ok, changes, lockDigest, ...(noIds ? { lockWithoutIds: true } : {}), ...(lock.lock.unknownKinds === undefined ? {} : { unknownKinds: lock.lock.unknownKinds }), skillsLock: skills, problems: inventory.problems };
+    const output = { schemaVersion: VERIFY_SCHEMA_VERSION, producer: producer(), ok, changes, lockDigest, ...(noIds ? { lockWithoutIds: true } : {}), ...(lock.lock.unknownKinds === undefined ? {} : { unknownKinds: lock.lock.unknownKinds }), ...(lock.lock.unknownPackages === undefined ? {} : { unknownPackages: lock.lock.unknownPackages }), skillsLock: skills, problems: inventory.problems };
     io.stdout(`${printableJson(output)}\n`);
     return ok ? EXIT_OK : EXIT_FAILURE;
   }
@@ -59,6 +59,8 @@ export function runVerify(argv: readonly string[], io: CliIo, usageError: (what:
   if (noIds) lines.push('', `Note: ${LOCKFILE} was written before component ids; run agentcurfew lock to add them.`);
   const unknown = lock.lock.unknownKinds;
   if (unknown !== undefined) lines.push('', `Note: ${unknown} ${unknown === 1 ? 'component of a kind this version of agentcurfew does not know was' : 'components of kinds this version of agentcurfew does not know were'} not compared; a newer agentcurfew wrote ${LOCKFILE}.`);
+  const unknownPkg = lock.lock.unknownPackages;
+  if (unknownPkg !== undefined) lines.push('', `Note: ${unknownPkg} ${unknownPkg === 1 ? 'component whose package ecosystem this version of agentcurfew does not know was' : 'components whose package ecosystem this version of agentcurfew does not know were'} not compared; a newer agentcurfew wrote ${LOCKFILE}.`);
   lines.push(...problemLines(inventory));
   if (unchecked.length > 0) lines.push('', `${label(io, 'Failed')}: ${unchecked.length} ${unchecked.length === 1 ? 'file' : 'files'} could not be read, so ${unchecked.length === 1 ? 'it was' : 'they were'} not compared with ${LOCKFILE}: the too-large, too-deep, too-many-entries and unreadable problems above.`);
   if (changes.length > 0) lines.push('', `If the changes are expected, run agentcurfew lock and commit ${LOCKFILE}.`);

@@ -48,4 +48,6 @@ export interface Lockfile {
   components: LockedComponent[];
   /** Read only: components of a kind this version does not know, which were skipped; never written. */
   unknownKinds?: number;
+  /** Read only: components whose server package ecosystem this version does not know, which were skipped; never written. */
+  unknownPackages?: number;
 }

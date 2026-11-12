@@ -10,6 +10,8 @@ export type LockRead = { status: 'missing' } | { status: 'invalid'; reason: stri
 
 const KINDS: ReadonlySet<string> = new Set<ComponentKind>(COMPONENT_KINDS);
 const HASH = /^[0-9a-f]{64}$/;
+const ECOSYSTEM = /^[a-z0-9-]+$/;
+const KNOWN_ECOSYSTEMS: ReadonlySet<string> = new Set<string>(['npm', 'pypi', 'oci']);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -26,7 +28,7 @@ function server(value: unknown): LockedServer | undefined {
   const ref = value.package;
   let pkg: LockedServer['package'] = null;
   if (ref !== null) {
-    if (!isRecord(ref) || !['npm', 'pypi', 'oci'].includes(ref.ecosystem as string) || typeof ref.name !== 'string' || (ref.version !== null && typeof ref.version !== 'string')) return undefined;
+    if (!isRecord(ref) || !KNOWN_ECOSYSTEMS.has(ref.ecosystem as string) || typeof ref.name !== 'string' || (ref.version !== null && typeof ref.version !== 'string')) return undefined;
     pkg = { ecosystem: ref.ecosystem as 'npm', name: ref.name, version: ref.version as string | null };
   }
   return { command, args, urls, env, headers, package: pkg };
@@ -84,17 +86,27 @@ export function parseLock(value: unknown): { lock: Lockfile } | { reason: string
   if (!Array.isArray(value.components)) return { reason: 'components is not a list' };
   const components: LockedComponent[] = [];
   let unknownKinds = 0;
+  let unknownPackages = 0;
   for (const [index, item] of value.components.entries()) {
     // A kind added by a later version is skipped and counted, so that a lock it wrote is still checked for the rest (D-045).
     if (isRecord(item) && typeof item.kind === 'string' && !KINDS.has(item.kind)) {
       unknownKinds++;
       continue;
     }
+    // A server package in an ecosystem a later version introduced is skipped and counted, like unknownKinds.
+    // The ecosystem must still be a lowercase slug; a malformed value rejects the lock in component() below.
+    if (isRecord(item) && isRecord(item.server) && isRecord(item.server.package)) {
+      const eco = item.server.package.ecosystem;
+      if (typeof eco === 'string' && ECOSYSTEM.test(eco) && !KNOWN_ECOSYSTEMS.has(eco)) {
+        unknownPackages++;
+        continue;
+      }
+    }
     const parsed = component(item);
     if (parsed === undefined) return { reason: `component ${index} does not have the expected fields` };
     components.push(parsed);
   }
-  return { lock: { lockfileVersion: LOCKFILE_VERSION, algorithm: 'sha256', components, ...(unknownKinds > 0 ? { unknownKinds } : {}) } };
+  return { lock: { lockfileVersion: LOCKFILE_VERSION, algorithm: 'sha256', components, ...(unknownKinds > 0 ? { unknownKinds } : {}), ...(unknownPackages > 0 ? { unknownPackages } : {}) } };
 }
 
 /**
