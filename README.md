@@ -106,6 +106,10 @@ npm run site        # the documentation site, into dist-site/
 
 Security reports: [SECURITY.md](SECURITY.md).
 
+## Trademarks
+
+Claude Code, Cursor, Codex CLI, Gemini CLI, Copilot, VS Code, Windsurf, Cline, GitHub, Node.js, npm and the other names in this document belong to their owners. agentcurfew is an independent project and is not affiliated with or endorsed by any of them.
+
 ## License
 
 [MIT](LICENSE).
