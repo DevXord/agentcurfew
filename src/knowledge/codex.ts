@@ -5,6 +5,8 @@ const { verified, uncertain, disputed, evidence } = verifiedOn('2026-11-06');
 // Facts changed after the source audit of 2026-11-07, read again that day.
 const later = verifiedOn('2026-11-07');
 const today = verifiedOn('2026-11-08');
+// Read again in knowledge review W1 (2026-11-12).
+const w1 = verifiedOn('2026-11-12');
 
 const DOCS = 'https://learn.chatgpt.com/docs';
 const CONFIG_BASIC = `${DOCS}/config-file/config-basic.md`;
@@ -19,6 +21,8 @@ const SOURCE = 'https://github.com/openai/codex/blob/55897425e839d943a744c658701
 const CONFIG_LOADER = `${SOURCE}/config/src/loader/mod.rs`;
 const MCP_TYPES = `${SOURCE}/config/src/mcp_types.rs`;
 const SKILL_ROOTS = `${SOURCE}/ext/skills/src/host_roots.rs`;
+const STABLE = 'https://github.com/openai/codex/blob/rust-v0.167.2/codex-rs';
+const ALPHA = 'https://github.com/openai/codex/blob/rust-v0.170.0-alpha.2/codex-rs';
 
 const PROJECT_CONFIG: AgentPath = { path: '**/.codex/config.toml', scope: 'project', format: 'toml' };
 const USER_CONFIG: AgentPath = { path: '~/.codex/config.toml', scope: 'user', format: 'toml' };
@@ -30,10 +34,10 @@ const HOME_NOTE = 'CODEX_HOME moves every ~/.codex path. Machine-wide paths are 
 export const codex: AgentKnowledge = {
   id: 'codex',
   name: 'OpenAI Codex CLI',
-  precedence: verified(
+  precedence: w1.verified(
     [PROJECT_CONFIG, { path: '~/.codex/*.config.toml', scope: 'user', format: 'toml' }, USER_CONFIG, SYSTEM_CONFIG_UNIX, SYSTEM_CONFIG_WINDOWS],
     CONFIG_BASIC,
-    `Between CLI flags and the built-in defaults, the closest .codex/config.toml wins, then a --profile file (only when selected), the user file, cloud-managed defaults (no local file), then the system file. Project layers load only for trusted projects. requirements.toml constrains all of them. The Windows path is from ${CONFIG_LOADER}. ${HOME_NOTE}`,
+    `Between CLI flags and the built-in defaults, the closest .codex/config.toml wins, then a --profile file (only when selected), the user file, cloud-managed defaults (no local file), then the system file. Project layers load only for trusted projects. requirements.toml constrains all of them. The Windows path is from ${CONFIG_LOADER}. ${HOME_NOTE} A project becomes trusted through projects."<path>".trust_level = "trusted" in the user config.toml (${DOCS}/config-file/config-reference.md), set by the onboarding prompt or /permissions (${APPROVALS}). Up to the stable 0.167.2, codex exec sends its working directory to the embedded app-server, and a thread/start with an explicit cwd saves trust for the project when the permission profile can write that folder (${STABLE}/app-server/src/request_processors/thread_processor.rs), so a writable exec run marks the project trusted. From 0.169.0-alpha.3 (on 2026-11-12 the newest is 0.170.0-alpha.2), codex exec gives that folder only as a default, keeps untrusted project configuration and MCP servers disabled with a warning, and saves trust only with --trust on codex exec or codex review (${ALPHA}/exec/src/cli.rs, ${ALPHA}/exec/src/lib.rs); the app-server rule stays for other clients. Read from code, not tested, and not described in the documentation (read on 2026-11-12).`,
   ),
   mcp: verified(
     {
@@ -65,7 +69,7 @@ export const codex: AgentKnowledge = {
   ),
   skills: disputed(
     'The documentation lists only .agents/skills roots, while the loader also scans .codex/skills next to each project config layer and the deprecated ~/.codex/skills. Scan every path of both variants. Codex follows symlinked skill folders.',
-    evidence(
+    w1.evidence(
       {
         directories: [
           { path: '**/.agents/skills', scope: 'project', format: 'markdown-frontmatter' },
@@ -77,7 +81,7 @@ export const codex: AgentKnowledge = {
       SKILLS,
       'Repository roots run from the working directory up to the repository root.',
     ),
-    evidence(
+    w1.evidence(
       {
         directories: [
           { path: '**/.agents/skills', scope: 'project', format: 'markdown-frontmatter' },

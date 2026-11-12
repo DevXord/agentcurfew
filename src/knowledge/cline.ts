@@ -1,10 +1,11 @@
 import { verifiedOn } from './define.ts';
 import type { AgentKnowledge, AgentPath, ContextFile } from './types.ts';
 
-const { verified, uncertain } = verifiedOn('2026-11-06');
+// Read again in knowledge review W1 (2026-11-12): the files cited under SOURCE are identical at ea16751 and 92b9f72.
+const { verified, uncertain } = verifiedOn('2026-11-12');
 
 const DOCS = 'https://docs.cline.bot';
-const SOURCE = 'https://github.com/cline/cline/blob/ea16751d6ae3ae1e443681994906bf29cbc45039';
+const SOURCE = 'https://github.com/cline/cline/blob/92b9f722a16d2a03c1153e12f9a0e759455f509d';
 
 const CONFIG_DOC = `${DOCS}/getting-started/config.md`;
 const RULES_DOC = `${DOCS}/customization/cline-rules.md`;
@@ -63,7 +64,7 @@ export const cline: AgentKnowledge = {
       commandField: null,
     },
     SDK_PATHS,
-    `Types: the file itself is the handler, so key and commandField are null, and plugins are listed here because a plugin is .js or .ts code that registers lifecycle hooks and loads from the workspace with no approval step found (${SOURCE}/sdk/packages/core/src/extensions/plugin/plugin-config-loader.ts filters only by the user's disabledPlugins). The lists are unions of two hosts. The SDK and CLI search all four hook folders and name events as in ${HOOK_FILE_CONFIG}: the file name is the event in any case, with no extension or .sh, .bash, .zsh, .js, .mjs, .cjs, .ts, .mts, .cts, .py or .ps1. The VS Code extension has its own list in ${SOURCE}/apps/vscode/src/core/hooks/utils.ts (with Notification, without TaskError and SessionShutdown), and its helpers name .clinerules/hooks and ~/Documents/Cline/Hooks, an exact event name on Unix and <event>.ps1 on Windows. The 2025 blog post's ~/Documents/Cline/Rules/Hooks and "macOS and Linux only" are out of date. CLINE_HOOKS_DIR and --hooks-dir add a folder. The hooksEnabled setting defaults to true; hooks are off in --yolo mode.`,
+    `Types: the file itself is the handler, so key and commandField are null, and plugins are listed here because a plugin is .js or .ts code that registers lifecycle hooks and loads from the workspace with no approval step found (${SOURCE}/sdk/packages/core/src/extensions/plugin/plugin-config-loader.ts filters only by the user's disabledPlugins). The lists are unions of two hosts. The SDK and CLI search all four hook folders and name events as in ${HOOK_FILE_CONFIG}: the file name is the event in any case, with no extension or .sh, .bash, .zsh, .js, .mjs, .cjs, .ts, .mts, .cts, .py or .ps1. The VS Code extension has its own list in ${SOURCE}/apps/vscode/src/core/hooks/utils.ts (with Notification, without TaskError and SessionShutdown), and its helpers name .clinerules/hooks and ~/Documents/Cline/Hooks, an exact event name on Unix and <event>.ps1 on Windows. The 2025 blog post's ~/Documents/Cline/Rules/Hooks and "macOS and Linux only" are out of date. CLINE_HOOKS_DIR and --hooks-dir add a folder. The hooksEnabled setting defaults to true.`,
   ),
   skills: verified(
     {
@@ -121,7 +122,7 @@ export const cline: AgentKnowledge = {
       commandField: 'prompt',
     },
     CRON_ARCHITECTURE,
-    `Types: the trigger is the file's presence, not a field; enabled defaults to true, so a spec that omits it runs, and the command is an agent prompt rather than a shell command. Read from code, never run. ${SOURCE}/sdk/packages/core/src/cron/specs/cron-spec-parser.ts defaults mode to yolo and requires prompt and workspaceRoot; ${SOURCE}/sdk/packages/core/src/cron/runner/cron-materializer.ts queues every enabled one-off spec; ${SOURCE}/sdk/packages/core/src/cron/runner/cron-runner.ts sets autoApprove on all tools. ARCHITECTURE.md says normal CLI and hub startup watches the workspace .cline/cron without opting in, but ${DOCS}/sdk/guides/scheduled-agents.md names only ~/.cline/cron, and the hub wiring itself was not read. Unknown: whether workspaceRoot must match the watched workspace, and whether a provider or anything else stops a fresh clone from running. Not checked for the VS Code extension. .cline/cron/reports holds generated reports. No field that starts a command on folder open was found. cron-reconciler.ts reads the global ~/.cline/cron by default; the workspace folder is used only when the host passes scope workspace (main at ea16751), which disagrees with ARCHITECTURE.md, so both folders stay listed.`,
+    `Types: the trigger is the file's presence, not a field; enabled defaults to true, so a spec that omits it runs, and the command is an agent prompt rather than a shell command. Read from code, never run. ${SOURCE}/sdk/packages/core/src/cron/specs/cron-spec-parser.ts defaults mode to yolo and requires prompt and workspaceRoot; ${SOURCE}/sdk/packages/core/src/cron/runner/cron-materializer.ts queues every enabled one-off spec; ${SOURCE}/sdk/packages/core/src/cron/runner/cron-runner.ts sets autoApprove on all tools. ARCHITECTURE.md says normal CLI and hub startup watches the workspace .cline/cron without opting in, but ${DOCS}/sdk/guides/scheduled-agents.md names only ~/.cline/cron, and the hub wiring itself was not read. Unknown: whether workspaceRoot must match the watched workspace, and whether a provider or anything else stops a fresh clone from running. Not checked for the VS Code extension. .cline/cron/reports holds generated reports. No field that starts a command on folder open was found. cron-reconciler.ts reads the global ~/.cline/cron by default; the workspace folder is used only when the host passes scope workspace (92b9f72), which disagrees with ARCHITECTURE.md, so both folders stay listed.`,
   ),
   extensions: verified(
     {

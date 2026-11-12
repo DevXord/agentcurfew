@@ -4,6 +4,8 @@ import type { AgentKnowledge, AgentPath, ContextFile, FileFormat } from './types
 const { verified, uncertain } = verifiedOn('2026-11-06');
 // Facts changed after the source audit of 2026-11-07, read again that day.
 const later = verifiedOn('2026-11-07');
+// Read again in knowledge review W1 (2026-11-12).
+const w1 = verifiedOn('2026-11-12');
 
 const MCP = 'https://cursor.com/docs/mcp';
 const HOOKS = 'https://cursor.com/docs/hooks';
@@ -18,6 +20,7 @@ const SANDBOX = 'https://cursor.com/docs/reference/sandbox';
 const RUN_MODES = 'https://cursor.com/docs/agent/security/run-modes';
 const SUBAGENTS = 'https://cursor.com/docs/subagents';
 const COMMANDS_CHANGELOG = 'https://cursor.com/changelog/1-6';
+const CUSTOMIZE = 'https://cursor.com/docs/customize-cursor';
 const AGENT_SECURITY = 'https://cursor.com/docs/agent/security';
 const WORKSPACE_TRUST = 'https://cursor.com/docs/enterprise/identity-and-access-management';
 const VSCODE_TASKS = 'https://code.visualstudio.com/docs/debugtest/tasks';
@@ -49,7 +52,7 @@ const CONTEXT_FILES: readonly ContextFile[] = [
 export const cursor: AgentKnowledge = {
   id: 'cursor',
   name: 'Cursor',
-  precedence: uncertain(
+  precedence: w1.uncertain(
     HOOK_FILES,
     THIRD_PARTY_HOOKS,
     `Cursor documents no single configuration order, only one per feature; this is the order for hooks, the only one that names files at every scope (team hooks sit between managed and project but live in the dashboard). Sandbox: per-user < per-repo < team-admin < hardcoded (${SANDBOX}). Permissions: team dashboard, then permissions.json, then IDE settings (${PERMISSIONS}). Rules: Team, Project, User (${RULES}). The CLI configuration page does not rank its files (${CLI_CONFIG}), and the MCP page does not say which file wins for a server defined in both (${MCP}).`,
@@ -161,7 +164,7 @@ export const cursor: AgentKnowledge = {
     PERMISSIONS,
     `Keys by file: permissions.json has mcpAllowlist, terminalAllowlist and autoRun; cli.json and cli-config.json have permissions.allow and permissions.deny (${CLI_PERMISSIONS}), where deny wins; only cli-config.json has approvalMode (allowlist, auto-review, unrestricted), since a project may set only permissions (${CLI_CONFIG}); sandbox.json has the rest (${SANDBOX}). permissions.json is JSONC. The bypass entries mean: mcpAllowlist containing *:* covers every MCP tool of every server; in cli.json, Mcp(*:*) allows all MCP tools and WebFetch(*) fetches from any domain, both "use with caution" (read on 2026-11-07); cli-config.json can also set sandbox.mode, sandbox.networkAccess and sandbox.readBoundary; type insecure_none in sandbox.json turns the sandbox off; networkPolicy.default allow permits all traffic. approvalMode unrestricted is left out because the page does not say it skips prompts, though it can only be set outside the repository anyway. The run mode itself is chosen in the app or the team dashboard, and no file is documented to select it (${RUN_MODES}). permissions.json works only while Run Mode is on, is ignored when a team configuration exists, and its autoRun lists are guidance for a classifier, not enforcement. CURSOR_CONFIG_DIR and XDG_CONFIG_HOME move cli-config.json.`,
   ),
-  autoRun: uncertain(
+  autoRun: w1.uncertain(
     {
       files: [project('.vscode/tasks.json', 'jsonc')],
       containerKey: 'tasks',
@@ -170,9 +173,9 @@ export const cursor: AgentKnowledge = {
       commandField: 'command',
     },
     AGENT_SECURITY,
-    `Cursor's own documentation never mentions tasks.json or folderOpen. This page says only that workspace trust "is disabled by default". The behavior comes from a third-party report, updated 2026-05-01, that folderOpen tasks run when a folder is opened (${OASIS_REPORT}); it is not an official source and was not tested. Field names are VS Code's (${VSCODE_TASKS}), and its setting task.allowAutomaticTasks may also apply. The format is written as jsonc from VS Code convention and was not read on either page. Cursor has a second, documented mechanism that this field cannot hold: a workspaceOpen hook, listed under hooks.`,
+    `Cursor's own documentation never mentions tasks.json or folderOpen. This page says only that Cursor supports workspace trust, "but it's disabled by default". The behavior comes from a third-party report, updated 2026-05-01, that folderOpen tasks run when a folder is opened (${OASIS_REPORT}); it is not an official source and was not tested. Field names are VS Code's (${VSCODE_TASKS}), and its setting task.allowAutomaticTasks may also apply. The format is written as jsonc from VS Code convention and was not read on either page. Cursor has a second, documented mechanism that this field cannot hold: a workspaceOpen hook, listed under hooks.`,
   ),
-  extensions: uncertain(
+  extensions: w1.uncertain(
     {
       subagents: [
         project('.cursor/agents/*.md', 'markdown-frontmatter'),
@@ -185,7 +188,7 @@ export const cursor: AgentKnowledge = {
       commands: [project('.cursor/commands/*.md', 'markdown')],
     },
     SUBAGENTS,
-    `Subagents are verified on this page: project wins over user for one name, and .cursor wins over .claude and .codex. Commands are the uncertain part: the project path comes only from a 2025 changelog (${COMMANDS_CHANGELOG}), and no current documentation page for them was found. Cursor's skills migration text confirms user-level commands exist, but their path was not read on an official page, so ~/.cursor/commands is left out. Commands may have frontmatter; the plugin reference documents that for plugins only.`,
+    `Subagents are verified on this page: project wins over user for one name, and .cursor wins over .claude and .codex. Commands are the uncertain part: the project path comes only from a 2025 changelog (${COMMANDS_CHANGELOG}), and no current documentation page for them was found. The Customize page describes commands as markdown files invoked with / at the user, team or workspace level (${CUSTOMIZE}), and the sandbox reference lists commands/ among the writable .cursor subfolders (${SANDBOX}); neither gives a full path, and the old commands pages redirect to the skills migration help (read on 2026-11-12). Cursor's skills migration text confirms user-level commands exist, but their path was not read on an official page, so ~/.cursor/commands is left out. Commands may have frontmatter; the plugin reference documents that for plugins only.`,
   ),
   deprecations: [
     verified(
