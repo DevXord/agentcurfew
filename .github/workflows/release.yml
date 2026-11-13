@@ -4,7 +4,7 @@ name: release
 # the package is staged on npm, where it goes live only after npm stage approve with 2FA. No npm token is stored: the
 # publish job authenticates with OIDC (trusted publishing). See docs/RELEASING.md.
 #
-# workflow_dispatch runs build and tarball-smoke as a dry run of the release gates, without publishing. GitHub only
+# workflow_dispatch runs build, tarball-install and tarball-smoke as a dry run of the release gates, without publishing. GitHub only
 # dispatches workflows that live on the default branch, so the dry run runs after the merge to main and before the tag.
 on:
   push:
@@ -96,8 +96,44 @@ jobs:
           path: ${{ steps.pack.outputs.tarball }}
           retention-days: 7
 
-  tarball-smoke:
+  tarball-install:
     needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: package
+      # Installed once with the pinned npm, outside the project, as a user would install the package (the project's
+      # .npmrc allow-file=none does not apply there). The Node.js matrix below only runs the installed CLI, so no job
+      # installs with the npm that an old Node.js bundles, which lacks the settings of the project's .npmrc.
+      - name: Install the tarball outside the project
+        env:
+          TARBALL: ${{ needs.build.outputs.tarball }}
+        run: |
+          dir="$RUNNER_TEMP/tarball-install"
+          mkdir -p "$dir"
+          echo '{"private":true}' > "$dir/package.json"
+          cp "$TARBALL" "$dir/"
+          (cd "$dir" && $NPM install --ignore-scripts --no-audit --no-fund --no-save "./$(basename "$TARBALL")")
+          echo "dir=$dir" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: installed
+          path: ${{ env.dir }}/node_modules
+          retention-days: 7
+
+  tarball-smoke:
+    needs: tarball-install
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -117,21 +153,14 @@ jobs:
           package-manager-cache: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: package
-      - name: Install the tarball outside the project (so .npmrc allow-file=none stays on it) and smoke-test it
-        env:
-          TARBALL: ${{ needs.build.outputs.tarball }}
-        run: |
-          dir="$RUNNER_TEMP/tarball-smoke"
-          mkdir -p "$dir"
-          echo '{"private":true}' > "$dir/package.json"
-          cp "$TARBALL" "$dir/"
-          (cd "$dir" && npm install --ignore-scripts --no-audit --no-fund --no-save "./$(basename "$TARBALL")")
-          scripts/smoke.sh "$dir/node_modules/agentcurfew/dist/cli.js"
+          name: installed
+          path: ${{ runner.temp }}/installed/node_modules
+      - name: Smoke-test the installed package
+        run: scripts/smoke.sh "$RUNNER_TEMP/installed/node_modules/agentcurfew/dist/cli.js"
 
   publish:
     needs: [build, tarball-smoke]
-    # workflow_dispatch exercises build + tarball-smoke only; a tag push is the only path that reaches publish.
+    # workflow_dispatch exercises build, tarball-install and tarball-smoke only; a tag push is the only path that reaches publish.
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
