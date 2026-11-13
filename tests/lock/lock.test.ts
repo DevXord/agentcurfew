@@ -377,6 +377,33 @@ describe('component ids in the lock', () => {
     lock.components[0]!.future = { anything: true };
     expect('lock' in parseLock(lock)).toBe(true);
   });
+
+  it('skips components whose server package ecosystem it does not know, with a note, and compares the rest', async () => {
+    const lock = JSON.parse(lockText()) as { components: Record<string, unknown>[] };
+    lock.components.push({
+      kind: 'mcp-server', file: 'x.mcp.json', name: 'x', agents: [], hash: 'a'.repeat(64),
+      server: { command: null, args: [], urls: [], env: [], headers: [], package: { ecosystem: 'nuget', name: 'Example.Package', version: '1.2.3' } },
+    });
+    expect(parseLock(lock)).toMatchObject({ lock: { unknownPackages: 1 } });
+    write('agentcurfew.lock', `${JSON.stringify(lock, null, 2)}\n`);
+    const { code, stdout } = await cli('verify', root);
+    expect(code).toBe(EXIT_OK);
+    expect(stdout).toContain('whose package ecosystem this version of agentcurfew does not know');
+    const json = JSON.parse((await cli('verify', root, '--json')).stdout) as { unknownPackages?: number; ok: boolean };
+    expect(json).toMatchObject({ ok: true, unknownPackages: 1 });
+    // Drift of the known kinds is still seen.
+    prependHook();
+    expect((await cli('verify', root)).code).toBe(EXIT_FAILURE);
+  });
+
+  it('rejects a lock whose server package ecosystem is not a bare lowercase slug', () => {
+    const lock = JSON.parse(lockText()) as { components: Record<string, unknown>[] };
+    lock.components.push({
+      kind: 'mcp-server', file: 'x.mcp.json', name: 'x', agents: [], hash: 'a'.repeat(64),
+      server: { command: null, args: [], urls: [], env: [], headers: [], package: { ecosystem: 'FooBar', name: 'x', version: null } },
+    });
+    expect('reason' in parseLock(lock)).toBe(true);
+  });
 });
 
 describe('a hostile or missing lock', () => {

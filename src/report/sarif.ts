@@ -6,6 +6,7 @@ import type { Finding, Level } from '../rules/types.ts';
 import { getVersion } from '../version.ts';
 
 const REPOSITORY = 'https://github.com/DevXord/agentcurfew';
+const SITE = 'https://agentcurfew.github.io';
 const SCHEMA = 'https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json';
 
 const SARIF_LEVEL: Readonly<Record<Level, 'error' | 'warning' | 'note'>> = { critical: 'error', high: 'error', medium: 'warning', low: 'note', info: 'note' };
@@ -77,7 +78,7 @@ export function toSarif(findings: readonly Finding[], suppressed: readonly Suppr
               shortDescription: { text: rule.title },
               fullDescription: { text: rule.description },
               help: { text: `${rule.fix}${rule.falsePositives === undefined ? '' : `\n\nFalse alarms: ${rule.falsePositives}`}` },
-              helpUri: `${REPOSITORY}/blob/main/docs/rules.md#${rule.id}`,
+              helpUri: `${SITE}/rules#${rule.id}`,
               defaultConfiguration: { level: SARIF_LEVEL[rule.level] },
               properties: { tags: ['security', ...rule.owasp.map((id) => `external/owasp-ast/${id.toLowerCase()}`)], 'security-severity': SEVERITY[rule.level], precision: rule.falsePositives === undefined ? 'high' : 'medium' },
             })),

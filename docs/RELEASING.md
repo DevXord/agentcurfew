@@ -19,18 +19,24 @@ Facts below come from npm's documentation sources (`npm/documentation`, `content
 7. **Documentation site.** Create the free GitHub organization `agentcurfew` and in it a public repository `agentcurfew.github.io` with the files of [`site/org-repo/`](../site/org-repo/) (its `README.md` and `.github/workflows/pages.yml`). In that repository's **Settings → Pages**, set **Source** to "GitHub Actions"; then run the workflow `pages` once (Actions → pages → Run workflow). Before the first release tag it builds from `main`. The site is then at https://agentcurfew.github.io/, the `homepage` of `package.json`.
 8. **Repository page.** In `DevXord/agentcurfew`, **About** (the gear beside it): description "One security policy for the files that steer your AI coding agents", website https://agentcurfew.github.io/, topics such as `security`, `ai-agents`, `mcp`, `claude-code`, `supply-chain`; in **Settings → General → Social preview**, upload [`site/social.png`](../site/social.png).
 
-## Every release
+## Every release (current flow since 1.1.0)
 
 1. Make sure CI on `main` is green, including `agentcurfew verify .` and `depcurfew doctor`.
-2. Write the user-facing notes in [CHANGELOG.md](../CHANGELOG.md).
-3. Set the version without creating a tag: `npm version <version> --no-git-tag-version`, update the welcome-screen snapshot (`tests/__snapshots__/cli-screens.test.ts.snap`, which shows the version), commit `package.json`, `package-lock.json`, the snapshot and `CHANGELOG.md`, and push.
-4. Tag that commit and push the tag: `git tag -s v<version> -m v<version> && git push origin v<version>` (or `git -c tag.gpgSign=false tag -a …` without a signing key).
-5. The workflow checks that the tag matches the version, runs the tests, packs the tarball and prints its SHA-256.
-6. Approve the job `publish` in GitHub (environment `npm`). It checks the tarball's SHA-256 and runs `npm stage publish`; nothing is public yet.
-7. Inspect the staged package: `npm stage list agentcurfew`, `npm stage view <id>`, `npm stage download <id>` (compare its SHA-256 with step 5).
-8. Approve it with 2FA: `npm stage approve <id>`, or the Approve button on npmjs.com.
-9. Check it: the package page on npmjs.com shows provenance from this repository and workflow; `npm audit signatures` in a project that installs it passes.
-10. Pin the GitHub Action in the README to the full commit SHA of the release; the action runs `agentcurfew@<version>` from npm from then on.
+2. Write the user-facing notes in [CHANGELOG.md](../CHANGELOG.md) under `## <version>`, with any end-user-facing changes under a `### Upgrading` subsection; leave `## [Unreleased]` above it empty.
+3. Set the version without creating a tag: `npm version <version> --no-git-tag-version`, commit `package.json`, `package-lock.json` and `CHANGELOG.md`, and push. The welcome-screen snapshot no longer carries the version, so step 3 does not touch it.
+4. **Dry-run the gates.** After the merge to `main`, run `release.yml` by hand (`gh workflow run release.yml --ref main`, or Actions → release → Run workflow). This runs `build`, `tarball-install` and `tarball-smoke` without `publish`. GitHub only dispatches workflows from the default branch, so this step runs after the merge, not before. Fix anything before tagging.
+5. Tag that commit and push the tag: `git tag -s v<version> -m v<version> && git push origin v<version>` (or `git -c tag.gpgSign=false tag -a …` without a signing key). The tag must match `v<major>.<minor>.<patch>`; the workflow refuses anything else.
+6. The workflow checks that HEAD is an ancestor of `origin/main`, that `## <version>` is the first release heading in `CHANGELOG.md`, that `## [Unreleased]` is empty, that the tag matches the version, runs `npm test`, `npm run typecheck`, `npm run check:pkg`, `npm run fuzz`, the built-CLI self-check (`scan`, `verify`, `doctor`) and the import allowlist for `dist/*.js`, then packs the tarball and installs it once outside the project with the pinned npm (the project's `.npmrc`, with `allow-file=none`, does not apply there) and smoke-tests the installed CLI on Node 20.0.0, 20, 22, 24 and 26.
+7. Approve the job `publish` in GitHub (environment `npm`). It checks the tarball's SHA-256 and runs `npm stage publish`; nothing is public yet. The job uses Node 24's bundled npm (≥ 11.15) and `id-token: write`, so no npm download is needed.
+8. **Wait for npm's automated review.** After `npm stage publish`, npm scans the tarball; `npm stage approve` returns `E409` until the review finishes (seen on 1.2.0). Refresh `npm stage list agentcurfew` until the staged row is ready, then inspect: `npm stage view <id>`, `npm stage download <id>` (compare its SHA-256 with step 6).
+9. Approve it with 2FA: `npm stage approve <id>`, or the Approve button on npmjs.com.
+10. **Rebuild the site.** The `pages` workflow in `agentcurfew/agentcurfew.github.io` builds from the latest release tag. GitHub Pages disables scheduled workflows in a public repository after 60 days of no activity (roughly 2027-01-06 for this one), so trigger it by hand after each release: `gh workflow run pages.yml --ref main --repo agentcurfew/agentcurfew.github.io` (or Actions → pages → Run workflow). A scheduled watcher in R2 will eventually keep the daily run alive.
+11. Check it: the package page on npmjs.com shows provenance from this repository and workflow; `npm audit signatures` in a project that installs it passes; the documentation site shows the new release.
+12. Pin the GitHub Action in the README to the full commit SHA of the release; the action runs `agentcurfew@<version>` from npm from then on. `gh api repos/DevXord/agentcurfew/releases/tags/v<version> --jq .target_commitish` prints the SHA.
+
+### Order of trusted-publisher changes
+
+When the trusted-publisher configuration changes (environment, workflow name, user/organisation), add the new configuration on a release day and publish within 2 days; npm expires an unused configuration after 2 days. Keep the old one in place until the new publish is confirmed, then remove it.
 
 ## The first release (1.0.0): published by hand
 

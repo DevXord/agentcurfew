@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
-import { join, sep } from 'node:path';
+import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { DEFAULT_LIMITS } from '../inventory/files.ts';
 import type { Component } from '../inventory/types.ts';
 import { parseConfig } from '../inventory/parse.ts';
@@ -355,6 +355,35 @@ export const stalePolicyEntry: DoctorCheck = {
 
 const CLAUDE_HOOKS = 'https://code.claude.com/docs/en/hooks';
 
+// Resolves the path a hook's `node … /dist/cli.js` runs, relative to the project root. Accepts the classic layout
+// (`node_modules/<tool>/dist/cli.js`) and depcurfew's tools-folder layout (`.claude/depcurfew/node_modules/depcurfew/dist/cli.js`),
+// read after `${CLAUDE_PROJECT_DIR}` / `$CLAUDE_PROJECT_DIR` / plain relative. Returns undefined when the path escapes the project
+// or walks through a symbolic link, so the check never reads outside the project.
+function hookScriptPath(line: string, tool: 'agentcurfew' | 'depcurfew', root: string): string | undefined {
+  // Capture the full path up to and including dist/cli.js, from any of the prefixes we support.
+  const pattern = new RegExp(String.raw`(?:\$\{?CLAUDE_PROJECT_DIR\}?[\\/])?((?:[^"'\s]+[\\/])?node_modules[\\/]${tool}[\\/]dist[\\/]cli\.js)`);
+  const match = pattern.exec(line);
+  if (match === null) return undefined;
+  const written = (match[1] as string).replaceAll('\\', '/');
+  if (isAbsolute(written)) return undefined;
+  const absolute = resolve(root, written);
+  const inside = relative(root, absolute);
+  if (inside === '' || inside.startsWith('..') || isAbsolute(inside)) return undefined;
+  // Walk the segments and refuse any symbolic link on the way in: no reads through links out of the project.
+  const parts = inside.split(/[\\/]/);
+  let current = root;
+  for (const part of parts) {
+    current = join(current, part);
+    try {
+      const stat = lstatSync(current);
+      if (stat.isSymbolicLink()) return undefined;
+    } catch {
+      // A missing segment is fine; existsSync below will see it.
+    }
+  }
+  return inside.split(sep).join('/');
+}
+
 export const agentcurfewHookMissing: DoctorCheck = {
   id: 'agentcurfew-hook-missing',
   title: 'The agentcurfew hook finds agentcurfew',
@@ -370,7 +399,7 @@ export const agentcurfewHookMissing: DoctorCheck = {
       .flatMap((component) => {
         const line = handlerLine(component);
         if (line === undefined || !isOwnHook(line)) return [];
-        const path = /(?:\$\{?CLAUDE_PROJECT_DIR\}?[\\/])?(node_modules[\\/]agentcurfew[\\/]dist[\\/]cli\.js)/.exec(line)?.[1];
+        const path = hookScriptPath(line, 'agentcurfew', context.root);
         if (path === undefined || existsSync(join(context.root, path))) return [];
         return [{ file: component.file, message: `the hook ${quote(component.name, 40)} runs ${path}, which does not exist in this project, so it checks nothing` }];
       });
@@ -409,7 +438,7 @@ export const depcurfewHookBroken: DoctorCheck = {
     return claudeHooks(context).flatMap((component) => {
       const line = handlerLine(component);
       if (line === undefined || !isDepcurfewHook(line)) return [];
-      const path = /(node_modules[\\/]depcurfew[\\/]dist[\\/]cli\.js)/.exec(line)?.[1];
+      const path = hookScriptPath(line, 'depcurfew', context.root);
       if (path === undefined || existsSync(join(context.root, path))) return [];
       const value = entryValue(component);
       const handler = isRecord(value) && isRecord(value.handler) ? value.handler : {};

@@ -1,9 +1,9 @@
-name: agentcurfew
-description: Check what steers AI coding agents in a repository (skills, MCP servers, hooks, context files, permissions) without running any of it.
+name: agentcurfew scan
+description: Check what steers AI coding agents in a repository (skills, MCP servers, hooks, context files, permissions) without running any of it. Pin this action at least as new as the agentcurfew version used in the project, so a new field or rule is not reported as unknown.
 author: DevXord
 branding:
   icon: shield
-  color: gray-dark
+  color: purple
 
 inputs:
   command:

@@ -4,6 +4,8 @@ import type { AgentKnowledge, AgentPath, ContextFile, ExtensionsKnowledge, McpKn
 const { verified, uncertain, disputed, evidence } = verifiedOn('2026-11-06');
 // Read on 2026-11-07, once docs.devin.ai could be reached from the session (Q-011).
 const later = verifiedOn('2026-11-07');
+// Read again in knowledge review W1 (2026-11-12).
+const w1 = verifiedOn('2026-11-12');
 
 // Windsurf was renamed Devin Desktop, and docs.windsurf.com redirects to docs.devin.ai, so these pages are its official documentation.
 const DOCS = 'https://docs.devin.ai';
@@ -20,6 +22,8 @@ const SUBAGENTS = `${DOCS}/cli/subagents.md`;
 const WORKFLOWS = `${DOCS}/desktop/cascade`;
 const CASCADE = `${DOCS}/desktop/cascade.md`;
 const CUSTOMIZATIONS = `${DOCS}/desktop/devin-local/customizations.md`;
+const DEVIN_MCP = `${DOCS}/work-with-devin/devin-mcp.md`;
+const JETBRAINS_MCP = `${DOCS}/windsurf/plugins/cascade/mcp.md`;
 const CONTROLS = `${DOCS}/desktop/controls`;
 const FAQ = `${DOCS}/desktop/devin-desktop-faq`;
 const VSCODE_TASKS = 'https://code.visualstudio.com/docs/debugtest/tasks';
@@ -102,9 +106,9 @@ export const windsurf: AgentKnowledge = {
     `Organization settings from the admin dashboard and session approvals rank above these files and have no file. In .devin/config.json only permissions, read_config_from and hooks are available. The older IDE settings live in VS Code-derived per-user directories and in the binary ~/.codeium/user_settings.pb (${FAQ}), which is not listed here.`,
   ),
   mcp: disputed(
-    `A project file exists now (${MCP}); which file wins for one server is not documented. Versions before v3000.3 kept servers under mcpServers in .devin/config.json, .devin/config.local.json and the user config.json, and newer ones migrate them on startup (same page, read on 2026-11-07), so those files are read too. Sources disagree on the legacy user file. read_config_from.windsurf defaults to true, and read_config_from also imports .mcp.json, .cursor/mcp.json and other tools' files; those belong to their own agents, except OpenCode's opencode.json and Zed's .zed/settings.json (key context_servers), which agentcurfew does not read yet, and ~/.claude/mcp_servers.json (${READ_CONFIG_FROM}, read on 2026-11-07). The docs read in phase 1 name url for remote servers and do not mention serverUrl, while a search summary of https://docs.windsurf.com/windsurf/cascade/mcp on 2026-11-06 (the page itself could not be fetched) says a remote server needs serverUrl or url; both are read. The field in legacy files could not be read from an official page.`,
-    later.evidence(mcpWith(CHANNELS.map((channel) => ({ path: `~/.codeium/${channel}/mcp_config.json`, scope: 'user', format: 'json' }))), READ_CONFIG_FROM),
-    later.evidence(mcpWith([{ path: '~/.codeium/mcp_config.json', scope: 'user', format: 'json' }]), FAQ),
+    `A project file exists now (${MCP}). Servers are merged by name and the higher level wins: the project local file, then the project file, then the user file, and a nested .devin folder beats its ancestors (${PRECEDENCE}); how servers imported through read_config_from rank is not documented. Versions before v3000.3 kept servers under mcpServers in .devin/config.json, .devin/config.local.json and the user config.json, and newer ones migrate them on startup (same page, read on 2026-11-07), so those files are read too. Sources disagree on the legacy user file; the Windsurf JetBrains plugin's MCP page names build-specific files, ~/.codeium/windsurf/mcp_config.json for stable and ~/.codeium/windsurf-next/mcp_config.json for Next, for the editor's MCP discovery (${JETBRAINS_MCP}), which supports the per-channel variant. read_config_from.windsurf defaults to true, and read_config_from also imports .mcp.json, .cursor/mcp.json and other tools' files; those belong to their own agents, except OpenCode's opencode.json and Zed's .zed/settings.json (key context_servers), which agentcurfew does not read yet, and ~/.claude/mcp_servers.json (${READ_CONFIG_FROM}, read on 2026-11-07). The CLI MCP page names only url for remote servers, while the Devin MCP page says "Devin Desktop accepts either serverUrl or url" (${DEVIN_MCP}); both are read. No page ties a field to the legacy ~/.codeium files. Read again on 2026-11-12.`,
+    w1.evidence(mcpWith(CHANNELS.map((channel) => ({ path: `~/.codeium/${channel}/mcp_config.json`, scope: 'user', format: 'json' }))), READ_CONFIG_FROM),
+    w1.evidence(mcpWith([{ path: '~/.codeium/mcp_config.json', scope: 'user', format: 'json' }]), FAQ),
   ),
   hooks: verified(
     {
@@ -178,7 +182,7 @@ export const windsurf: AgentKnowledge = {
     CONFIG_FILE,
     `permission_mode and local_tools_bypass_permissions are user-only; project files can set only permissions, read_config_from and hooks, so a repository cannot turn prompts off through them. The UI calls the mode Bypass, and the file value is dangerous. Deny and ask rules still apply under local_tools_bypass_permissions, and a deny always wins. Project files can set permissions, so a committed allow of the tool name exec ("Block all command execution" is its deny example; the tool names are read, edit, grep, glob and exec) or of mcp__* ("All MCP tools everywhere") lets those run without a prompt: "Allow rules — If matched, the action proceeds without prompting" (${PERMISSIONS}, read on 2026-11-07). The legacy Cascade command allow and deny lists are team settings (${CONTROLS}); no current page gives a file key for them.`,
   ),
-  autoRun: uncertain(
+  autoRun: w1.uncertain(
     {
       files: [{ path: '.vscode/tasks.json', scope: 'project', format: 'jsonc' }],
       containerKey: 'tasks',
@@ -190,9 +194,9 @@ export const windsurf: AgentKnowledge = {
     `Inferred from VS Code, not from Devin Desktop docs: the FAQ calls its data directory VS Code-derived and its docs say nothing about automatic tasks. In VS Code the task.allowAutomaticTasks setting gates them, and they never run in untrusted workspaces. Separately, Desktop documents devcontainer.json lifecycle commands, where initializeCommand runs on the host once the folder is trusted (${DOCS}/desktop/advanced).`,
   ),
   extensions: disputed(
-    `Sources disagree on whether workflows still run: the workflows page documents them and calls them Cascade-only, unsupported by Devin Local, while the changelog says v3.9.19 (2026-09-08) removed Cascade and Devin Local is the only agent (${DOCS}/desktop/changelog). The Cascade reference, read on 2026-11-07, sides with the changelog: "Devin Desktop no longer starts new Cascade conversations and no longer opens old ones" (${CASCADE}). Files may therefore be inert on current versions and live on older ones, so both are kept. Skills are invoked as /skill-name.`,
-    evidence(workflows, WORKFLOWS),
-    evidence({ subagents, commands: [] }, `${DOCS}/desktop/changelog`),
+    `The variants differ by version, not by source: workflows belong to the legacy Cascade agent, "Workflows are specific to Cascade" and Devin Local does not support them, and "Devin Desktop no longer starts new Cascade conversations and no longer opens old ones" (${CASCADE}); the changelog says v3.9.19 (2026-09-08) removed Cascade and Devin Local is the only agent (${DOCS}/desktop/changelog). Devin Local does not import Windsurf workflows as skills (${READ_CONFIG_FROM}). Workflow files are therefore inert from v3.9.19 and live on older versions, so both variants are kept (read again on 2026-11-12). Skills are invoked as /skill-name.`,
+    w1.evidence(workflows, WORKFLOWS),
+    w1.evidence({ subagents, commands: [] }, `${DOCS}/desktop/changelog`),
   ),
   // Each from a page that calls the path legacy or a fallback; the old paths are still read (Q-011).
   deprecations: [

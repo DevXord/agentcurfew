@@ -31,6 +31,8 @@ const SETTINGS_FILES: readonly AgentPath[] = [...SYSTEM_SETTINGS, PROJECT_SETTIN
 
 // Facts of phase 13, read on 2026-11-09.
 const phase13 = verifiedOn('2026-11-09');
+// Read again in knowledge review W1 (2026-11-12).
+const w1 = verifiedOn('2026-11-12');
 
 // Where a name from context.fileName is looked for; <name> stands for it.
 const CONTEXT_NAME_LOCATIONS: readonly ContextFile[] = [
@@ -109,10 +111,10 @@ export const geminiCli: AgentKnowledge = {
     CONFIGURATION,
     'YOLO cannot be set in a file: only --yolo or --approval-mode=yolo enable it. auto_edit approves edit tools only, and tools.allowed skips prompts per tool. Policy rules are [[rule]] tables, read through the key rule with toolName, decision, priority, commandPrefix, commandRegex and modes (docs/reference/policy-engine.md). .gemini/policies in a workspace has no effect, per the same page, so it is left out. tools.exclude is deprecated in favor of deny rules. security.autoAddToPolicyByDefault makes "Allow for all future sessions" the default choice for low-risk tools in trusted workspaces, and a user or admin [[rule]] with decision allow "is executed automatically without user interaction" (read on 2026-11-07); the arguments of a rule decide how wide it is, which agentcurfew does not judge. allowAllShell is inferred: docs/tools/shell.md says a bare run_shell_command in tools.core is a wildcard for any command not blocked, and this page says tools.core mirrors the matching of tools.allowed, which skips the confirmation.',
   ),
-  autoRun: uncertain(
+  autoRun: w1.uncertain(
     { files: SETTINGS_FILES, triggerKey: 'hooks.SessionStart', triggerValue: 'startup', commandField: 'command' },
     HOOKS,
-    'No documented file runs a command when a folder is opened. The closest is a SessionStart hook, which fires on startup, resume and /clear. hookRegistry.ts loads project hooks only in a trusted folder, and then warns once and marks them trusted, with no approval step. Which matcher strings SessionStart accepts is not documented, so startup as a value is the source field, not a confirmed matcher.',
+    `No documented file runs a command when a folder is opened. The closest is a SessionStart hook, which fires on startup, resume and /clear. hookRegistry.ts loads project hooks only in a trusted folder, and then warns once and marks them trusted, with no approval step. Read again on 2026-11-12: matchers of lifecycle events are "Exact Strings" and "*" or "" match all (${RAW}/docs/hooks/index.md), and hookPlanner.ts compares a SessionStart matcher with the source startup, resume or clear ("return matcher === trigger", ${RAW}/packages/core/src/hooks/hookPlanner.ts), so startup is a confirmed matcher.`,
   ),
   extensions: verified(
     {
@@ -133,14 +135,14 @@ export const geminiCli: AgentKnowledge = {
     `${RAW}/docs/hooks/index.md`,
     'Section on the environment of hooks: "GEMINI_PROJECT_DIR: The absolute path to the project root" and "CLAUDE_PROJECT_DIR: (Alias) Provided for compatibility." Hooks run "with a sanitized environment". Read on 2026-11-09.',
   ),
-  contextNames: phase13.disputed<ContextNamesKnowledge>(
+  contextNames: w1.disputed<ContextNamesKnowledge>(
     'The documentation says context.fileName lets one "specify a different name or a list of names", which reads as a replacement of GEMINI.md; the code adds the names to the current ones: config.ts calls setGeminiMdFilename(settings.context.fileName), which "Adds one or more filenames to the current context filenames" and keeps the default. agentcurfew reads GEMINI.md and the configured names, so that neither reading hides a file. Each name is trimmed, normalized and may hold subfolders (memoryTool.ts: "Sanitize to prevent path traversal while allowing subdirectories"); memoryDiscovery.ts looks for it in ~/.gemini, in the working directory and its parents up to the project root, and in subfolders. Workspace settings apply only in a trusted folder.',
-    phase13.evidence(
+    w1.evidence(
       { files: [PROJECT_SETTINGS, USER_SETTINGS, ...SYSTEM_SETTINGS, ...SYSTEM_DEFAULTS], key: 'context.fileName', replacesDefault: true, locations: CONTEXT_NAME_LOCATIONS },
       CONTEXT,
       'Section "Customize the context file name"; the configuration reference (docs/reference/configuration.md) calls it "The name of the context file or files to load into memory" and reads files from ~/.gemini/<configured-context-filename>.',
     ),
-    phase13.evidence(
+    w1.evidence(
       { files: [PROJECT_SETTINGS, USER_SETTINGS, ...SYSTEM_SETTINGS, ...SYSTEM_DEFAULTS], key: 'context.fileName', replacesDefault: false, locations: CONTEXT_NAME_LOCATIONS },
       `${RAW}/packages/core/src/tools/memoryTool.ts`,
       'setGeminiMdFilename merges the new names with getAllGeminiMdFilenames(), which starts as DEFAULT_CONTEXT_FILENAME (GEMINI.md); packages/cli/src/config/config.ts calls it when settings.context.fileName is set. Read at main on 2026-11-09.',

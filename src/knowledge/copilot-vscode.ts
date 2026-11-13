@@ -4,6 +4,8 @@ import type { AgentKnowledge, AgentPath, ContextFile, SkillsKnowledge } from './
 const { verified, uncertain, disputed, evidence } = verifiedOn('2026-11-06');
 // Facts changed after the source audit of 2026-11-07, read again that day.
 const later = verifiedOn('2026-11-07');
+// Read again in knowledge review W1 (2026-11-12).
+const w1 = verifiedOn('2026-11-12');
 
 const SETTINGS = 'https://code.visualstudio.com/docs/configure/settings';
 const MCP_REFERENCE = 'https://code.visualstudio.com/docs/agents/reference/mcp-configuration';
@@ -19,6 +21,8 @@ const AI_SETTINGS = 'https://code.visualstudio.com/docs/agents/reference/ai-sett
 const TASKS = 'https://code.visualstudio.com/docs/debugtest/tasks';
 const AGENTS = 'https://code.visualstudio.com/docs/agents/reference/custom-agent-file-reference';
 const PROMPTS = 'https://code.visualstudio.com/docs/agent-customization/prompt-files';
+const CLI_REFERENCE = 'https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference';
+const CLI_INSTRUCTIONS = 'https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-custom-instructions';
 
 const WORKSPACE_SETTINGS: AgentPath = { path: '.vscode/settings.json', scope: 'project', format: 'json' };
 const USER_SETTINGS: readonly AgentPath[] = [
@@ -100,11 +104,11 @@ export const copilotVscode: AgentKnowledge = {
     `Describes the Copilot harness; ${HOOKS_GUIDE} says the VS Code hooks experience is in Preview. A command hook may instead hold the command in bash or powershell. ~/.copilot/hooks moves to $COPILOT_HOME/hooks when that is set. The GitHub reference also lists machine-wide policy files (/etc/github-copilot/policy.d/*.json, C:\\ProgramData\\GitHub\\Copilot\\policy.d\\*.json), plugin hooks.json files and agent frontmatter, and marks exec, args and frontmatter hooks CLI only, while the VS Code guide says exec and args are available and describes agent-scoped hooks. The Local harness differs (${LOCAL_HOOKS}): events PreToolUse, PostToolUse, UserPromptSubmit, SessionStart, Stop, SubagentStart, SubagentStop and PreCompact; type must be command; command may be overridden by windows, linux or osx. chat.useHooks controls the Local harness only, chat.hookFilesLocations adds Local locations, and chat.useClaudeHooks is required for Claude settings files in Local sessions.`,
   ),
   skills: disputed<SkillsKnowledge | null>(
-    'The two pages disagree on whether the Copilot harness reads .agents/skills and ~/.agents/skills. Both variants hold the Copilot harness only: Local sessions also read .agents/skills, .claude/skills, ~/.agents/skills and ~/.claude/skills. The deprecated chat.agentSkillsLocations adds locations for Local sessions.',
-    evidence(skills(['.github/skills', '~/.copilot/skills']), SKILLS, 'Lists .agents/skills under the Codex harness, not under Copilot.'),
-    evidence(skills(['.github/skills', '.agents/skills', '~/.copilot/skills', '~/.agents/skills']), MIGRATE),
+    `The two pages disagree on whether the Copilot harness reads .agents/skills and ~/.agents/skills. Both variants hold the Copilot harness only: Local sessions also read .agents/skills, .claude/skills, ~/.agents/skills and ~/.claude/skills. The deprecated chat.agentSkillsLocations adds locations for Local sessions. Read again on 2026-11-12: the skills page now calls its table "a supported project and personal location for each harness, not every directory it recognizes", the migration page says "VS Code and GitHub Copilot CLI read the same Copilot customization files", and the Copilot CLI reference loads skills from .github/skills, .agents/skills and .claude/skills in the project and ~/.copilot/skills and ~/.agents/skills in the home folder (${CLI_REFERENCE}), which favors the second variant. The Local harness is deprecated and will be removed in February 2027.`,
+    w1.evidence(skills(['.github/skills', '~/.copilot/skills']), SKILLS, 'Lists .agents/skills under the Codex harness, not under Copilot.'),
+    w1.evidence(skills(['.github/skills', '.agents/skills', '~/.copilot/skills', '~/.agents/skills']), MIGRATE),
   ),
-  contextFiles: later.verified(
+  contextFiles: w1.verified(
     [
       context('.github/copilot-instructions.md', 'markdown', 'always'),
       context('AGENTS.md', 'markdown', 'always'),
@@ -121,9 +125,9 @@ export const copilotVscode: AgentKnowledge = {
       context('~/.codex/AGENTS.md', 'markdown', 'always'),
     ],
     INSTRUCTIONS,
-    'The union of the Copilot, Local, Claude and Codex harnesses of VS Code, since the harness is chosen per session. The reference table does not label activation; loading is read from its descriptions and the custom instructions guide. A .claude/rules file without paths applies generally. Whether .claude/rules is searched recursively is not stated. ~/.codex is the default Codex home. GEMINI.md is not mentioned. Local gating settings, in the AI settings reference: github.copilot.chat.codeGeneration.useInstructionFiles, chat.useAgentsMdFile, chat.useNestedAgentsMdFiles (off by default), chat.useClaudeMdFile, chat.includeApplyingInstructions, chat.instructionsFilesLocations. Local user instructions live in the profile, with no path given.',
+    'The union of the Copilot, Local, Claude and Codex harnesses of VS Code, since the harness is chosen per session. The reference table does not label activation; loading is read from its descriptions and the custom instructions guide. A .claude/rules file without paths applies generally. ~/.codex is the default Codex home. Neither VS Code page names GEMINI.md or says whether .claude/rules is searched recursively, but the reference points to the Copilot instruction locations, which list GEMINI.md (${CLI_INSTRUCTIONS}), and the Copilot CLI reference reads GEMINI.md and .claude/rules/**/*.md "In Git root and cwd" (${CLI_REFERENCE}); this fact does not list them yet, and the scan of the Copilot runtime\'s files comes with agentcurfew 1.6.0-a (read on 2026-11-12). Local gating settings, in the AI settings reference: github.copilot.chat.codeGeneration.useInstructionFiles, chat.useAgentsMdFile, chat.useNestedAgentsMdFiles (off by default), chat.useClaudeMdFile, chat.includeApplyingInstructions, chat.instructionsFilesLocations. Local user instructions live in the profile, with no path given.',
   ),
-  permissions: later.uncertain(
+  permissions: w1.uncertain(
     {
       files: [WORKSPACE_SETTINGS, { path: '.vscode/mcp.json', scope: 'project', format: 'json' }, ...USER_SETTINGS],
       keys: [
@@ -151,7 +155,7 @@ export const copilotVscode: AgentKnowledge = {
       ],
     },
     APPROVALS,
-    `The keys and values are documented here and in ${AI_SETTINGS}, as flat setting names, not nested paths. Not settled: whether each works from .vscode/settings.json. Neither page states a scope, and the security page advises only against granting permissions at workspace level. Issue reports on microsoft/vscode conflict, so .vscode/settings.json is listed so that a scanner still looks there. chat.permissions.default is experimental; the page lists its values as default, autoApprove and autopilot. chat.tools.edits.autoApprove appears in the settings reference, not on the approvals page. Read on 2026-11-07: in .vscode/mcp.json a server with sandboxEnabled true has its tool confirmations "auto-approved because the server runs in a controlled environment" (${MCP_REFERENCE}); task.allowAutomaticTasks on runs automatic tasks "when opening a trusted workspace, without prompting", and the tasks page says to "add it to your user or workspace settings" (${TASKS}).`,
+    `The keys and values are documented here and in ${AI_SETTINGS}, as flat setting names, not nested paths. Not settled: whether each works from .vscode/settings.json. Neither page states a scope, and the security page advises only against granting permissions at workspace level. Issue reports on microsoft/vscode conflict, so .vscode/settings.json is listed so that a scanner still looks there. The settings reference lists the values of chat.permissions.default as default, autoApprove and autopilot (Preview). chat.tools.edits.autoApprove appears in the settings reference, not on the approvals page. For Copilot harness sessions, terminal and URL approvals sync from user settings to the local Agent Host, and "Workspace settings are not copied"; Local harness sessions keep their approval options. Read again on 2026-11-12: in .vscode/mcp.json, "In Local harness sessions, editor-sandboxed MCP tools are auto-approved. This does not describe the Copilot harness's approval behavior" (${MCP_REFERENCE}); task.allowAutomaticTasks on runs automatic tasks "when opening a trusted workspace, without prompting", and the tasks page says to "add it to your user or workspace settings" (${TASKS}).`,
   ),
   autoRun: later.verified(
     {

@@ -1,4 +1,5 @@
 import schema from '../../schema.json' with { type: 'json' };
+import { newerVersionField, newerVersionValue } from '../text/newer-version.ts';
 import type { Policy, PolicyIssue } from './types.ts';
 
 /** The part of JSON Schema that schema.json uses; the validator reads schema.json itself, so the two cannot drift. */
@@ -59,7 +60,12 @@ function check(node: Schema, value: unknown, path: string, issues: PolicyIssue[]
     return;
   }
   if (node.enum !== undefined && !node.enum.includes(value)) {
-    issues.push({ path, message: `expected one of ${node.enum.map((item) => JSON.stringify(item)).join(', ')}` });
+    if (typeof value === 'string') {
+      const strings = node.enum.filter((item): item is string => typeof item === 'string');
+      issues.push({ path, message: newerVersionValue(value, strings) });
+    } else {
+      issues.push({ path, message: `expected one of ${node.enum.map((item) => JSON.stringify(item)).join(', ')}` });
+    }
     return;
   }
   if (typeof value === 'string') {
@@ -78,7 +84,10 @@ function check(node: Schema, value: unknown, path: string, issues: PolicyIssue[]
     for (const [name, item] of Object.entries(record)) {
       const inner = node.properties !== undefined && Object.hasOwn(node.properties, name) ? node.properties[name] : undefined;
       if (inner === undefined) {
-        if (node.additionalProperties === false) issues.push({ path: `${path}.${name}`, message: 'is not a known setting' });
+        if (node.additionalProperties === false) {
+          const candidates = node.properties !== undefined ? Object.keys(node.properties) : [];
+          issues.push({ path: `${path}.${name}`, message: newerVersionField(name, candidates) });
+        }
         continue;
       }
       check(inner, item, `${path}.${name}`, issues);

@@ -8,6 +8,7 @@ import { checks } from '../../src/doctor/checks.ts';
 import { runDoctor } from '../../src/doctor/index.ts';
 import { renderDoctor } from '../../src/doctor/render.ts';
 import { rules } from '../../src/rules/index.ts';
+import { getVersion } from '../../src/version.ts';
 
 const fixture = (path: string) => fileURLToPath(new URL(`../fixtures/doctor/${path}`, import.meta.url));
 
@@ -18,12 +19,14 @@ function hits(path: string, id: string): string[] {
 }
 
 // Written by hand from each check's description.
+const NEWER = `is not a known value in agentcurfew ${getVersion()}; this file may have been written by a newer agentcurfew (upgrade, or remove it).`;
+const NEWER_FIELD = `is not a known setting in agentcurfew ${getVersion()}; this file may have been written by a newer agentcurfew (upgrade, or remove it).`;
 const POSITIVE: Readonly<Record<string, readonly string[]>> = {
   'invalid-policy': [
-    `error | agentcurfew.policy.json | policy.exceptions[0].rule: expected one of ${rules.map((rule) => `"${rule.id}"`).join(', ')}`,
+    `error | agentcurfew.policy.json | policy.exceptions[0].rule: "Bad Rule" ${NEWER}`,
     'error | agentcurfew.policy.json | policy.exceptions[0].until: expected a date written YYYY-MM-DD',
     'error | agentcurfew.policy.json | policy.mcp.allowServers[1]: expected a string, got a number',
-    'error | agentcurfew.policy.json | policy.unknown: is not a known setting',
+    `error | agentcurfew.policy.json | policy.unknown: ${NEWER_FIELD}`,
   ],
   'unparsable-config': ['error | .claude/skills/x/SKILL.md | could not be parsed, so nothing in it was read', 'error | .mcp.json | could not be parsed, so nothing in it was read'],
   'misnamed-file': [
@@ -118,6 +121,81 @@ describe('doctor and links', () => {
       if (check === undefined) throw new Error('wrong-servers-key');
       const found = runDoctor(join(base, 'project'), { only: [check] }).results.flatMap((result) => result.hits);
       expect(found).toEqual([]);
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('tools-folder layout (depcurfew 1.3.0+)', () => {
+  function project(name: string, hookArg: string): { base: string; root: string } {
+    const base = mkdtempSync(join(tmpdir(), `acf-doctor-${name}-`));
+    const root = join(base, 'project');
+    mkdirSync(join(root, '.claude'), { recursive: true });
+    writeFileSync(
+      join(root, '.claude/settings.json'),
+      JSON.stringify({
+        hooks: {
+          PreToolUse: [{
+            matcher: 'Bash|PowerShell|Monitor',
+            hooks: [{ type: 'command', command: 'node', args: [hookArg, 'check', '--hook', 'claude-code'], onFailure: 'block' }],
+          }],
+        },
+      }, null, 2),
+    );
+    return { base, root };
+  }
+
+  function hits(root: string, id: string): string[] {
+    const check = checks.find((candidate) => candidate.id === id);
+    if (check === undefined) throw new Error(id);
+    return runDoctor(root, { only: [check] }).results.flatMap((result) => result.hits.map((hit) => `${hit.level} | ${hit.file} | ${hit.message}`));
+  }
+
+  it('accepts depcurfew installed under .claude/depcurfew/node_modules (the README of depcurfew)', () => {
+    const { base, root } = project('tools-folder-ok', '${CLAUDE_PROJECT_DIR}/.claude/depcurfew/node_modules/depcurfew/dist/cli.js');
+    try {
+      mkdirSync(join(root, '.claude/depcurfew/node_modules/depcurfew/dist'), { recursive: true });
+      writeFileSync(join(root, '.claude/depcurfew/node_modules/depcurfew/dist/cli.js'), '// stub');
+      expect(hits(root, 'depcurfew-hook-broken')).toEqual([]);
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
+  });
+
+  it('reports the tools-folder layout as missing when the file is not there', () => {
+    const { base, root } = project('tools-folder-missing', '${CLAUDE_PROJECT_DIR}/.claude/depcurfew/node_modules/depcurfew/dist/cli.js');
+    try {
+      const found = hits(root, 'depcurfew-hook-broken');
+      expect(found).toHaveLength(1);
+      expect(found[0]).toContain('.claude/depcurfew/node_modules/depcurfew/dist/cli.js');
+      expect(found[0]).toContain('does not exist');
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses a hook that would resolve outside the project', () => {
+    const { base, root } = project('tools-folder-escape', '${CLAUDE_PROJECT_DIR}/../x/node_modules/depcurfew/dist/cli.js');
+    try {
+      // The path escapes the project; we must not probe or claim it.
+      expect(hits(root, 'depcurfew-hook-broken')).toEqual([]);
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
+  });
+
+  it('accepts the agentcurfew hook under the same layout for agentcurfew-hook-missing', () => {
+    const { base, root } = project('agentcurfew-tools-folder', '${CLAUDE_PROJECT_DIR}/.claude/agentcurfew/node_modules/agentcurfew/dist/cli.js');
+    try {
+      mkdirSync(join(root, '.claude/agentcurfew/node_modules/agentcurfew/dist'), { recursive: true });
+      writeFileSync(join(root, '.claude/agentcurfew/node_modules/agentcurfew/dist/cli.js'), '// stub');
+      // Rewrite handler to call `hook` rather than `check --hook claude-code`, so isOwnHook() matches.
+      const settingsPath = join(root, '.claude/settings.json');
+      const settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as { hooks: { PreToolUse: { hooks: { args: string[] }[] }[] } };
+      settings.hooks.PreToolUse[0]!.hooks[0]!.args = ['${CLAUDE_PROJECT_DIR}/.claude/agentcurfew/node_modules/agentcurfew/dist/cli.js', 'hook'];
+      writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+      expect(hits(root, 'agentcurfew-hook-missing')).toEqual([]);
     } finally {
       rmSync(base, { recursive: true, force: true });
     }

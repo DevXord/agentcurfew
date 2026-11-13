@@ -9,11 +9,17 @@ import { materialize } from './rules/materialize.ts';
 
 const repo = (name: string) => fileURLToPath(new URL(`fixtures/repos/${name}`, import.meta.url));
 
+// The welcome and version strings carry the running package version; replace it so the snapshot does not pin a tag.
+const VERSION = /\bagentcurfew (?:\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?|0\.0\.0-stage)\b/g;
+
 async function screen(argv: readonly string[], options: { color?: boolean; root?: string } = {}): Promise<string> {
   let stdout = '';
   let stderr = '';
   const code = await run([...argv], { stdout: (text) => (stdout += text), stderr: (text) => (stderr += text), ...(options.color === undefined ? {} : { color: options.color }) });
-  const text = `$ agentcurfew ${argv.join(' ')}\n[exit ${code}]\n${stdout}${stderr === '' ? '' : `[stderr]\n${stderr}`}`;
+  const raw = `$ agentcurfew ${argv.join(' ')}\n[exit ${code}]\n${stdout}${stderr === '' ? '' : `[stderr]\n${stderr}`}`;
+  // Keep the command-line prefix as typed; only replace agentcurfew X.Y.Z in body text.
+  const body = raw.slice(`$ agentcurfew ${argv.join(' ')}\n[exit ${code}]\n`.length).replace(VERSION, 'agentcurfew <version>');
+  const text = `$ agentcurfew ${argv.join(' ')}\n[exit ${code}]\n${body}`;
   return options.root === undefined ? text : text.replaceAll(options.root, '<project>');
 }
 

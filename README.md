@@ -67,6 +67,15 @@ A clean scan means that none of the rules' patterns was found, not that the conf
 
 `agentcurfew init --hook` adds a `PreToolUse` hook to `.claude/settings.json` (for `Bash`, `PowerShell`, `Monitor`, `Write`, `Edit` and `NotebookEdit`), next to depcurfew's hook if there is one. Writes to the files that steer agents ask first, and are denied when the new text has a finding at high or above or breaks the policy; `npx skills add` and `claude mcp add` are denied outside the policy, and so are writes that switch off depcurfew's or its own hook. The hook never allows anything by itself. See [docs/mcp.md](docs/mcp.md).
 
+A user-installed Claude Code mod can approve a call that the hook denies, unless the built-in guard loads (managed settings, `managed-mcp.json`, or a Team/Enterprise `/login` session). On individual accounts, pair the hook with the review and protections below.
+
+## Required review and the lock
+
+The policy, the lock and the hook travel together, so a pull request can change all three in one commit. Protect them:
+
+- A `CODEOWNERS` entry that requires a named reviewer for `**/CLAUDE.md`, `**/.claude/**`, `**/.mcp.json`, `**/AGENTS.md`, `agentcurfew.policy.json` and `agentcurfew.lock`, and a branch-protection rule that enforces it.
+- `agentcurfew.lock` also records ignored and local skill and context files with the hash of their text, so a secret pasted into a skill folder lands in the lock. Keep secrets out of skill folders and review `agentcurfew.lock` before committing it.
+
 ## With depcurfew
 
 agentcurfew protects what configures the agent; [depcurfew](https://github.com/DevXord/depcurfew) protects the packages the project and the agent install. Together:
@@ -93,6 +102,8 @@ steps:
 ```
 
 Inputs: `command`, `directory`, `fail-on`, `sarif-file`, `upload-sarif` (needs `security-events: write`) and `build-from-source` (for tests of the action itself). Output: `exit-code`. A released commit runs the matching version of agentcurfew from npm, so pin the commit of a release tag: a later commit of `main` still runs the last released version. The action does not install depcurfew, so `mcp-package` does not run in it; `scan` then says so in a note. How releases are made: [docs/RELEASING.md](docs/RELEASING.md).
+
+Pin the action at least as new as the agentcurfew version used in the project, so a new field or rule is not reported as unknown. To find the commit of a release tag: `gh api repos/DevXord/agentcurfew/releases/tags/v<version> --jq .target_commitish`, or copy it from the release page on GitHub. `actions/setup-node` in the action switches the `PATH` to Node 24 for the rest of the job; steps that need another Node run before the action, or in a separate job (a smaller fix is planned for 1.7.0-b).
 
 ## Development
 
